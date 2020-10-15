@@ -1,0 +1,16 @@
+import "../source/span";
+
+type ItemKind enum {
+
+}
+
+// a single item inside the ast
+type Item struct {
+    kind: ItemKind,
+    span: span.Span,
+    data: ItemData
+}
+
+type ItemData union {
+
+}

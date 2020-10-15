@@ -3,7 +3,8 @@ import "../dbg";
 import "../libc";
 import "../cdeps";
 
-import "impl";
+// TODO: this must be platform dependent
+import "unix" as impl;
 
 type Path struct {
     len: usize,
@@ -14,7 +15,11 @@ def empty(): Path {
     return Path { len: 0, inner: null };
 }
 
-def create(value: string, len: usize): Path {
+def create(value: string): Path {
+    return create_l(value, libc.strlen(value));
+}
+
+def create_l(value: string, len: usize): Path {
     return Path { len: len, inner: value };
 }
 
@@ -27,6 +32,10 @@ def (p: *Path) ends_with(s: string): bool {
     return libc.strncmp(p.inner + (p.len - len), s, len) == 0;
 }
 
+def (p: *Path) is_abs(): bool {
+    return impl.is_abs(p);
+}
+
 def (p: *Path) parent(): Path {
     if impl.is_root(p) {
         return *p;
@@ -34,7 +43,7 @@ def (p: *Path) parent(): Path {
 
     let lsp = impl.last_separator_ptr(p);
     if lsp != null {
-        return create(p.inner, (lsp - p.inner + 1) as usize);
+        return create_l(p.inner, (lsp - p.inner + 1) as usize);
     }
 
     return *p;
@@ -59,6 +68,10 @@ def (p: *Path) to_string(): str.String {
     return str.from_l(p.inner, p.len);
 }
 
+def (p: *Path) as_view(): str.View {
+    return str.view(p.inner, p.len);
+}
+
 type Buf struct {
     inner: str.String
 }
@@ -69,12 +82,22 @@ def create_buf(path: string): Buf {
     };
 }
 
+def move_buf(path: string): Buf {
+    return Buf {
+        inner: str.move_l(path, libc.strlen(path))
+    };
+}
+
+def get_cwd(): Buf {
+    return impl.get_cwd();
+}
+
 def (path: *Path) to_buf(): Buf {
     return Buf { inner: str.from_l(path.inner, path.len) };
 }
 
 def (b: *Buf) as_path(): Path {
-    return create(b.inner.cstring(), b.inner.len());
+    return create_l(b.inner.cstring(), b.inner.len());
 }
 
 def (b: *Buf) free() {
@@ -101,12 +124,14 @@ def (base: *Path) merge_abs_rel_suffix(child: *Path, suffix: string, dest: *Buf)
     }
 
     let combined: string = null;
+    defer delete combined;
+
     if suffix != null {
         combined = cdeps.format_str(
             "%.*s%c%.*s%s",
             base.len,
             base.inner,
-            impl.system_separator(),
+            impl.get_separator(),
             child.len,
             child.inner,
             suffix
@@ -116,20 +141,18 @@ def (base: *Path) merge_abs_rel_suffix(child: *Path, suffix: string, dest: *Buf)
             "%.*s%c%.*s",
             base.len,
             base.inner,
-            impl.system_separator(),
+            impl.get_separator(),
             child.len,
             child.inner
         );
     }
 
-    let pb = create_buf(combined);
-    defer pb.free();
-
+    // combined will be freed by the defer delete above
+    let pb = move_buf(combined);
     let as_path = pb.as_path();
-    let ret_val = impl.canonicalize(&as_path, &pb);
 
+    let ret_val = impl.canonicalize(&as_path, &pb);
     if ret_val != Error.OK {
-        pb.free();
         return ret_val;
     }
 
@@ -151,24 +174,25 @@ def common_parent(first: Path, second: Path): Buf {
         smaller_len = second.len;
     }
 
-    // TODO(#69): on windows paths start with a drive letter, so we need to adjust
-    //  the code to handle this
+    // TODO: on windows paths start with a drive letter, so we need to adjust
+    //  the code to handle this. It would probably be sufficient, to just allow files on the same
+    //  drive => just check the first letter of the absolute path
     let last_separator: usize = 0;
     for let i: usize = 0; i < smaller_len; i += 1 {
         let ptr = first.inner + i;
 
         if *ptr != *(second.inner + i) {
             let len = last_separator + 1;
-            return create(first.inner, len).to_buf();
+            return create_l(first.inner, len).to_buf();
         }
 
-        if *ptr == impl.system_separator() {
+        if *ptr == impl.get_separator() {
             last_separator = i;
         }
     }
 
     // both paths are either identical or one is a subpath of the other one
-    return create(first.inner, smaller_len).to_buf();
+    return create_l(first.inner, smaller_len).to_buf();
 }
 
 type Error enum {
@@ -177,4 +201,39 @@ type Error enum {
     CouldNotOpenFile,
     CouldNotAllocateFileBuffer,
     CouldNotReadFile
+}
+
+def (e: Error) is_ok(): bool {
+    return e == Error.OK;
+}
+
+def (e: Error) is_error(): bool {
+    return e != Error.OK;
+}
+
+def (e: Error) to_string(filename: Path): str.String {
+    if e == Error.OK {
+        return str.from("");
+    }
+
+    if e == Error.CouldNotAllocateFileBuffer {
+        // this only works, if the string is less than 22 bytes long, since the small string
+        // optimization will trigger
+        return str.from("out of memory");
+    }
+
+    if e == Error.FileNotFound {
+        return str.from("file not found");
+    }
+
+    if e == Error.CouldNotOpenFile {
+        return str.from("could not open file");
+    }
+
+    if e == Error.CouldNotReadFile {
+        return str.from("error while reading file");
+    }
+
+    dbg.unreachable();
+    return undefined;
 }

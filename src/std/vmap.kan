@@ -2,8 +2,6 @@ import "map";
 import "vec";
 import "cdeps";
 
-import "../source/ident";
-
 type Map struct {
     mappings: map.Map, // map.Map<Key, usize (index into values)>
     values: vec.Vec
@@ -11,10 +9,6 @@ type Map struct {
 
 def create_key(len: usize, value: string): map.Key {
     return map.create_key(len, value);
-}
-
-def key_from_ident(i: *ident.Ident): map.Key {
-    return map.key_from_ident(i);
 }
 
 def create(elem_size: usize): Map {

@@ -1,10 +1,12 @@
+import "../std/dbg";
 import "../std/libc";
 import "../std/ptrvec";
 
+let region_size: usize = 4096;
 type Region struct {
     next: *Region,
     len: usize,
-    data: [1024]u8
+    data: [4096]u8
 }
 
 def region(): *Region {
@@ -20,7 +22,11 @@ type TypedArena struct {
     last: *Region
 }
 
-def typed_arena(elem_size: usize): TypedArena {
+def typed(elem_size: usize): TypedArena {
+    // this number is rather arbitrary, however an arena which cannot hold at least 8 items seems
+    // kinda useless
+    dbg.assert_fmt(elem_size * 8 < region_size, "arena cannot hold 8 items: %zu", elem_size * 8);
+
     let first = region();
 
     return TypedArena {
@@ -31,7 +37,7 @@ def typed_arena(elem_size: usize): TypedArena {
 }
 
 def (a: *TypedArena) alloc(): *void {
-    if a.last.len + a.elem_size > 1024 {
+    if a.last.len + a.elem_size > region_size {
         let new_region = region();
         a.last.next = new_region;
         a.last = new_region;

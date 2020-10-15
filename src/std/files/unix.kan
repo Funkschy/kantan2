@@ -1,21 +1,12 @@
-import "impl";
 import "path";
 
+import "../str";
 import "../libc";
 
 let system_separator: i8  = 47; // '/'
 
 extern def getcwd(buf: string, buf_size: usize): string;
 extern def realpath(path: string, resolved: string): string;
-
-def init_impl(impl_functions: *[5]*void) {
-    (*impl_functions)[impl.PathMethods.LastSeparatorPtr as i32] = &last_separator_ptr as *void;
-    (*impl_functions)[impl.PathMethods.IsAbs as i32] = &is_abs as *void;
-    (*impl_functions)[impl.PathMethods.IsRoot as i32] = &is_root as *void;
-    (*impl_functions)[impl.PathMethods.Canonicalize as i32] = &canonicalize as *void;
-    (*impl_functions)[impl.PathMethods.GetCwd as i32] = &get_cwd as *void;
-    (*impl_functions)[impl.PathMethods.SystemSeparator as i32] = &get_separator as *void;
-}
 
 def get_separator(): i8 {
     return system_separator;
@@ -41,30 +32,33 @@ def is_root(p: *path.Path): bool {
     return is_abs(p) && libc.strlen(p.inner) == 1;
 }
 
-//  this functions uses the posix only "realpath" function
+// this functions uses the posix only "realpath" function
 // this function resolves stuff like .. or . in place
+//
+// this only works, if the files does actually exist!
 def canonicalize(p: *path.Path, dest: *path.Buf): path.Error {
-    let buf = libc.strndup(p.inner, p.len);
-    let real = realpath(buf, null);
-    delete buf;
+    let buf = str.from_l(p.inner, p.len);
+    defer buf.free();
 
+    let real = realpath(buf.cstring(), null);
     if real == null {
-        return path.Error.CouldNotOpenFile;
+        return path.Error.FileNotFound;
     }
 
-    *dest = path.create_buf(real);
+    *dest = path.move_buf(real);
     return path.Error.OK;
 }
 
+// this is not thread safe, but since this will only be called once, we might aswell make this
+// memory static
+let buf: [512]i8 = undefined;
 def get_cwd(): path.Buf {
-    let buf_size: usize = 255;
-    let buf = libc.malloc(buf_size * sizeof i8) as string;
+    let buf_size: usize = 512;
 
-    if getcwd(buf, buf_size) == null {
-        delete buf;
+    if getcwd(&buf[0], buf_size) == null {
         return path.empty().to_buf();
     }
 
-    return path.create_buf(buf);
+    return path.create_buf(&buf[0]);
 }
 

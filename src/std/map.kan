@@ -2,9 +2,6 @@ import "io";
 import "num";
 import "libc";
 
-import "../source/ident";
-import "../source/span";
-
 let hash_num: usize = 65599;
 
 type Map struct {
@@ -40,15 +37,6 @@ type Key struct {
 
 def create_key(len: usize, value: string): Key {
     return Key { len: len, value: value };
-}
-
-def key_from_ident(i: *ident.Ident): Key {
-    return create_key(ident.len(i), ident.start(i));
-}
-
-def (k: Key) as_ident(): ident.Ident {
-    let span = span.create(k.value, k.value + k.len);
-    return ident.from_span(span);
 }
 
 type Item struct {

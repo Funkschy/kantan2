@@ -1,0 +1,34 @@
+import "../std/map";
+import "../std/files/path";
+
+import "../ast/mod";
+
+import "../util";
+
+import "file" as sf; // source/file
+
+type Map struct {
+    files: map.Map // map.Map[path.Path, *mod.Module]
+}
+
+def filemap(): Map {
+    return Map { files: map.create() };
+}
+
+def (m: *Map) add_file(cwd: path.Path, relative_path: string, dest_mod: *mod.Module) {
+    let file = sf.read_kantan_file(cwd, relative_path);
+    dest_mod.file = file;
+
+    if !file.is_error() {
+        m.files.insert(util.key_from_path(file.absolute_path()), dest_mod as *void);
+    }
+}
+
+def (m: *Map) free() {
+    let iter = m.files.iter();
+    for let item = iter.next(); item != null; item = iter.next() {
+        let mod = item.value as *mod.Module;
+        mod.free();
+    }
+    m.files.free();
+}

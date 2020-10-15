@@ -1,0 +1,55 @@
+import "ast/mod";
+import "ast/item";
+
+import "cli/config";
+import "cli/report";
+
+import "memory/arena";
+import "std/files/path";
+import "source/filemap" as files;
+
+// the main data structure for the compiler
+// this holds all of the memory for types and the ast
+type Compiler struct {
+    cwd: path.Buf,
+    config: config.Config,
+    filemap: files.Map,
+    mod_arena: arena.TypedArena,
+    ast_arena: arena.TypedArena
+}
+
+def compiler(config: config.Config): Compiler {
+    return Compiler {
+        cwd: path.get_cwd(),
+        config: config,
+        filemap: files.filemap(),
+        mod_arena: arena.typed(sizeof mod.Module),
+        ast_arena: arena.typed(sizeof item.Item)
+    };
+}
+
+def (c: *Compiler) read_files() {
+    let cwd = c.cwd.as_path();
+
+    for let i: usize = 0; i < c.config.files.len; i += 1 {
+        let filename = c.config.files.get(i) as string;
+        let mod = c.mod_arena.alloc() as *mod.Module;
+        mod.is_std_lib = false;
+
+        c.filemap.add_file(cwd, filename, mod);
+
+        if mod.file.is_error() {
+            report.print_file_error(&mod.file);
+            mod.free();
+        }
+    }
+}
+
+def (c: *Compiler) free() {
+    c.cwd.free();
+    c.config.free();
+    c.filemap.free();
+
+    c.mod_arena.free();
+    c.ast_arena.free();
+}

@@ -1,0 +1,11 @@
+import "../source/file" as sf;
+
+type Module struct {
+    // the stdlib has sometimes behaves differently
+    is_std_lib: bool,
+    file: sf.SourceFile
+}
+
+def (m: *Module) free() {
+    m.file.free();
+}

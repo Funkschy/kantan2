@@ -1,16 +1,21 @@
 SHELL := /bin/bash
 
 BIN_NAME = kantan
-K_FILES = src/cli/opt.kan \
+K_FILES = src/ast/item.kan \
+		  src/ast/mod.kan \
 		  src/cli/config.kan \
+		  src/cli/opt.kan \
+		  src/cli/report.kan \
 		  src/codegen/target.kan \
+		  src/compiler.kan \
 		  src/main.kan \
 		  src/memory/arena.kan \
+		  src/source/file.kan \
+		  src/source/filemap.kan \
 		  src/source/ident.kan \
 		  src/source/span.kan \
 		  src/std/cdeps.kan \
 		  src/std/dbg.kan \
-		  src/std/files/impl.kan \
 		  src/std/files/path.kan \
 		  src/std/files/unix.kan \
 		  src/std/libc.kan \
@@ -23,7 +28,8 @@ K_FILES = src/cli/opt.kan \
 		  src/types/data.kan \
 		  src/types/primitive.kan \
 		  src/types/subst.kan \
-		  src/types/types.kan
+		  src/types/types.kan \
+		  src/util.kan
 
 C_FILES = lib.c
 C_OBJ_FILES = $(C_FILES:.c=.c.o)

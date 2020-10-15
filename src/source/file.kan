@@ -1,0 +1,79 @@
+import "../std/str";
+import "../std/dbg";
+import "../std/files/path";
+
+extern def read_file(path: string, content: *string, len: *usize): path.Error;
+
+type Status enum {
+    // the file was read without any errors
+    Read,
+    // we have not yet read the file, this will only be set for the stdlib, where we only
+    // read the files that are actually imported
+    NotRead,
+    // we tried to read the file, but some error occured
+    Error
+}
+
+type SourceFile struct {
+    // if there was an error during reading, this will be set to Status.Error and _code_or_error
+    // will contain the error message
+    _status: Status,
+    _code_or_error: str.String,
+    _absolute_path: path.Buf
+}
+
+def _error(path: path.Buf, message: str.String): SourceFile {
+    return SourceFile { _status: Status.Error, _code_or_error: message, _absolute_path: path };
+}
+
+def (f: *SourceFile) is_error(): bool {
+    return f._status == Status.Error;
+}
+
+def (f: *SourceFile) error_msg(): str.View {
+    return f._code_or_error.view();
+}
+
+def (f: *SourceFile) code(): str.View {
+    dbg.assert(f._status == Status.Read, "trying to access the code of an unread file");
+    return f._code_or_error.view();
+}
+
+def (f: *SourceFile) absolute_path(): path.Path {
+    return f._absolute_path.as_path();
+}
+
+def (f: *SourceFile) free() {
+    f._code_or_error.free();
+    f._absolute_path.free();
+}
+
+def read_kantan_file(cwd: path.Path, relative_path: string): SourceFile {
+    dbg.assert(cwd.is_abs(), "cwd path was not absolute");
+
+    let rel_path = path.create(relative_path);
+    let abs_path: path.Buf = undefined;
+
+    let result = cwd.merge_abs_rel(&rel_path, &abs_path);
+    if result.is_error() {
+        return _error(rel_path.to_buf(), result.to_string(rel_path));
+    }
+
+    if !abs_path.as_path().ends_with(".kan") {
+        return _error(abs_path, str.from("Kantan files should have a '.kan' file extension"));
+    }
+
+    let content = "";
+    let len: usize = 0;
+    result = read_file(abs_path.as_path().inner, &content, &len);
+
+    if result.is_error() {
+        return _error(abs_path, result.to_string(abs_path.as_path()));
+    }
+
+    return SourceFile {
+        _status: Status.Read,
+        _code_or_error: str.move_l(content, len),
+        _absolute_path: abs_path
+    };
+}

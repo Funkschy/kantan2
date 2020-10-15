@@ -124,7 +124,7 @@ def (s: *String) is_optimized(): bool {
 }
 
 def (s: *String) view(): View {
-    return view(s.len(), s.cstring());
+    return view(s.cstring(), s.len());
 }
 
 def (s: *String) clone(): String {
@@ -150,7 +150,7 @@ type View struct {
     data: *i8
 }
 
-def view(len: usize, s: *i8): View {
+def view(s: *i8, len: usize): View {
     return View {
         len: len, data: s
     };

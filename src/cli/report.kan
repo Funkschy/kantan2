@@ -1,0 +1,16 @@
+import "io";
+
+import "../std/str";
+import "../source/file" as sf;
+
+let error_prefix = "ERROR: ";
+
+def print_simple(msg: string) {
+    io.printf("%s%s\n", error_prefix, msg);
+}
+
+def print_file_error(file: *sf.SourceFile) {
+    let msg = file.error_msg();
+    let path = file.absolute_path().as_view();
+    io.printf("%s%.*s: %.*s\n", error_prefix, path.len, path.data, msg.len, msg.data);
+}

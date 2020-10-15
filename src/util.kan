@@ -1,0 +1,13 @@
+import "std/map";
+import "std/files/path";
+
+import "source/ident";
+
+def key_from_ident(i: ident.Ident): map.Key {
+    return map.create_key(i.len(), i.start());
+}
+
+def key_from_path(p: path.Path): map.Key {
+    return map.create_key(p.len, p.inner);
+}
+
