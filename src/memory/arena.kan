@@ -1,0 +1,52 @@
+import "../std/libc";
+import "../std/ptrvec";
+
+type Region struct {
+    next: *Region,
+    len: usize,
+    data: [1024]u8
+}
+
+def region(): *Region {
+    let region = libc.malloc(sizeof Region) as *Region;
+    region.next = null;
+    region.len = 0;
+    return region;
+}
+
+type TypedArena struct {
+    elem_size: usize,
+    first: *Region,
+    last: *Region
+}
+
+def typed_arena(elem_size: usize): TypedArena {
+    let first = region();
+
+    return TypedArena {
+        elem_size: elem_size,
+        first: first,
+        last: first
+    };
+}
+
+def (a: *TypedArena) alloc(): *void {
+    if a.last.len + a.elem_size > 1024 {
+        let new_region = region();
+        a.last.next = new_region;
+        a.last = new_region;
+    }
+
+    let ptr = &a.last.data[0] + a.last.len;
+    a.last.len += a.elem_size;
+    return ptr as *void;
+}
+
+def (a: *TypedArena) free() {
+    let region = a.first;
+    while region != null {
+        let next = region.next;
+        delete region;
+        region = next;
+    }
+}

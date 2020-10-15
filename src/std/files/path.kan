@@ -1,0 +1,180 @@
+import "../str";
+import "../dbg";
+import "../libc";
+import "../cdeps";
+
+import "impl";
+
+type Path struct {
+    len: usize,
+    inner: string
+}
+
+def empty(): Path {
+    return Path { len: 0, inner: null };
+}
+
+def create(value: string, len: usize): Path {
+    return Path { len: len, inner: value };
+}
+
+def (p: *Path) ends_with(s: string): bool {
+    let len = libc.strlen(s);
+    if len > p.len {
+        return false;
+    }
+
+    return libc.strncmp(p.inner + (p.len - len), s, len) == 0;
+}
+
+def (p: *Path) parent(): Path {
+    if impl.is_root(p) {
+        return *p;
+    }
+
+    let lsp = impl.last_separator_ptr(p);
+    if lsp != null {
+        return create(p.inner, (lsp - p.inner + 1) as usize);
+    }
+
+    return *p;
+}
+
+def (first: *Path) count_overlap(second: *Path): usize {
+    let len = first.len;
+    if second.len < first.len {
+        len = second.len;
+    }
+
+    for let i: usize = 0; i < len; i += 1 {
+        if *(first.inner + i) != *(second.inner + i) {
+            return i;
+        }
+    }
+
+    return len;
+}
+
+def (p: *Path) to_string(): str.String {
+    return str.from_l(p.inner, p.len);
+}
+
+type Buf struct {
+    inner: str.String
+}
+
+def create_buf(path: string): Buf {
+    return Buf {
+        inner: str.from(path)
+    };
+}
+
+def (path: *Path) to_buf(): Buf {
+    return Buf { inner: str.from_l(path.inner, path.len) };
+}
+
+def (b: *Buf) as_path(): Path {
+    return create(b.inner.cstring(), b.inner.len());
+}
+
+def (b: *Buf) free() {
+    b.inner.free();
+}
+
+def (base: *Path) merge_abs_rel(child: *Path, dest: *Buf): Error {
+    return base.merge_abs_rel_suffix(child, null, dest);
+}
+
+def (base: *Path) merge_abs_rel_suffix(child: *Path, suffix: string, dest: *Buf): Error {
+    if base.len == 0 || impl.is_abs(child) {
+        *dest = child.to_buf();
+        defer dest.free();
+
+        let as_path = dest.as_path();
+        let ret_val = impl.canonicalize(&as_path, dest);
+
+        if ret_val != Error.OK {
+            return ret_val;
+        }
+
+        return Error.OK;
+    }
+
+    let combined: string = null;
+    if suffix != null {
+        combined = cdeps.format_str(
+            "%.*s%c%.*s%s",
+            base.len,
+            base.inner,
+            impl.system_separator(),
+            child.len,
+            child.inner,
+            suffix
+        );
+    } else {
+        combined = cdeps.format_str(
+            "%.*s%c%.*s",
+            base.len,
+            base.inner,
+            impl.system_separator(),
+            child.len,
+            child.inner
+        );
+    }
+
+    let pb = create_buf(combined);
+    defer pb.free();
+
+    let as_path = pb.as_path();
+    let ret_val = impl.canonicalize(&as_path, &pb);
+
+    if ret_val != Error.OK {
+        pb.free();
+        return ret_val;
+    }
+
+    *dest = pb;
+    return Error.OK;
+}
+
+// the largest shared path of the 2 paths
+// Example:
+// The following files have a common sub path of '/home/user/'
+// /home/user/test.kan
+// /home/user/kantan/other.kan
+def common_parent(first: Path, second: Path): Buf {
+    dbg.assert(impl.is_abs(&first), "First path was not absolute");
+    dbg.assert(impl.is_abs(&second), "Second path was not absolute");
+
+    let smaller_len = first.len;
+    if second.len < smaller_len {
+        smaller_len = second.len;
+    }
+
+    // TODO(#69): on windows paths start with a drive letter, so we need to adjust
+    //  the code to handle this
+    let last_separator: usize = 0;
+    for let i: usize = 0; i < smaller_len; i += 1 {
+        let ptr = first.inner + i;
+
+        if *ptr != *(second.inner + i) {
+            let len = last_separator + 1;
+            return create(first.inner, len).to_buf();
+        }
+
+        if *ptr == impl.system_separator() {
+            last_separator = i;
+        }
+    }
+
+    // both paths are either identical or one is a subpath of the other one
+    return create(first.inner, smaller_len).to_buf();
+}
+
+type Error enum {
+    OK,
+    FileNotFound,
+    CouldNotOpenFile,
+    CouldNotAllocateFileBuffer,
+    CouldNotReadFile
+}

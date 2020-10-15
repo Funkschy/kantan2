@@ -1,0 +1,83 @@
+import "../std/str";
+import "../std/libc";
+import "../source/span";
+
+type Ident struct {
+    span: span.Span
+}
+
+def from_span(span: span.Span): Ident {
+    return Ident { span: span };
+}
+
+def empty(): Ident {
+    return from_span(span.empty());
+}
+
+def is_empty(i: *Ident): bool {
+    return start(i) == null;
+}
+
+def start(i: *Ident): string {
+    return i.span.start;
+}
+
+def len(i: *Ident): usize {
+    return span.len(i.span);
+}
+
+def (i: *Ident) start(): string {
+    return i.span.start;
+}
+
+def (i: *Ident) len(): usize {
+    return span.len(i.span);
+}
+
+def (i: Ident) equals(other: Ident): bool {
+    return eq_value(&i, &other);
+}
+
+def char_at(i: *Ident, pos: usize): i8 {
+    return *(i.span.start + pos);
+}
+
+def eq_lit(id: *Ident, lit: string): bool {
+    if is_empty(id) {
+        return false;
+    }
+
+    let len = len(id);
+    if len != libc.strlen(lit) {
+        return false;
+    }
+
+    return libc.strncmp(start(id), lit, len) == 0;
+}
+
+def eq_value(first: *Ident, second: *Ident): bool {
+    let first_len = len(first);
+    if first_len != len(second) {
+        return false;
+    }
+
+    return libc.memcmp(
+        start(first) as *void, start(second) as *void, first_len
+    ) == 0;
+}
+
+// -1 if not found
+def (id: *Ident) index_of(c: i8): isize {
+    let len = id.len();
+    for let i: usize = 0; i < len; i += 1 {
+        if char_at(id, i) == '.' {
+            return i as isize;
+        }
+    }
+    return -1;
+}
+
+// this does a strdup and needs to be freed
+def (i: *Ident) to_string(): str.String {
+    return str.from_l(i.start(), i.len());
+}

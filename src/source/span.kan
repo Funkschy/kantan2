@@ -1,0 +1,47 @@
+// A position in the source code
+type Span struct {
+    start: string,
+    end: string
+}
+
+def empty(): Span {
+    return Span { start: null, end: null };
+}
+
+def merge(first: Span, second: Span): Span {
+    let start = first.start;
+    let end = second.end;
+
+    if second.start < start {
+        start = second.start;
+    }
+
+    if first.end > end {
+        end = first.end;
+    }
+
+    return create(start, end);
+}
+
+def create(start: string, end: string): Span {
+    if end < start {
+        let t = start;
+        start = end;
+        end = t;
+    }
+
+    return Span { start: start, end: end };
+}
+
+// deprecated
+def len(span: Span): usize {
+    return (span.end - span.start) as usize;
+}
+
+def (s: Span) len(): usize {
+    return (s.end - s.start) as usize;
+}
+
+def (s: Span) merge(other: Span): Span {
+    return merge(s, other);
+}

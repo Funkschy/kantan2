@@ -1,0 +1,18 @@
+import "../source/ident";
+
+import "subst";
+import "types" as _;
+
+// either a struct or a union
+type UserDefined struct {
+    original_name: ident.Ident
+}
+
+type Field struct {
+    name: ident.Ident,
+    visibility: Visibility
+}
+
+def (f: *Field) ty(substitutions: *subst.Map): *Type {
+    return null;
+}

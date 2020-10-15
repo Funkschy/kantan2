@@ -1,0 +1,44 @@
+import "../std/dbg";
+
+import "data";
+import "subst";
+import "primitive";
+
+type Kind enum {
+    Infer,      // only used during typechecking and illegal afterwards
+    Int, Float,
+    DataType,   // Structs and Unions
+    TemplateParam
+}
+
+type Type struct {
+    kind: Kind,
+    width: Size,
+    align: Size,
+    data: TypeData
+}
+
+type TypeData union {
+    int: primitive.Integer,
+    float: primitive.Float,
+    data_type: data.UserDefined,
+    template_param: subst.TemplateParam
+}
+
+type Size struct {
+    bit_size: i32
+}
+
+def (s: Size) bits(): u32 {
+    dbg.assert(s.bit_size> 0, "trying to query size of unsized type");
+    return s.bit_size as u32;
+}
+
+def (s: Size) bytes(): u32 {
+    dbg.assert(s.bit_size > 0, "trying to query size of unsized type");
+    return (s.bit_size / 8) as u32;
+}
+
+type Visibility enum {
+    Public, Private
+}

@@ -1,0 +1,40 @@
+import "../std/dbg";
+import "../std/vec";
+
+import "types" as _;
+
+// this is the declared template parameter
+// e.g. for
+//   type Struct[T] struct {}
+// T would be this parameter with the index 0
+type TemplateParam struct {
+    index: u32
+}
+
+type TemplateArgKind enum {
+    Type //, ConstExpr
+}
+
+// this is the concrete instance of a TemplateParam
+// e.g. for
+//   type Struct[T] struct {}
+//   let s: Struct[usize] = Struct {  };
+// this would be usize
+type TemplateArg struct {
+    kind: TemplateArgKind,
+    value: TemplateArgData
+}
+
+type TemplateArgData union {
+    ty: *Type
+}
+
+type Map struct {
+    inner: vec.Vec // vec.Vec[TemplateArg]
+}
+
+def (m: *Map) subst(param: TemplateParam): TemplateArg {
+    let ptr = m.inner.get_ptr(param.index as usize) as *TemplateArg;
+    dbg.assert(ptr != null, "invalid substitution");
+    return *ptr;
+}
