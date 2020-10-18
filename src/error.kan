@@ -1,0 +1,117 @@
+import "std/str";
+import "std/cdeps";
+
+import "source/span";
+
+let error_strings: [2]string = undefined;
+
+type ErrorKind enum {
+    // parse errors
+    ExpectedButGot,
+    CouldNotImport
+}
+
+type ErrorDataKind enum {
+    StringSingle,
+    StringTuple
+}
+
+type Error struct {
+    kind: ErrorKind,
+    data_kind: ErrorDataKind,
+    hint: *ErrorHint,
+    span: span.Span,
+    data: ErrorData
+}
+
+def (e: *Error) fmt_string(): string {
+    return error_strings[e.kind as i32];
+}
+
+def (e: *Error) to_string(): str.String {
+    let len: usize = 0;
+    let value: string = null;
+
+    if e.data_kind == ErrorDataKind.StringSingle {
+        let str = e.data.string_single;
+        value = cdeps.l_format_str(
+            &len,
+            e.fmt_string(),
+            str.len, str.data
+        );
+    } else if e.data_kind == ErrorDataKind.StringTuple {
+        let first = e.data.string_tuple.first;
+        let second = e.data.string_tuple.second;
+        value = cdeps.l_format_str(
+            &len,
+            e.fmt_string(),
+            first.len, first.data,
+            second.len, second.data
+        );
+    }
+
+    return str.move_l(value, len);
+}
+
+def (e: *Error) add_hint(hint: *ErrorHint) {
+    if e.hint == null {
+        e.hint = hint;
+        return;
+    }
+
+    let last = e.hint;
+    while last.next != null {
+        last = last.next;
+    }
+
+    last.next = hint;
+}
+
+def string_single(kind: ErrorKind, span: span.Span, str: str.View): Error {
+    return Error {
+        kind: kind,
+        data_kind: ErrorDataKind.StringSingle,
+        hint: null,
+        span: span,
+        data: ErrorData { string_single: str }
+    };
+}
+
+def string_tuple(kind: ErrorKind, span: span.Span, first: str.View, second: str.View): Error {
+    return Error {
+        kind: kind,
+        data_kind: ErrorDataKind.StringTuple,
+        hint: null,
+        span: span,
+        data: ErrorData { string_tuple: StringTuple { first: first, second: second } }
+    };
+}
+
+type ErrorData union {
+    string_single: str.View,
+    string_tuple: StringTuple
+}
+
+type StringTuple struct {
+    first: str.View,
+    second: str.View
+}
+
+def init() {
+    // parse errors
+    error_strings[0] = "Expected '%.*s', but got '%.*s'";
+    error_strings[1] = "Invalid import: %.*s";
+}
+
+// A Linked List of additional information regarding an error, e.g. the location of usage
+// the function which adds the hints is also responsible for freeing them
+type ErrorHint struct {
+    message: str.View,
+    span: span.Span,
+    next: *ErrorHint
+}
+
+def hint(message: str.View, span: span.Span): ErrorHint {
+    return ErrorHint { message: message, span: span, next: null };
+}
+

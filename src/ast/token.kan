@@ -1,0 +1,240 @@
+import "../std/str";
+
+import "../source/span";
+
+let token_info: [74]TokenInfo = undefined;
+
+type TokenType enum {
+    UnknownErr,
+    CharErr,
+    EscapeErr,
+    InvalidIdentifierErr,
+
+    Int,
+    Float,
+    Null,
+    Ident,
+
+    Let,
+    If,
+    Else,
+    Import,
+    Def,
+    While,
+    New,
+    Delete,
+    Return,
+    Type,
+    Struct,
+    Enum,
+    Union,
+    As,
+    Extern,
+    Export,
+    Delegate,
+    Sizeof,
+    For,
+    Undefined,
+    Continue,
+    Break,
+    Defer,
+
+    Semi,
+    Comma,
+    Colon,
+    Dot,
+    TripleDot,
+    Bang,
+    BangEq,
+    DoubleEq,
+
+    Plus,
+    Minus,
+    Star,
+    Slash,
+    Percent,
+
+    Eq,
+    PlusEq,
+    MinusEq,
+    StarEq,
+    SlashEq,
+    PercentEq,
+    AmpersandEq,
+    PipeEq,
+    CaretEq,
+
+    Smaller,
+    SmallerEq,
+    Greater,
+    GreaterEq,
+
+    Ampersand,
+    DoubleAmpersand,
+    Pipe,
+    DoublePipe,
+    Caret, // ^
+    Tilde, // ~
+
+    SmallerSmaller,
+    GreaterGreater,
+
+    LParen,
+    RParen,
+    LBrace,
+    RBrace,
+    LBracket,
+    RBracket,
+    String,
+    Char,
+
+    EOF
+}
+
+def (ty: TokenType) is_assign(): bool {
+    return ty >= TokenType.Eq && ty<= TokenType.CaretEq;
+}
+
+def (ty: TokenType) is_err(): bool {
+    return ty <= TokenType.InvalidIdentifierErr;
+}
+
+def (ty: TokenType) precedence(): Precedence {
+    return token_info[ty as i32].precedence;
+}
+
+def (ty: TokenType) as_view(): str.View {
+    return token_info[ty as i32].view;
+}
+
+type Token struct {
+    ty: TokenType,
+    span: span.Span
+}
+
+def empty_token(): Token {
+    return Token { ty: TokenType.UnknownErr, span: span.empty() };
+}
+
+def (tok: *Token) lexeme(): str.View {
+    return tok.span.as_view();
+}
+
+def (tok: *Token) len(): usize {
+    return tok.span.len();
+}
+
+type Precedence enum {
+    None,
+    Assign,     // = += -= *= /= %= &= |= ^=
+    Or,         // ||
+    And,        // &&
+    Equality,   // == !=
+    Comparison, // < <= >= >
+    Sum,        // + -
+    Product,    // * / % as << >> & | ^
+    Unary,      // ! - ~
+    Call        // . () [] {}
+}
+
+type TokenInfo struct {
+    precedence: Precedence,
+    view: str.View
+}
+
+def info(precedence: Precedence, view: str.View): TokenInfo {
+    return TokenInfo { precedence: precedence, view: view };
+}
+
+def info_none(view: str.View): TokenInfo {
+    return TokenInfo { precedence: Precedence.None, view: view };
+}
+
+def init() {
+    token_info[TokenType.UnknownErr as i32] = info_none(str.view("unknown token", 13));
+    token_info[TokenType.CharErr as i32]    = info_none(str.view("invalid char literal", 20));
+    token_info[TokenType.EscapeErr as i32]  = info_none(str.view("invalid escape sequence", 23));
+    token_info[TokenType.InvalidIdentifierErr as i32] = info_none(str.view("invalid identifier", 18));
+
+    token_info[TokenType.Int as i32]             = info_none(str.view("integer", 7));
+    token_info[TokenType.Float as i32]           = info_none(str.view("float", 5));
+    token_info[TokenType.Null as i32]            = info_none(str.view("null", 4));
+    token_info[TokenType.Ident as i32]           = info_none(str.view("identifier", 10));
+
+    token_info[TokenType.Let as i32]             = info_none(str.view("let", 3));
+    token_info[TokenType.If as i32]              = info_none(str.view("if", 2));
+    token_info[TokenType.Else as i32]            = info_none(str.view("else", 4));
+    token_info[TokenType.Import as i32]          = info_none(str.view("import", 6));
+    token_info[TokenType.Def as i32]             = info_none(str.view("def", 3));
+    token_info[TokenType.While as i32]           = info_none(str.view("while", 5));
+    token_info[TokenType.New as i32]             = info_none(str.view("new", 3));
+    token_info[TokenType.Delete as i32]          = info_none(str.view("delete", 6));
+    token_info[TokenType.Return as i32]          = info_none(str.view("return", 6));
+    token_info[TokenType.Type as i32]            = info_none(str.view("type", 4));
+    token_info[TokenType.Struct as i32]          = info_none(str.view("struct", 6));
+    token_info[TokenType.Enum as i32]            = info_none(str.view("enum", 4));
+    token_info[TokenType.Union as i32]           = info_none(str.view("union", 5));
+    token_info[TokenType.As as i32]              = info(Precedence.Product, str.view("as", 2));
+    token_info[TokenType.Extern as i32]          = info_none(str.view("extern", 6));
+    token_info[TokenType.Export as i32]          = info_none(str.view("export", 6));
+    token_info[TokenType.Delegate as i32]        = info_none(str.view("delegate", 8));
+    token_info[TokenType.Sizeof as i32]          = info_none(str.view("sizeof", 6));
+    token_info[TokenType.For as i32]             = info_none(str.view("for", 3));
+    token_info[TokenType.Undefined as i32]       = info_none(str.view("undefined", 9));
+    token_info[TokenType.Continue as i32]        = info_none(str.view("continue", 8));
+    token_info[TokenType.Break as i32]           = info_none(str.view("break", 5));
+    token_info[TokenType.Defer as i32]           = info_none(str.view("defer", 5));
+
+    token_info[TokenType.Semi as i32]            = info_none(str.view(";", 1));
+    token_info[TokenType.Comma as i32]           = info_none(str.view(",", 1));
+    token_info[TokenType.Colon as i32]           = info_none(str.view(":", 1));
+    token_info[TokenType.Dot as i32]             = info(Precedence.Call, str.view(".", 1));
+    token_info[TokenType.TripleDot as i32]       = info_none(str.view("...", 3));
+    token_info[TokenType.Bang as i32]            = info_none(str.view("!", 1));
+    token_info[TokenType.BangEq as i32]          = info(Precedence.Equality, str.view("!=", 2));
+    token_info[TokenType.DoubleEq as i32]        = info(Precedence.Equality, str.view("==", 2));
+
+    token_info[TokenType.Plus as i32]            = info(Precedence.Sum, str.view("+", 1));
+    token_info[TokenType.Minus as i32]           = info(Precedence.Sum, str.view("-", 1));
+    token_info[TokenType.Star as i32]            = info(Precedence.Product, str.view("*", 1));
+    token_info[TokenType.Slash as i32]           = info(Precedence.Product, str.view("/", 1));
+    token_info[TokenType.Percent as i32]         = info(Precedence.Product, str.view("%", 1));
+
+    token_info[TokenType.Eq as i32]              = info(Precedence.Assign, str.view("=", 1));
+    token_info[TokenType.PlusEq as i32]          = info(Precedence.Assign, str.view("+=", 2));
+    token_info[TokenType.MinusEq as i32]         = info(Precedence.Assign, str.view("-=", 2));
+    token_info[TokenType.StarEq as i32]          = info(Precedence.Assign, str.view("*=", 2));
+    token_info[TokenType.SlashEq as i32]         = info(Precedence.Assign, str.view("/=", 2));
+    token_info[TokenType.PercentEq as i32]       = info(Precedence.Assign, str.view("%=", 2));
+    token_info[TokenType.AmpersandEq as i32]     = info(Precedence.Assign, str.view("&=", 2));
+    token_info[TokenType.PipeEq as i32]          = info(Precedence.Assign, str.view("|=", 2));
+    token_info[TokenType.CaretEq as i32]         = info(Precedence.Assign, str.view("^=", 2));
+
+    token_info[TokenType.Smaller as i32]         = info(Precedence.Comparison, str.view("<", 1));
+    token_info[TokenType.SmallerEq as i32]       = info(Precedence.Comparison, str.view("<=", 2));
+    token_info[TokenType.Greater as i32]         = info(Precedence.Comparison, str.view(">", 1));
+    token_info[TokenType.GreaterEq as i32]       = info(Precedence.Comparison, str.view(">=", 2));
+
+    token_info[TokenType.Ampersand as i32]       = info(Precedence.Product, str.view("&", 1));
+    token_info[TokenType.Pipe as i32]            = info(Precedence.Product, str.view("|", 1));
+    token_info[TokenType.DoubleAmpersand as i32] = info(Precedence.And, str.view("&&", 2));
+    token_info[TokenType.DoublePipe as i32]      = info(Precedence.Or, str.view("||", 2));
+    token_info[TokenType.Caret as i32]           = info(Precedence.Product, str.view("^", 1));
+
+    token_info[TokenType.Tilde as i32]           = info(Precedence.Unary, str.view("~", 1));
+
+    token_info[TokenType.SmallerSmaller as i32]  = info(Precedence.Product, str.view("<<", 2));
+    token_info[TokenType.GreaterGreater as i32]  = info(Precedence.Product, str.view(">>", 2));
+
+    token_info[TokenType.LParen as i32]          = info(Precedence.Call, str.view("(", 1));
+    token_info[TokenType.RParen as i32]          = info_none(str.view(")", 1));
+    token_info[TokenType.LBrace as i32]          = info(Precedence.Call, str.view("{", 1));
+    token_info[TokenType.RBrace as i32]          = info_none(str.view("}", 1));
+    token_info[TokenType.LBracket as i32]        = info(Precedence.Call, str.view("[", 1));
+    token_info[TokenType.RBracket as i32]        = info_none(str.view("]", 1));
+
+    token_info[TokenType.String as i32]          = info_none(str.view("string literal", 14));
+    token_info[TokenType.Char as i32]            = info_none(str.view("char literal", 12));
+
+    token_info[TokenType.EOF as i32]             = info_none(str.view("EOF", 3));
+}

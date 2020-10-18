@@ -2,17 +2,22 @@ SHELL := /bin/bash
 
 BIN_NAME = kantan
 K_FILES = src/ast/item.kan \
+		  src/ast/lexer.kan \
 		  src/ast/mod.kan \
+		  src/ast/parser.kan \
+		  src/ast/token.kan \
 		  src/cli/config.kan \
 		  src/cli/opt.kan \
 		  src/cli/report.kan \
 		  src/codegen/target.kan \
 		  src/compiler.kan \
+		  src/error.kan \
 		  src/main.kan \
 		  src/memory/arena.kan \
 		  src/source/file.kan \
-		  src/source/filemap.kan \
 		  src/source/ident.kan \
+		  src/source/modmap.kan \
+		  src/source/position.kan \
 		  src/source/span.kan \
 		  src/std/cdeps.kan \
 		  src/std/dbg.kan \

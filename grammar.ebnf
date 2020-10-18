@@ -1,0 +1,75 @@
+Module = { Import } { TopLevelStatement };
+Import = "import" StringLiteral [ "as" Identifier ] ";";
+TopLevelStatement = FunctionDefinition | TypeDeclaration | VarDeclStatement;
+
+Statement = CompoundStatement | SimpleStatement ";";
+CompoundStatement = IfStmt | BlockStmt | WhileStmt | ForStmt;
+IfStmt = "if" Expression BlockStmt { "else" (IfStmt | BlockStmt) };
+WhileStmt = "while" Expression BlockStmt;
+ForStmt = "for" { SimpleStatement } ";" Expression ";" { SimpleStatement };
+BlockStmt = "{" { Statement } "}";
+
+SimpleStatement = VarDeclStatement | ReturnStatement | ControlFlowStatement | DeferableStatement | DeferStatement | ImportStatement;
+DeferStatement = "defer" DeferableStatement;
+DeferableStatement = DeleteStatement | ExpressionStatement;
+ControlFlowStatement = "continue" | "break";
+VarDeclStatement = "let" Identifier [ ":" TypeIdentifier ] "=" Expression;
+DeleteStatement = "delete" Expression;
+ReturnStatement = "return" Expression;
+ExpressionStatement = Expression;
+
+TypeIdentifier = NamedTypeIdentifier | PointerTypeIdentifier | ArrayTypeIdentifier | SliceTypeIdentifier;
+ArrayTypeIdentifier = "[" Expression "]" TypeIdentifier;
+SliceTypeIdentifier = "[" "]" TypeIdentifier;
+PointerTypeIdentifier = "*" TypeIdentifier;
+NamedTypeIdentifier = Identifier [ TypeList ];
+
+FunctionDefinition = ExternDefinition | DelegateDefinition | NormalDefinition;
+NormalDefinition = ["export"] FunctionSignature BlockStmt;
+ExternDefinition = "extern" FunctionSignature ";";
+DelegateDefinition = "delegate" FunctionSignature ";";
+FunctionSignature = "def" [ ( ReceiverArgument | TyParamList ) ] Identifier "(" [ ParameterList ] ")" [":" TypeIdentifier ];
+ReceiverArgument = "(" Parameter ")";
+ParameterList = Parameter { "," Parameter };
+Parameter = Identifier ":" TypeIdentifier;
+TyParamList = "[" Identifier { "," Identifier } "]";
+TypeList = "[" TypeIdentifier { ","TypeIdentifier } "]"
+
+TypeDeclaration = "type" Identifier [ TyParamList ] (StructDeclaration | EnumDeclaration | UnionDeclaration);
+StructDeclaration = "struct" "{" [ FieldList ] "}";
+UnionDeclaration = "union" "{" [ FieldList ] "}";
+FieldList = Field { "," Field };
+Field = Identifier ":" TypeIdentifier ;
+
+EnumDeclaration = "enum" "{" [ EnumValueList ] "}";
+EnumValueList = EnumValue [ "=" StartValue ] { "," EnumValue };
+EnumValue = Identifier;
+StartValue = LogicOr;
+
+Expression = Assignment | LogicOr;
+Assignment = Expression ("=" | "+=" | "-=" | "*=" | "/=" | "%=") Expression;
+LogicOr = LogicAnd { "||" LogicAnd };
+LogicAnd = Equality { "&&" Equality };
+Equality = Comparison { ("==" | "!=") Comparison };
+Comparison = Addition { ("<" | "<=" | ">=" | ">") Addition };
+Addition = Multiplication { ("+" | "-") Multiplication };
+Multiplication = Unary { ( "*" | "/" | "%" | "as" | "<<" | ">>" ) Unary };
+Unary = ("!" | "-" | "*" | "&") Unary | Call;
+Call = Access { "(" [ Arguments ] ")" };
+Access = Unit { ( "." Identifier | "[" Expression [ ":" Expression ] "]") }
+Unit = "true" | "false" | "null" | "undefined" | NumberLiteral | StringLiteral | Identifier | CharLiteral | "(" Expression ")" | "sizeof" TypeIdentifier | "new" Expression | Identifier "{" [ InitList ] "}" | ArrayTypeIdentifier "{" [ InitList ] "}";
+
+InitList = FieldInit { "," FieldInit };
+FieldInit = Identifier ":" Expression;
+
+Arguments = Expression { "," Arguments };
+
+Identifier = "_" [ { "_" | Digit } Identifier ] | Letter { Letter | Digit | "_" };
+Letter = "a".."z" | "A".."Z";
+Digit = "0".."9";
+
+StringLiteral = "\"" { Char } "\"";
+CharLiteral = "'" Char "'";
+NumberLiteral = IntLiteral [ "." IntLiteral ]);
+IntLiteral = Digit { Digit };
+Char = A single unicode code point;

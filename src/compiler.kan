@@ -1,54 +1,134 @@
+import "std/str";
+import "std/files/path";
+
 import "ast/mod";
 import "ast/item";
+import "ast/lexer";
+import "ast/parser";
 
 import "cli/config";
 import "cli/report";
 
 import "memory/arena";
-import "std/files/path";
-import "source/filemap" as files;
+import "source/span";
+import "source/modmap" as mods;
+
+import "error" as e;
+import "util" as _;
 
 // the main data structure for the compiler
 // this holds all of the memory for types and the ast
 type Compiler struct {
     cwd: path.Buf,
-    config: config.Config,
-    filemap: files.Map,
+    config: *config.Config,
+    modmap: mods.Map,
     mod_arena: arena.TypedArena,
     ast_arena: arena.TypedArena
 }
 
-def compiler(config: config.Config): Compiler {
+def compiler(config: *config.Config): Compiler {
     return Compiler {
         cwd: path.get_cwd(),
         config: config,
-        filemap: files.filemap(),
+        modmap: mods.filemap(),
         mod_arena: arena.typed(sizeof mod.Module),
         ast_arena: arena.typed(sizeof item.Item)
     };
 }
 
 def (c: *Compiler) read_files() {
-    let cwd = c.cwd.as_path();
-
     for let i: usize = 0; i < c.config.files.len; i += 1 {
-        let filename = c.config.files.get(i) as string;
-        let mod = c.mod_arena.alloc() as *mod.Module;
-        mod.is_std_lib = false;
+        let filepath = path.create(c.config.files.get(i) as string);
+        c.add_file(filepath, null);
+    }
+}
 
-        c.filemap.add_file(cwd, filename, mod);
+// try to add a single file to the modmap
+// it is also possible to supply an error hint which will be displayed in case the file
+// could not be added
+def (c: *Compiler) add_file(filepath: path.Path, hint: *e.ErrorHint): Result {
+    let cwd = c.cwd.as_path();
+    let mod = c.mod_arena.alloc() as *mod.Module;
+    mod.is_std_lib = false;
 
-        if mod.file.is_error() {
-            report.print_file_error(&mod.file);
-            mod.free();
+    c.modmap.add_file(cwd, filepath, mod);
+
+    if mod.file.is_error() {
+        report.print_file_error(&mod.file, hint);
+        mod.free();
+        return Result.Error;
+    }
+
+    return Result.OK;
+}
+
+def (c: *Compiler) resolve_imports() {
+    for let i: usize = 0; i < c.modmap.len(); i += 1 {
+        let mod = c.modmap.at(i);
+
+        // since neither lexer or parser allocate any memory, this is pretty cheap, so it's not
+        // a problem to create multiple lexer/parser per module
+        let lexer = lexer.create(mod.file.code());
+        let parser = parser.create(lexer, &c.ast_arena);
+
+        // we iterate over all the imports first, to avoid unnecessary parsing
+        let parsed_import = parser.parse_next_import();
+        while parsed_import.is_present || parsed_import.was_error {
+            defer parsed_import = parser.parse_next_import();
+
+            if parsed_import.was_error {
+                // we don't want to quit on an erroneous import, since we want to try to
+                // report all errors
+                continue;
+            }
+
+            let decl = &parsed_import.import_decl;
+
+            // imports are resolved relative to the current file by default
+            let relative_to = mod.file.absolute_path().parent();
+            let imported_path = path.from_view(decl.path.as_view());
+
+            // try to resolve the imported path relative to the parent of the current file, so
+            // e.g. if we are in /etc/test.kan and import "../root", we will try to
+            // resolve /root.kan
+            let full_imported_path: path.Buf = undefined;
+            let result = relative_to.merge_abs_rel_suffix(&imported_path, ".kan", &full_imported_path);
+            if result.is_error() {
+                report_import_error(result, imported_path, decl.path.span);
+                continue;
+            }
+            // only free this, if the result was no error
+            defer full_imported_path.free();
+
+            // TODO: check self import
+
+            let full_imported_path = full_imported_path.as_path();
+            let imported_module = c.modmap.get_mod(full_imported_path);
+            if imported_module == null {
+                // an additional hint to produce a better error message in case we could not add
+                // the module
+                let hint = e.hint(str.view("imported here", 13), decl.path.span);
+
+                // try to add the imported file to the modmap, if this fails, we bail
+                if c.add_file(full_imported_path, &hint).is_error() {
+                    continue;
+                }
+            }
         }
     }
 }
 
+def report_import_error(result: path.Result, imported_path: path.Path, span: span.Span) {
+    let error_msg = result.to_string(imported_path);
+    defer error_msg.free();
+
+    let error = e.string_single(e.ErrorKind.CouldNotImport, span, error_msg.view());
+    report.print_error(&error);
+}
+
 def (c: *Compiler) free() {
     c.cwd.free();
-    c.config.free();
-    c.filemap.free();
+    c.modmap.free();
 
     c.mod_arena.free();
     c.ast_arena.free();

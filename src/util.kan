@@ -3,6 +3,18 @@ import "std/files/path";
 
 import "source/ident";
 
+type Result enum {
+    OK, Error
+}
+
+def (r: Result) is_ok(): bool {
+    return r == Result.OK;
+}
+
+def (r: Result) is_error(): bool {
+    return r == Result.Error;
+}
+
 def key_from_ident(i: ident.Ident): map.Key {
     return map.create_key(i.len(), i.start());
 }

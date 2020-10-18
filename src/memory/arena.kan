@@ -2,11 +2,12 @@ import "../std/dbg";
 import "../std/libc";
 import "../std/ptrvec";
 
-let region_size: usize = 4096;
+// the size of the Region (8 + 8 + 4080) is 4096 aka the standard page size on linux
+let region_size: usize = 4080;
 type Region struct {
     next: *Region,
     len: usize,
-    data: [4096]u8
+    data: [4080]u8
 }
 
 def region(): *Region {

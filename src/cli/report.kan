@@ -1,16 +1,202 @@
 import "io";
 
+import "config";
+
 import "../std/str";
+import "../std/dbg";
+
+import "../error" as e;
+
+import "../source/span";
 import "../source/file" as sf;
+import "../source/modmap" as mods;
+import "../source/position" as pos;
+
+// This module is used to report errors to the user. Depending on the value of 'format', the output
+// will either be in plain text or json. The format value cannot be changed during runtime
 
 let error_prefix = "ERROR: ";
+let hint_prefix = "INFO: ";
+// undefined for global variables means 0, which in turn means the first enum variant
+// this is pretty hacky, but works for now
+let format: config.ErrorOutputFormat = undefined;
+// see above
+let print_comma: bool = undefined;
+let modmap: *mods.Map = null;
 
-def print_simple(msg: string) {
-    io.printf("%s%s\n", error_prefix, msg);
+// this is used for indenting error messages. Therefore the length of this string is also the
+// maximimum intendation for errors
+let spaces = "                ";
+
+def init(output_format: config.ErrorOutputFormat, mods: *mods.Map) {
+    format = output_format;
+    modmap = mods;
+
+    if format == config.ErrorOutputFormat.JSON {
+        io.printf("{\"errors\": [");
+    }
 }
 
-def print_file_error(file: *sf.SourceFile) {
+def finish() {
+    if format == config.ErrorOutputFormat.JSON {
+        io.printf("]}\n");
+    }
+}
+
+
+type ReportElement struct {
+    _type: string,
+    file: str.View,
+    content: str.View,
+    line: pos.LineInfo,
+    first_hint: *e.ErrorHint
+}
+
+def report_error(content: str.View, span: span.Span, hint: *e.ErrorHint): ReportElement {
+    return report_element("error", content, span, hint);
+}
+
+def report_error_opts(
+    file: str.View,
+    content: str.View,
+    line: pos.LineInfo,
+    first_hint: *e.ErrorHint
+): ReportElement {
+    return ReportElement {
+        _type: "error",
+        file: file,
+        content: content,
+        line: line,
+        first_hint: first_hint
+    };
+}
+
+def report_element(
+    _type: string,
+    content: str.View,
+    span: span.Span,
+    hint: *e.ErrorHint
+): ReportElement {
+    let mod = modmap.get_mod_from_span(span);
+    dbg.assert_fmt(mod != null, "could not get module for %s", _type);
+    let line_info = mod.file.line_info(span);
+
+    return ReportElement {
+        _type: _type,
+        file: mod.file.absolute_path().as_view(),
+        content: content,
+        line: line_info,
+        first_hint: hint
+    };
+}
+
+def print_spanned(line_info: pos.LineInfo, offset: u32) {
+    io.printf("%.*s | ", offset, spaces);
+    let s = line_info.span;
+
+    let ptr = s.start;
+    let len = s.len();
+    let num_lines = 1;
+    while (ptr - s.start) as usize < len {
+        let c = *ptr;
+        io.putchar(c as i32);
+        if c == '\n' {
+            io.printf("%.*s | ", offset, spaces);
+            num_lines += 1;
+        }
+        ptr = ptr + 1;
+    }
+
+    io.putchar('\n');
+
+    if num_lines == 1 {
+        io.printf("%.*s | ", offset, spaces);
+        for let i: u32 = 1; i < line_info.start.col; i += 1 {
+            io.putchar(' ');
+        }
+        io.printf("^\n");
+    }
+}
+
+def (elem: *ReportElement) print() {
+    elem.print_offset(0);
+}
+
+def (elem: *ReportElement) print_offset(offset: u32) {
+    if format == config.ErrorOutputFormat.HumanReadable {
+        io.printf(
+            "\n%.*s%s: %.*s\n%.*s--> %.*s:%u:%u\n",
+            offset, spaces,
+            elem._type,
+            elem.content.len, elem.content.data,
+            offset, spaces,
+            elem.file.len, elem.file.data,
+            elem.line.start.lnr, elem.line.start.col
+        );
+
+        if !elem.line.is_empty() {
+            print_spanned(elem.line, offset);
+        }
+
+        let hint = elem.first_hint;
+        if hint != null {
+            report_element("hint", hint.message, hint.span, hint.next).print_offset(2);
+        }
+
+        return;
+    }
+
+    if print_comma {
+        io.printf(",");
+    }
+    print_comma = true;
+
+    io.printf(
+        "{\"type\": \"%s\", \"file\": \"%.*s\", \"content\": \"%.*s\", \"lnr\": %u, \"col\": %u",
+        elem._type,
+        elem.file.len, elem.file.data,
+        elem.content.len, elem.content.data,
+        elem.line.start.lnr, elem.line.start.col
+    );
+
+    let hint = elem.first_hint;
+    if hint != null {
+        // don't print a comma in front of the first hint
+        print_comma = false;
+    }
+
+    io.printf(", \"hints\": [");
+
+    while hint != null {
+        let element = report_element("hint", hint.message, hint.span, hint.next);
+        // since we don't want to traverse this recursively, we just set the next hint to null
+        element.first_hint = null;
+        element.print_offset(2);
+        hint = hint.next;
+        print_comma = true;
+    }
+
+    io.printf("]}");
+}
+
+def print_simple(msg: string) {
+    if format == config.ErrorOutputFormat.HumanReadable {
+        io.printf("%s%s\n", error_prefix, msg);
+    } else {
+        report_error_opts(str.view_from(""), str.view_from(msg), pos.empty_line_info(), null).print();
+    }
+}
+
+def print_file_error(file: *sf.SourceFile, hint: *e.ErrorHint) {
     let msg = file.error_msg();
     let path = file.absolute_path().as_view();
-    io.printf("%s%.*s: %.*s\n", error_prefix, path.len, path.data, msg.len, msg.data);
+
+    report_error_opts(path, msg, pos.empty_line_info(), hint).print();
+}
+
+def print_error(err: *e.Error) {
+    let msg = err.to_string();
+    defer msg.free();
+
+    report_error(msg.view(), err.span, err.hint).print();
 }

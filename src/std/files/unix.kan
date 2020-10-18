@@ -36,17 +36,18 @@ def is_root(p: *path.Path): bool {
 // this function resolves stuff like .. or . in place
 //
 // this only works, if the files does actually exist!
-def canonicalize(p: *path.Path, dest: *path.Buf): path.Error {
-    let buf = str.from_l(p.inner, p.len);
+def canonicalize(p: *path.Path, dest: *path.Buf): path.Result {
+    // the path has to be null terminated, so we have to make a heap allocation here
+    let buf = p.to_string();
     defer buf.free();
 
     let real = realpath(buf.cstring(), null);
     if real == null {
-        return path.Error.FileNotFound;
+        return path.Result.FileNotFound;
     }
 
     *dest = path.move_buf(real);
-    return path.Error.OK;
+    return path.Result.OK;
 }
 
 // this is not thread safe, but since this will only be called once, we might aswell make this

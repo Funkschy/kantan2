@@ -1,0 +1,136 @@
+import "../std/str";
+import "../std/dbg";
+import "../std/cdeps";
+import "../std/ptrvec";
+
+import "span";
+
+type SourcePos struct {
+    lnr: u32, // line number. Starting from 1
+    col: u32  // column number. Starting from 1
+}
+
+type LineInfo struct {
+    start: SourcePos,
+    span: span.Span
+}
+
+def empty_line_info(): LineInfo {
+    return LineInfo { start: SourcePos { lnr: 0, col: 0 }, span: span.empty() };
+}
+
+def (li: *LineInfo) is_empty(): bool {
+    return li.start.lnr == 0 || li.span.start == null;
+}
+
+// This is used to convert Spans into SourcePos' quickly
+type LineMap struct {
+    end_of_code: *i8,
+    line_starts: ptrvec.Vec // ptrvec.Vec[string]
+}
+
+def map_from_source(code: str.View): LineMap {
+    let len = code.len;
+    let code = code.data;
+
+    let line_estimate = len / 24; // assume that a line has 24 chars on avg
+    let vec = ptrvec.with_cap(line_estimate);
+    let pos = code;
+    let end = code + len;
+
+    while pos != null && pos != end {
+        vec.push_ptr(pos as *void);
+        pos = cdeps.find_char(pos, '\n');
+        if pos != null {
+            pos = pos + 1;
+        }
+    }
+
+    return LineMap { end_of_code: code + len, line_starts: vec };
+}
+
+// does a binary search inside the LineMap, to find the line number of the
+// specified span
+def (m: *LineMap) find_line_in_srcmap(span: span.Span): i64 {
+    let start: usize = 0;
+    let end = m.line_starts.len - 1;
+
+    while start <= end {
+        let idx = ((start + end) / 2) as u32;
+        let line_start = m.line_at(idx);
+        let line_end = m.line_at(idx + 1);
+
+        if line_end == null {
+            // no next line, so just use the end of the string
+            line_end = m.end_of_code;
+        }
+        line_end = line_end - 1;
+
+        if line_start <= span.start && span.start <= line_end {
+            // span is in this line
+            return idx as i64 + 1;
+        } else if span.start > line_start {
+            // span is to the right of current line
+            start = idx as usize + 1;
+        } else {
+            // span is to the left of current line
+            end = idx as usize - 1;
+        }
+    }
+
+    return end as i64 + 1;
+}
+
+def (m: *LineMap) line_at(idx: u32): string {
+    return m.line_starts.get(idx as usize) as string;
+}
+
+def (m: *LineMap) get_line_info(code: str.View, target: span.Span): LineInfo {
+    let eof = code.data + code.len;
+
+    dbg.assert_fmt(
+        code.data <= target.start && target.end <= eof,
+        "invalid target (%p-%p) for source (%p-%p)",
+        target.start, target.end,
+        code.data, eof
+    );
+
+    let code = code.data;
+    let last_nl = target.start;
+
+    let ptr = target.start;
+    while ptr > code {
+        if *ptr == '\n' {
+            last_nl = ptr;
+            break;
+        } else {
+            ptr = ptr - 1;
+        }
+    }
+
+    // there was no new line => span is in first line of file
+    if last_nl == target.start {
+        last_nl = code - 1; // we add a 1 later, which is correct in every other case
+    }
+
+    let line_info: LineInfo = undefined;
+
+    line_info.span.start = last_nl + 1;
+
+    // the \n at the end of the line with span in it
+    line_info.span.end = cdeps.find_char(target.end, '\n');
+    if line_info.span.end == null {
+        // if there was no next new line, we just use the EOF
+        line_info.span.end = eof;
+    }
+
+    line_info.start.col = (target.start - last_nl) as u32;
+    line_info.start.lnr = m.find_line_in_srcmap(target) as u32;
+
+    dbg.assert(line_info.start.lnr >= 0, "could not find line for span");
+    return line_info;
+}
+
+def (m: *LineMap) free() {
+    m.line_starts.free();
+}

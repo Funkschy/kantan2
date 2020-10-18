@@ -7,6 +7,8 @@ type Options struct {
     had_errors: bool,
     exit_immediately: bool,
     debug_info: bool,
+    // output all errors and warnings in json
+    output_json: bool,
     files: ptrvec.Vec,
     opt_level: i8,
     output_filename: string,
@@ -19,6 +21,7 @@ def parse(argc: i32, argv: *string): Options {
         had_errors: false,
         exit_immediately: false,
         debug_info: false,
+        output_json: false,
         files: ptrvec.with_cap(argc as usize),
         opt_level: 0,
         output_filename: null,
@@ -117,6 +120,11 @@ def parse_long(options: *Options, arg: string, set_to_next: **string): bool {
         return true;
     }
 
+    if libc.strcmp(arg, "mi") == 0 {
+        options.output_json = true;
+        return false;
+    }
+
     io.printf("ERROR: Invalid flag '%s'\n", arg);
     options.had_errors = true;
     return false;
@@ -160,6 +168,7 @@ def print_usage() {
     io.printf("    -h / --help\tprint this message\n");
     io.printf("    --sys\tset the target OS\t\t[possible values 'linux', 'darwin', 'win32']\n");
     io.printf("    --arch\tset the target Architecture\t[possible values 'x86_64', 'wasm32']\n");
+    io.printf("    --mi\toutput all errors/warnings as json\n");
     io.printf("\n");
     io.printf("ARGS:\n");
     io.printf("    <source-file>...\n");

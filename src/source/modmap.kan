@@ -1,0 +1,65 @@
+import "../std/str";
+import "../std/vmap";
+import "../std/files/path";
+
+import "../ast/mod";
+import "../util";
+
+import "file" as sf; // source/file
+import "span";
+
+type Map struct {
+    // this has to be a vmap, since we want to mutate it, while iterating. That is not something
+    // that the normal map.Map supports, but the vmap can be iterated in order, while appending
+    // further modules at the end
+    files: vmap.Map // vmap.Map[path.Path, *mod.Module]
+}
+
+def filemap(): Map {
+    return Map { files: vmap.create(sizeof *mod.Module) };
+}
+
+// add a file the the filemap. The relative_path is resolved in relation to the current working
+// directory (cwd)
+// if the file could be read, the file will inserted into the map
+// if an error occured during file reading, the file will not be inserted
+// The dest_mod.file is set in any case and must be checked for file.is_error() by the caller
+def (m: *Map) add_file(cwd: path.Path, relative_path: path.Path, dest_mod: *mod.Module) {
+    let file = sf.read_kantan_file(cwd, relative_path);
+    dest_mod.file = file;
+
+    if !file.is_error() {
+        m.files.insert(util.key_from_path(file.absolute_path()), &dest_mod as *void);
+    }
+}
+
+def (m: *Map) get_mod(path: path.Path): *mod.Module {
+    return null;
+}
+
+def (m: *Map) get_mod_from_span(span: span.Span): *mod.Module {
+    for let i: usize = 0; i < m.files.len(); i += 1 {
+        let mod = m.at(i);
+        let code = mod.file.code();
+        if span.start >= code.data && span.end <= code.data + code.len {
+            return mod;
+        }
+    }
+
+    return null;
+}
+
+def (m: *Map) len(): usize {
+    return m.files.len();
+}
+
+def (m: *Map) at(idx: usize): *mod.Module {
+    return *(m.files.get_ptr_idx(idx) as **mod.Module);
+}
+
+def (m: *Map) free() {
+    for let i: usize = 0; i < m.files.len(); i += 1 {
+        m.at(i).free();
+    }
+    m.files.free();
+}

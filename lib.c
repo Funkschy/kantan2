@@ -187,3 +187,7 @@ void get_sys(bool *is_linux, bool *is_darwin, bool *is_win32) {
     if (is_win32) *is_win32 = true;
 #endif
 }
+
+int32_t get_errno() {
+    return errno;
+}

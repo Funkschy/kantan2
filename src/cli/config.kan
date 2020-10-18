@@ -20,10 +20,15 @@ type OutputKind enum {
     ASM, OBJ, EXE
 }
 
+type ErrorOutputFormat enum {
+    HumanReadable, JSON
+}
+
 type Config struct {
     emit_debug_info: bool,
     invoke_linker: bool,
     output_kind: OutputKind,
+    error_output_format: ErrorOutputFormat,
     opt_level: i8,
     output_file: path.Path,
     temp_output_file: path.Path,
@@ -141,10 +146,16 @@ def from_options(options: *opt.Options): Config {
         kind = OutputKind.OBJ;
     }
 
+    let error_output_format = ErrorOutputFormat.HumanReadable;
+    if options.output_json {
+        error_output_format = ErrorOutputFormat.JSON;
+    }
+
     return Config {
         emit_debug_info: options.debug_info,
         invoke_linker: invoke_linker,
         output_kind: kind,
+        error_output_format: error_output_format,
         opt_level: options.opt_level,
         output_file: out,
         temp_output_file: temp_out,

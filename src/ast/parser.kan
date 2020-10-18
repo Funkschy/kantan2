@@ -1,0 +1,156 @@
+import "../std/dbg";
+
+import "../cli/report";
+import "../error" as e;
+import "../source/span";
+import "../source/ident";
+import "../memory/arena";
+
+import "item";
+import "lexer" as l;
+import "token" as tok;
+
+type Parser struct {
+    had_error: bool,
+    panic_mode: bool,
+    lexer: l.Lexer,
+    arena: *arena.TypedArena
+}
+
+def create(lexer: l.Lexer, arena: *arena.TypedArena): Parser {
+    dbg.assert(arena.elem_size == sizeof item.Item, "wrong arena size");
+
+    return Parser {
+        had_error: false,
+        panic_mode: false,
+        lexer: lexer,
+        arena: arena
+    };
+}
+
+def (p: *Parser) alloc(): *item.Item {
+    return p.arena.alloc() as *item.Item;
+}
+
+def (p: *Parser) peek(): tok.Token {
+    return p.lexer.peek();
+}
+
+def (p: *Parser) advance(): tok.Token {
+    let current = p.lexer.next_token();
+
+    while current.ty.is_err() {
+        // TODO: report lex error
+        import "io";
+        io.printf("parse error\n");
+
+        current = p.lexer.next_token();
+    }
+
+    return current;
+}
+
+def (p: *Parser) check(ty: tok.TokenType): bool {
+    return p.peek().ty == ty;
+}
+
+// this will first check, if the next token the lexer would produce, will be of the expected
+// type, if it is, it will set out to the consumed token and return true
+// if the token type differs, it will report a parse error and return false.
+// In the latter case, the value of out is undefined
+def (p: *Parser) consume_tok(expected: tok.TokenType, out: *tok.Token): bool {
+    if !p.check(expected) {
+        let expected = expected.as_view();
+        let actual = p.peek().ty.as_view();
+        let error = e.string_tuple(e.ErrorKind.ExpectedButGot, p.peek().span, expected, actual);
+        p.report(&error);
+        return false;
+    }
+
+    *out = p.advance();
+    return true;
+}
+
+// same as consume_tok, but always discards the consumed token
+def (p: *Parser) consume(expected: tok.TokenType): bool {
+    let out: tok.Token = undefined;
+    return p.consume_tok(expected, &out);
+}
+
+// report an error. If the parser is currently in panic mode, the error will be silently
+// discarded
+def (p: *Parser) report(error: *e.Error) {
+    if p.panic_mode {
+        return;
+    }
+
+    p.panic_mode = p.had_error = true;
+    report.print_error(error);
+}
+
+def (p: *Parser) sync() {
+    p.panic_mode = false;
+
+    let previous = p.advance();
+    while !p.check(tok.TokenType.EOF) {
+        if previous.ty == tok.TokenType.Semi {
+            return;
+        }
+
+        let current = p.peek();
+        if current.ty == tok.TokenType.Import {
+            return;
+        }
+
+        previous = p.advance();
+    }
+}
+
+// Basically a Result type for import parsing, since ImportDeclarations aren't Items, we cannot
+// put them inside the item arena. So we just store them in a separate Vec by value
+type ParsedImport struct {
+    // since we return the parsed import by value, we have to somehow mark the last import
+    is_present: bool,
+    // we want to report every error, so we have to treat a missing import different than an
+    // erroneous one
+    was_error: bool,
+    import_decl: item.ImportDeclaration
+}
+
+def empty_import(): ParsedImport {
+    return ParsedImport { is_present: false, was_error: false, import_decl: undefined };
+}
+
+def error_import(): ParsedImport {
+    return ParsedImport { is_present: false, was_error: true, import_decl: undefined };
+}
+
+// since all imports have to be declared at the top of the file, they can be parsed separate
+// from all the other items. This is important for dependency resolution between files, to avoid
+// parsing files, that aren't even included (e.g. the stdlib)
+def (p: *Parser) parse_next_import(): ParsedImport {
+    if !p.check(tok.TokenType.Import) {
+        return empty_import();
+    }
+
+    // consume 'import'
+    p.advance();
+
+    let import_path: tok.Token = undefined;
+    if !p.consume_tok(tok.TokenType.String, &import_path) {
+        p.sync();
+        return error_import();
+    }
+
+    if !p.consume(tok.TokenType.Semi) {
+        p.sync();
+        return error_import();
+    }
+
+    let decl = item.ImportDeclaration {
+        path: ident.from_span(import_path.span),
+        alias: ident.empty()
+    };
+
+    return ParsedImport { is_present: true, was_error: false, import_decl: decl };
+}

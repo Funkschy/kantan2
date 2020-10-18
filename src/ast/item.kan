@@ -1,4 +1,14 @@
 import "../source/span";
+import "../source/ident";
+
+// Import declarations are not Items, since they cannot occur at an arbitrary position inside
+// the file. All imports have to be decared at the top of the file, before any other ast.Item
+// This makes it easy to determine the dependencies of a single module before we even parse the
+// entire file.
+type ImportDeclaration struct {
+    path: ident.Ident,
+    alias: ident.Ident
+}
 
 type ItemKind enum {
 

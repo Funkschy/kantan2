@@ -23,6 +23,10 @@ def create_l(value: string, len: usize): Path {
     return Path { len: len, inner: value };
 }
 
+def from_view(view: str.View): Path {
+    return create_l(view.data, view.len);
+}
+
 def (p: *Path) ends_with(s: string): bool {
     let len = libc.strlen(s);
     if len > p.len {
@@ -104,23 +108,20 @@ def (b: *Buf) free() {
     b.inner.free();
 }
 
-def (base: *Path) merge_abs_rel(child: *Path, dest: *Buf): Error {
+def (base: *Path) merge_abs_rel(child: *Path, dest: *Buf): Result {
     return base.merge_abs_rel_suffix(child, null, dest);
 }
 
-def (base: *Path) merge_abs_rel_suffix(child: *Path, suffix: string, dest: *Buf): Error {
+def (base: *Path) merge_abs_rel_suffix(child: *Path, suffix: string, dest: *Buf): Result {
     if base.len == 0 || impl.is_abs(child) {
-        *dest = child.to_buf();
-        defer dest.free();
-
-        let as_path = dest.as_path();
-        let ret_val = impl.canonicalize(&as_path, dest);
-
-        if ret_val != Error.OK {
+        // in the case, that the relative path (child) is already an absolute path, we just
+        // have to check, if the files exists, and if it does, we copy the absolute path to dest
+        let ret_val = impl.canonicalize(child, dest);
+        if ret_val != Result.OK {
             return ret_val;
         }
 
-        return Error.OK;
+        return Result.OK;
     }
 
     let combined: string = null;
@@ -152,12 +153,12 @@ def (base: *Path) merge_abs_rel_suffix(child: *Path, suffix: string, dest: *Buf)
     let as_path = pb.as_path();
 
     let ret_val = impl.canonicalize(&as_path, &pb);
-    if ret_val != Error.OK {
+    if ret_val != Result.OK {
         return ret_val;
     }
 
     *dest = pb;
-    return Error.OK;
+    return Result.OK;
 }
 
 // the largest shared path of the 2 paths
@@ -195,7 +196,7 @@ def common_parent(first: Path, second: Path): Buf {
     return create_l(first.inner, smaller_len).to_buf();
 }
 
-type Error enum {
+type Result enum {
     OK,
     FileNotFound,
     CouldNotOpenFile,
@@ -203,35 +204,44 @@ type Error enum {
     CouldNotReadFile
 }
 
-def (e: Error) is_ok(): bool {
-    return e == Error.OK;
+def (r: Result) is_ok(): bool {
+    return r == Result.OK;
 }
 
-def (e: Error) is_error(): bool {
-    return e != Error.OK;
+def (r: Result) is_error(): bool {
+    return r != Result.OK;
 }
 
-def (e: Error) to_string(filename: Path): str.String {
-    if e == Error.OK {
+def (r: Result) to_string(filename: Path): str.String {
+    if r == Result.OK {
         return str.from("");
     }
 
-    if e == Error.CouldNotAllocateFileBuffer {
+    if r == Result.CouldNotAllocateFileBuffer {
         // this only works, if the string is less than 22 bytes long, since the small string
         // optimization will trigger
         return str.from("out of memory");
     }
 
-    if e == Error.FileNotFound {
-        return str.from("file not found");
+    if r == Result.FileNotFound {
+        let s = str.from("could not find '");
+        s.push(filename.as_view());
+        s.push(str.view("'", 1));
+        return s;
     }
 
-    if e == Error.CouldNotOpenFile {
-        return str.from("could not open file");
+    if r == Result.CouldNotOpenFile {
+        let s = str.from("could not open '");
+        s.push(filename.as_view());
+        s.push(str.view("'", 1));
+        return s;
     }
 
-    if e == Error.CouldNotReadFile {
-        return str.from("error while reading file");
+    if r == Result.CouldNotReadFile {
+        let s = str.from("error while reading '");
+        s.push(filename.as_view());
+        s.push(str.view("'", 1));
+        return s;
     }
 
     dbg.unreachable();

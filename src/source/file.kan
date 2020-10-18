@@ -2,7 +2,10 @@ import "../std/str";
 import "../std/dbg";
 import "../std/files/path";
 
-extern def read_file(path: string, content: *string, len: *usize): path.Error;
+import "span";
+import "position";
+
+extern def read_file(path: string, content: *string, len: *usize): path.Result;
 
 type Status enum {
     // the file was read without any errors
@@ -11,23 +14,29 @@ type Status enum {
     // read the files that are actually imported
     NotRead,
     // we tried to read the file, but some error occured
-    Error
+    Result
 }
 
 type SourceFile struct {
-    // if there was an error during reading, this will be set to Status.Error and _code_or_error
+    // if there was an error during reading, this will be set to Status.Result and _code_or_error
     // will contain the error message
     _status: Status,
     _code_or_error: str.String,
-    _absolute_path: path.Buf
+    _absolute_path: path.Buf,
+    _map: position.LineMap
 }
 
 def _error(path: path.Buf, message: str.String): SourceFile {
-    return SourceFile { _status: Status.Error, _code_or_error: message, _absolute_path: path };
+    return SourceFile {
+        _status: Status.Result,
+        _code_or_error: message,
+        _absolute_path: path,
+        _map: undefined
+    };
 }
 
 def (f: *SourceFile) is_error(): bool {
-    return f._status == Status.Error;
+    return f._status == Status.Result;
 }
 
 def (f: *SourceFile) error_msg(): str.View {
@@ -43,17 +52,23 @@ def (f: *SourceFile) absolute_path(): path.Path {
     return f._absolute_path.as_path();
 }
 
+def (f: *SourceFile) line_info(target: span.Span): position.LineInfo {
+    return f._map.get_line_info(f.code(), target);
+}
+
 def (f: *SourceFile) free() {
     f._code_or_error.free();
     f._absolute_path.free();
+    // the filemap will only be initialized, if the file could be read
+    if f._status == Status.Read {
+        f._map.free();
+    }
 }
 
-def read_kantan_file(cwd: path.Path, relative_path: string): SourceFile {
+def read_kantan_file(cwd: path.Path, rel_path: path.Path): SourceFile {
     dbg.assert(cwd.is_abs(), "cwd path was not absolute");
 
-    let rel_path = path.create(relative_path);
     let abs_path: path.Buf = undefined;
-
     let result = cwd.merge_abs_rel(&rel_path, &abs_path);
     if result.is_error() {
         return _error(rel_path.to_buf(), result.to_string(rel_path));
@@ -71,9 +86,11 @@ def read_kantan_file(cwd: path.Path, relative_path: string): SourceFile {
         return _error(abs_path, result.to_string(abs_path.as_path()));
     }
 
+    let code = str.move_l(content, len);
     return SourceFile {
         _status: Status.Read,
-        _code_or_error: str.move_l(content, len),
-        _absolute_path: abs_path
+        _code_or_error: code,
+        _absolute_path: abs_path,
+        _map: position.map_from_source(code.view())
     };
 }
