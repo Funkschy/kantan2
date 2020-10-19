@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from runner.testcase import ErrorTest
+from runner.testcase import ErrorTestCase
 
 
 def get_import_path() -> str:
@@ -8,7 +8,7 @@ def get_import_path() -> str:
     return str(parent_dir) + '/other-module.kan'
 
 
-class Test(ErrorTest):
+class Test(ErrorTestCase):
     def __init__(self, executor):
         super().__init__(executor, [
             self.simple_error(lnr=2, col=1, msg='Expected \';\', but got \'import\''),

@@ -11,7 +11,7 @@ class TestError(object):
         self.msg = msg
 
 
-class Test(object):
+class TestCase(object):
     def __init__(self, executor: CompilerExecutor, options=None):
         if options is None:
             options = ['--mi']
@@ -34,7 +34,7 @@ class Test(object):
         raise RuntimeError('You forgot to override run')
 
 
-class SuccessTest(Test):
+class SuccessTestCase(TestCase):
     def __init__(self, executor: CompilerExecutor, options=None):
         super().__init__(executor, options)
 
@@ -45,7 +45,7 @@ class SuccessTest(Test):
         return None
 
 
-class ErrorTest(Test):
+class ErrorTestCase(TestCase):
     def __init__(self, executor: CompilerExecutor, expected_errors, options=None):
         super().__init__(executor, options)
         self.expected_errors = expected_errors

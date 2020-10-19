@@ -127,13 +127,14 @@ def report_import_error(result: path.Result, relative_to: path.Path, imported_pa
     let note_string = str.from("");
     defer note_string.free();
 
+    let note: e.ErrorNote = undefined;
     // in this case, we add an additional note, to make it clear, which path was actually searched
     if result == path.Result.FileNotFound {
         note_string.push(str.view("the resolved path was '", 23));
         note_string.push(relative_to.as_view());
         note_string.push(imported_path.as_view());
         note_string.push(str.view(".kan'", 5));
-        let note = e.simple_note(note_string.view());
+        note = e.simple_note(note_string.view());
         error.note = &note;
     }
 

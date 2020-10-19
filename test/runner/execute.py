@@ -35,12 +35,15 @@ class CompilerExecutor(object):
         self.compiler_path = compiler_path
         self.valgrind_opts = valgrind_opts
 
-    def run(self, filename: str, files: List[str], options: List[str]) -> Optional[Output]:
+    def _run(self, filename: str, files: List[str], options: List[str]) -> subprocess.CompletedProcess:
         cmd = [self.compiler_path] + options + files
         if self.valgrind_opts.use_valgrind:
             cmd = valgrind(filename, self.valgrind_opts.suppress_file) + cmd
 
-        completed_process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=Path.cwd())
+        return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=Path.cwd())
+
+    def run(self, filename: str, files: List[str], options: List[str]) -> Optional[Output]:
+        completed_process = self._run(filename, files, options)
         return parse_output(completed_process)
 
 
@@ -55,3 +58,12 @@ class PredicateCompilerExecutor(CompilerExecutor):
                 return None
 
         return super().run(filename, files, options)
+
+
+class NonParsingExecutor(CompilerExecutor):
+    def __init__(self, base: CompilerExecutor):
+        super().__init__(base.compiler_path, base.valgrind_opts)
+
+    def run(self, filename: str, files: List[str], options: List[str]) -> Optional[str]:
+        completed_process = self._run(filename, files, options)
+        return completed_process.stdout.decode('utf-8')

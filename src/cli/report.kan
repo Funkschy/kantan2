@@ -15,8 +15,7 @@ import "../source/position" as pos;
 // This module is used to report errors to the user. Depending on the value of 'format', the output
 // will either be in plain text or json. The format value cannot be changed during runtime
 
-let error_prefix = "ERROR: ";
-let note_prefix = "INFO: ";
+let error_prefix = "error: ";
 // undefined for global variables means 0, which in turn means the first enum variant
 // this is pretty hacky, but works for now
 let format: config.ErrorOutputFormat = undefined;
@@ -39,9 +38,8 @@ def init(output_format: config.ErrorOutputFormat, mods: *mods.Map) {
 
 def finish() {
     if format == config.ErrorOutputFormat.JSON {
-        io.printf("]}");
+        io.printf("]}\n");
     }
-    io.printf("\n");
 }
 
 
@@ -202,11 +200,11 @@ def (elem: *ReportElement) print_offset(offset: u32) {
     io.printf("]}");
 }
 
-def print_simple(msg: string) {
+def print_simple(msg: str.View) {
     if format == config.ErrorOutputFormat.HumanReadable {
-        io.printf("%s%s\n", error_prefix, msg);
+        io.printf("%s%.*s\n", error_prefix, msg.len, msg.data);
     } else {
-        report_error_opts(str.view_from(""), str.view_from(msg), pos.empty_line_info(), null).print();
+        report_error_opts(str.view_from(""), msg, pos.empty_line_info(), null).print();
     }
 }
 

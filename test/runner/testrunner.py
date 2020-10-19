@@ -7,6 +7,7 @@ from typing import Optional
 
 from runner import execute
 from runner.execute import CompilerExecutor
+from runner.output import Output
 
 
 class TermColor:
@@ -53,8 +54,9 @@ class TestRunner(object):
         if output is None:
             return Result(Result.Status.Skipped, self.py_filename)
 
-        # check for valgrind errors
-        if test.executor.valgrind_opts.use_valgrind:
+        # the output could just be a string, if the NonParsingExecutor was used
+        if output is Output and test.executor.valgrind_opts.use_valgrind:
+            # check for valgrind errors
             if output.rc == execute.error_rc:
                 return Result(Result.Status.Failure, self.py_filename, 'has memory leaks')
             if output.rc == execute.segfault_rc:
@@ -64,10 +66,12 @@ class TestRunner(object):
 
             # cleanup useless valgrind xml files, only keep them for failed tests
             os.remove(test.base_filename() + '.xml')
+        else:
+            os.remove(test.base_filename() + '.xml')
 
         error = test.test_output(output)
         if error is not None:
-            if print_output_on_fail:
+            if output is Output and print_output_on_fail:
                 print(output.raw)
             return Result(Result.Status.Failure, self.py_filename, error.msg)
 
