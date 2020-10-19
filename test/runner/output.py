@@ -4,19 +4,19 @@ from typing import List
 
 
 class OutputElement(object):
-    def __init__(self, type: str, lnr: int, col: int, content: str, file: str, hints=None):
-        if hints is None:
-            hints = []
+    def __init__(self, type: str, lnr: int, col: int, content: str, file: str, notes):
+        self.notes = notes
         self.type = type
         self.lnr = lnr
         self.col = col
         self.content = content
         self.file = file
-        self.hints = hints
 
     @classmethod
     def from_json(cls, data: dict):
-        return cls(**data)
+        elem = cls(**data)
+        elem.notes = list(map(OutputElement.from_json, data['notes']))
+        return elem
 
 
 class Output(object):

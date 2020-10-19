@@ -19,7 +19,7 @@ type ErrorDataKind enum {
 type Error struct {
     kind: ErrorKind,
     data_kind: ErrorDataKind,
-    hint: *ErrorHint,
+    note: *ErrorNote,
     span: span.Span,
     data: ErrorData
 }
@@ -53,25 +53,25 @@ def (e: *Error) to_string(): str.String {
     return str.move_l(value, len);
 }
 
-def (e: *Error) add_hint(hint: *ErrorHint) {
-    if e.hint == null {
-        e.hint = hint;
+def (e: *Error) add_note(note: *ErrorNote) {
+    if e.note == null {
+        e.note = note;
         return;
     }
 
-    let last = e.hint;
+    let last = e.note;
     while last.next != null {
         last = last.next;
     }
 
-    last.next = hint;
+    last.next = note;
 }
 
 def string_single(kind: ErrorKind, span: span.Span, str: str.View): Error {
     return Error {
         kind: kind,
         data_kind: ErrorDataKind.StringSingle,
-        hint: null,
+        note: null,
         span: span,
         data: ErrorData { string_single: str }
     };
@@ -81,7 +81,7 @@ def string_tuple(kind: ErrorKind, span: span.Span, first: str.View, second: str.
     return Error {
         kind: kind,
         data_kind: ErrorDataKind.StringTuple,
-        hint: null,
+        note: null,
         span: span,
         data: ErrorData { string_tuple: StringTuple { first: first, second: second } }
     };
@@ -104,14 +104,20 @@ def init() {
 }
 
 // A Linked List of additional information regarding an error, e.g. the location of usage
-// the function which adds the hints is also responsible for freeing them
-type ErrorHint struct {
+// the function which adds the notes is also responsible for freeing them
+type ErrorNote struct {
+    // if this is true, it means that the span field must be ignored, because this is just a simple
+    // string message without any associated source file or position
+    without_position: bool,
     message: str.View,
     span: span.Span,
-    next: *ErrorHint
+    next: *ErrorNote
 }
 
-def hint(message: str.View, span: span.Span): ErrorHint {
-    return ErrorHint { message: message, span: span, next: null };
+def note(message: str.View, span: span.Span): ErrorNote {
+    return ErrorNote { without_position: false, message: message, span: span, next: null };
 }
 
+def simple_note(message: str.View): ErrorNote {
+    return ErrorNote { without_position: true, message: message, span: span.empty(), next: null };
+}

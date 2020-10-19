@@ -53,11 +53,14 @@ class ErrorTest(Test):
     def simple_error(self, lnr: int, col: int, msg: str, file: Optional[str] = None) -> OutputElement:
         return self.simple_element("error", lnr, col, msg, file)
 
-    def hinted_error(self, lnr: int, col: int, msg: str, hints: List[OutputElement],
-                     file: Optional[str] = None) -> OutputElement:
+    def note_error(self, lnr: int, col: int, msg: str, notes: List[OutputElement],
+                   file: Optional[str] = None) -> OutputElement:
         if file is None:
             file = self.kantan_filename()
-        return OutputElement('error', lnr, col, str(msg), file, hints)
+        return OutputElement('error', lnr, col, str(msg), file, notes)
+
+    def simple_note(self, msg: str):
+        return self.simple_element('note', 0, 0, msg, '')
 
     def simple_element(self, ty: str, lnr: int, col: int, msg: str, file: Optional[str] = None) -> OutputElement:
         if file is None:
@@ -76,17 +79,17 @@ class ErrorTest(Test):
             if error is not None:
                 return error
 
-            if len(actual.hints) == 0:
+            if len(actual.notes) == 0:
                 continue
 
-            if len(actual.hints) != len(expected.hints):
-                return expected_but_got('number of hints', len(expected.hints), len(actual.hints))
+            if len(actual.notes) != len(expected.notes):
+                return expected_but_got('number of notes', len(expected.notes), len(actual.notes))
 
-            for j in range(len(actual.hints)):
-                expected_hint = expected.hints[i]
-                actual_hint = actual.hints[i]
+            for j in range(len(actual.notes)):
+                expected_note = expected.notes[j]
+                actual_note = actual.notes[j]
 
-                error = test_element(expected_hint, actual_hint)
+                error = test_element(expected_note, actual_note)
                 if error is not None:
                     return error
 

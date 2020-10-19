@@ -16,7 +16,7 @@ import "../source/position" as pos;
 // will either be in plain text or json. The format value cannot be changed during runtime
 
 let error_prefix = "ERROR: ";
-let hint_prefix = "INFO: ";
+let note_prefix = "INFO: ";
 // undefined for global variables means 0, which in turn means the first enum variant
 // this is pretty hacky, but works for now
 let format: config.ErrorOutputFormat = undefined;
@@ -39,8 +39,9 @@ def init(output_format: config.ErrorOutputFormat, mods: *mods.Map) {
 
 def finish() {
     if format == config.ErrorOutputFormat.JSON {
-        io.printf("]}\n");
+        io.printf("]}");
     }
+    io.printf("\n");
 }
 
 
@@ -49,34 +50,49 @@ type ReportElement struct {
     file: str.View,
     content: str.View,
     line: pos.LineInfo,
-    first_hint: *e.ErrorHint
+    first_note: *e.ErrorNote
 }
 
-def report_error(content: str.View, span: span.Span, hint: *e.ErrorHint): ReportElement {
-    return report_element("error", content, span, hint);
+def report_error(content: str.View, span: span.Span, note: *e.ErrorNote): ReportElement {
+    return report_element("error", false, content, span, note);
+}
+
+def report_note(note: *e.ErrorNote): ReportElement {
+    return report_element("note", note.without_position, note.message, note.span, note.next);
 }
 
 def report_error_opts(
     file: str.View,
     content: str.View,
     line: pos.LineInfo,
-    first_hint: *e.ErrorHint
+    first_note: *e.ErrorNote
 ): ReportElement {
     return ReportElement {
         _type: "error",
         file: file,
         content: content,
         line: line,
-        first_hint: first_hint
+        first_note: first_note
     };
 }
 
 def report_element(
     _type: string,
+    without_position: bool, // ignore the file + span
     content: str.View,
     span: span.Span,
-    hint: *e.ErrorHint
+    note: *e.ErrorNote
 ): ReportElement {
+    if without_position {
+        return ReportElement {
+            _type: _type,
+            file: str.view("", 0),
+            content: content,
+            line: pos.empty_line_info(),
+            first_note: note
+        };
+    }
+
     let mod = modmap.get_mod_from_span(span);
     dbg.assert_fmt(mod != null, "could not get module for %s", _type);
     let line_info = mod.file.line_info(span);
@@ -86,12 +102,12 @@ def report_element(
         file: mod.file.absolute_path().as_view(),
         content: content,
         line: line_info,
-        first_hint: hint
+        first_note: note
     };
 }
 
 def print_spanned(line_info: pos.LineInfo, offset: u32) {
-    io.printf("%.*s | ", offset, spaces);
+    io.printf("%.*s  | ", offset, spaces);
     let s = line_info.span;
 
     let ptr = s.start;
@@ -101,7 +117,7 @@ def print_spanned(line_info: pos.LineInfo, offset: u32) {
         let c = *ptr;
         io.putchar(c as i32);
         if c == '\n' {
-            io.printf("%.*s | ", offset, spaces);
+            io.printf("%.*s  | ", offset, spaces);
             num_lines += 1;
         }
         ptr = ptr + 1;
@@ -110,7 +126,7 @@ def print_spanned(line_info: pos.LineInfo, offset: u32) {
     io.putchar('\n');
 
     if num_lines == 1 {
-        io.printf("%.*s | ", offset, spaces);
+        io.printf("%.*s  | ", offset, spaces);
         for let i: u32 = 1; i < line_info.start.col; i += 1 {
             io.putchar(' ');
         }
@@ -125,22 +141,29 @@ def (elem: *ReportElement) print() {
 def (elem: *ReportElement) print_offset(offset: u32) {
     if format == config.ErrorOutputFormat.HumanReadable {
         io.printf(
-            "\n%.*s%s: %.*s\n%.*s--> %.*s:%u:%u\n",
+            "\n%.*s%s: %.*s\n%.*s",
             offset, spaces,
             elem._type,
             elem.content.len, elem.content.data,
-            offset, spaces,
-            elem.file.len, elem.file.data,
-            elem.line.start.lnr, elem.line.start.col
+            offset, spaces
         );
 
-        if !elem.line.is_empty() {
-            print_spanned(elem.line, offset);
+        // a file.len of 0 means, that we don't want to print the positional information
+        if elem.file.len > 0 {
+            io.printf(
+                "--> %.*s:%u:%u\n",
+                elem.file.len, elem.file.data,
+                elem.line.start.lnr, elem.line.start.col
+            );
+
+            if !elem.line.is_empty() {
+                print_spanned(elem.line, offset);
+            }
         }
 
-        let hint = elem.first_hint;
-        if hint != null {
-            report_element("hint", hint.message, hint.span, hint.next).print_offset(2);
+        let note = elem.first_note;
+        if note != null {
+            report_note(note).print_offset(2);
         }
 
         return;
@@ -159,20 +182,20 @@ def (elem: *ReportElement) print_offset(offset: u32) {
         elem.line.start.lnr, elem.line.start.col
     );
 
-    let hint = elem.first_hint;
-    if hint != null {
-        // don't print a comma in front of the first hint
+    let note = elem.first_note;
+    if note != null {
+        // don't print a comma in front of the first note
         print_comma = false;
     }
 
-    io.printf(", \"hints\": [");
+    io.printf(", \"notes\": [");
 
-    while hint != null {
-        let element = report_element("hint", hint.message, hint.span, hint.next);
-        // since we don't want to traverse this recursively, we just set the next hint to null
-        element.first_hint = null;
+    while note != null {
+        let element = report_note(note);
+        // since we don't want to traverse this recursively, we just set the next note to null
+        element.first_note = null;
         element.print_offset(2);
-        hint = hint.next;
+        note = note.next;
         print_comma = true;
     }
 
@@ -187,16 +210,16 @@ def print_simple(msg: string) {
     }
 }
 
-def print_file_error(file: *sf.SourceFile, hint: *e.ErrorHint) {
+def print_file_error(file: *sf.SourceFile, note: *e.ErrorNote) {
     let msg = file.error_msg();
-    let path = file.absolute_path().as_view();
-
-    report_error_opts(path, msg, pos.empty_line_info(), hint).print();
+    // the msg already contains the filename, so we set path to an empty view in order to not
+    // print the filename twice
+    report_error_opts(str.view("", 0), msg, pos.empty_line_info(), note).print();
 }
 
 def print_error(err: *e.Error) {
     let msg = err.to_string();
     defer msg.free();
 
-    report_error(msg.view(), err.span, err.hint).print();
+    report_error(msg.view(), err.span, err.note).print();
 }
