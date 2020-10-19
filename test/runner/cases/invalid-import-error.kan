@@ -1,0 +1,4 @@
+import ""
+import 1 // the error for this will be skipped due to parser.sync()
+import "other-module";
+import undefined;

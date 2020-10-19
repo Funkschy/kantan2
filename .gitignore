@@ -1,3 +1,6 @@
 kantan
 test.kan
 *.o
+test/venv
+test/.idea
+*__pycache__*

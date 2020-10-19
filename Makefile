@@ -70,6 +70,12 @@ $(C_OBJ_FILES) : $(C_FILES)
 		gcc -O3 -Wall -c $$file -o $(addsuffix .o, $$file); \
 	done
 
+.PHONY: test
+test : $(BIN_NAME)
+	pushd test && \
+	python3 -m runner.main ../$(BIN_NAME) runner/cases --valgrind ; \
+	popd
+
 .PHONY: clean
 clean :
 	rm $(BIN_NAME) ; \
