@@ -27,12 +27,16 @@ def main():
     parser.add_argument('--show-skipped', action='store_true', help='also print info for skipped tests')
     parser.add_argument('--print-fail-output', action='store_true',
                         help='print the raw compiler output for failed tests')
+    parser.add_argument('--cases', nargs='+', help='test files to run (if empty, all tests will be executed)')
 
     args = parser.parse_args()
     state = State(args.show_skipped, args.print_fail_output)
 
     default_executor = CompilerExecutor(args.compiler, ValgrindOptions(args.valgrind, args.suppress))
-    tests = read(args.tests, default_executor)
+    if args.cases is None:
+        tests = read(args.tests, default_executor)
+    else:
+        tests = create_runners(default_executor, args.cases)
 
     with ThreadPoolExecutor(max_workers=args.threads) as pool:
         pool.map(lambda runner: run_test_case(runner, state), tests)
@@ -99,6 +103,10 @@ class State(object):
         self.skip_lock.release()
 
 
+def create_runners(default_executor: CompilerExecutor, files: List[str]) -> List[TestRunner]:
+    return [TestRunner(default_executor, path) for path in files]
+
+
 def read(test_path: str, default_executor: CompilerExecutor) -> List[TestRunner]:
     ignored = read_ignored(test_path)
 
@@ -107,7 +115,7 @@ def read(test_path: str, default_executor: CompilerExecutor) -> List[TestRunner]
         return st[1] == '.py' and basename(st[0]) not in ignored
 
     files = filter(add_file, [abspath(join(test_path, f)) for f in listdir(test_path)])
-    return [TestRunner(default_executor, path) for path in files]
+    return create_runners(default_executor, list(files))
 
 
 def read_ignored(test_path: str) -> Set[str]:

@@ -70,10 +70,20 @@ $(C_OBJ_FILES) : $(C_FILES)
 		gcc -O3 -Wall -c $$file -o $(addsuffix .o, $$file); \
 	done
 
+# This makes it possible to do stuff like `make test -- --show-skipped`
+# see https://stackoverflow.com/questions/2214575/passing-arguments-to-make-run
+# If the first argument is "test"...
+ifeq (test,$(firstword $(MAKECMDGOALS)))
+  # use the rest as arguments for "test"
+  TEST_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+  # ...and turn them into do-nothing targets
+  $(eval $(TEST_ARGS):;@:)
+endif
+
 .PHONY: test
 test : $(BIN_NAME)
 	pushd test && \
-	python3 -m runner.main ../$(BIN_NAME) runner/cases --valgrind ; \
+	python3 -m runner.main ../$(BIN_NAME) runner/cases --valgrind $(TEST_ARGS); \
 	popd
 
 .PHONY: clean
