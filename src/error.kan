@@ -3,15 +3,19 @@ import "std/cdeps";
 
 import "source/span";
 
-let error_strings: [2]string = undefined;
+let error_strings: [4]string = undefined;
 
 type ErrorKind enum {
+    // import errors
+    CouldNotImport,
+    SelfImport,
     // parse errors
     ExpectedButGot,
-    CouldNotImport
+    UnknownToken
 }
 
 type ErrorDataKind enum {
+    NoAdditionalData,
     StringSingle,
     StringTuple
 }
@@ -31,6 +35,10 @@ def (e: *Error) fmt_string(): string {
 def (e: *Error) to_string(): str.String {
     let len: usize = 0;
     let value: string = null;
+
+    if e.data_kind == ErrorDataKind.NoAdditionalData {
+        return str.from(e.fmt_string());
+    }
 
     if e.data_kind == ErrorDataKind.StringSingle {
         let str = e.data.string_single;
@@ -67,6 +75,16 @@ def (e: *Error) add_note(note: *ErrorNote) {
     last.next = note;
 }
 
+def simple_error(kind: ErrorKind, span: span.Span): Error {
+    return Error {
+        kind: kind,
+        data_kind: ErrorDataKind.NoAdditionalData,
+        note: null,
+        span: span,
+        data: undefined
+    };
+}
+
 def string_single(kind: ErrorKind, span: span.Span, str: str.View): Error {
     return Error {
         kind: kind,
@@ -98,9 +116,11 @@ type StringTuple struct {
 }
 
 def init() {
+    error_strings[0] = "Invalid import: %.*s";
+    error_strings[1] = "Modules cannot import themselves";
     // parse errors
-    error_strings[0] = "Expected '%.*s', but got '%.*s'";
-    error_strings[1] = "Invalid import: %.*s";
+    error_strings[2] = "Expected '%.*s', but got '%.*s'";
+    error_strings[3] = "Unknown token '%.*s'";
 }
 
 // A Linked List of additional information regarding an error, e.g. the location of usage

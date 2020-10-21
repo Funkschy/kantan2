@@ -2,15 +2,15 @@ import "../std/str";
 
 // A position in the source code
 type Span struct {
-    start: string,
-    end: string
+    start: *i8,
+    end: *i8
 }
 
 def empty(): Span {
     return Span { start: null, end: null };
 }
 
-def create(start: string, end: string): Span {
+def create(start: *i8, end: *i8): Span {
     if end < start {
         let t = start;
         start = end;

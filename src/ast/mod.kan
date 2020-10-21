@@ -1,11 +1,23 @@
+import "../std/str";
+import "../std/ptrvec";
+
+import "../ast/item";
 import "../source/file" as sf;
 
 type Module struct {
-    // the stdlib has sometimes behaves differently
+    // the stdlib may sometimes behave differently
     is_std_lib: bool,
-    file: sf.SourceFile
+    file: sf.SourceFile,
+    items: ptrvec.Vec // ptrvec.Vec[item.Item]
+}
+
+def (memory: *Module) init(is_std_lib: bool) {
+    memory.is_std_lib = false;
+    memory.items = ptrvec.create();
+    // file is added later
 }
 
 def (m: *Module) free() {
     m.file.free();
+    m.items.free();
 }

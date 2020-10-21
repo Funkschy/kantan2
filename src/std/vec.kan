@@ -21,11 +21,8 @@ def with_cap(elem_size: usize, cap: usize): Vec {
 }
 
 def (v: *Vec) push(elem: *void) {
-    if v.len + 1 > v.cap {
-        v.resize();
-    }
-
-    libc.memcpy(v.elements + v.len * v.elem_size, elem, v.elem_size);
+    let place = v.reserve_single();
+    libc.memcpy(place, elem, v.elem_size);
     v.len = v.len + 1;
 }
 
@@ -82,6 +79,16 @@ def (v: *Vec) resize() {
         v.cap = v.cap * 2;
         v.elements = libc.realloc(v.elements, v.cap * v.elem_size);
     }
+}
+
+// reserve enough memory for the next insertion and return a pointer to the memory, where the next
+// element would be inserted
+def (v: *Vec) reserve_single(): *void {
+    if v.len + 1 > v.cap {
+        v.resize();
+    }
+
+    return v.elements + v.len * v.elem_size;
 }
 
 def (v: *Vec) clone(): Vec {

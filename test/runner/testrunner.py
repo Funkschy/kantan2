@@ -55,24 +55,25 @@ class TestRunner(object):
             return Result(Result.Status.Skipped, self.py_filename)
 
         # the output could just be a string, if the NonParsingExecutor was used
-        if output is Output and test.executor.valgrind_opts.use_valgrind:
-            # check for valgrind errors
-            if output.rc == execute.error_rc:
-                return Result(Result.Status.Failure, self.py_filename, 'has memory leaks')
-            if output.rc == execute.segfault_rc:
-                return Result(Result.Status.Failure, self.py_filename, 'segfaulted')
-            if output.rc == execute.abort_rc:
-                return Result(Result.Status.Failure, self.py_filename, 'aborted')
+        if test.executor.valgrind_opts.use_valgrind:
+            if type(output) is Output:
+                # check for valgrind errors
+                if output.rc == execute.error_rc:
+                    return Result(Result.Status.Failure, self.py_filename, 'has memory leaks')
+                if output.rc == execute.segfault_rc:
+                    return Result(Result.Status.Failure, self.py_filename, 'segfaulted')
+                if output.rc == execute.abort_rc:
+                    return Result(Result.Status.Failure, self.py_filename, 'aborted')
 
-            # cleanup useless valgrind xml files, only keep them for failed tests
-            os.remove(test.base_filename() + '.xml')
-        else:
-            os.remove(test.base_filename() + '.xml')
+                # cleanup useless valgrind xml files, only keep them for failed tests
+                os.remove(test.base_filename() + '.xml')
+            else:
+                os.remove(test.base_filename() + '.xml')
 
         error = test.test_output(output)
         if error is not None:
-            if output is Output and print_output_on_fail:
-                print(output.raw)
+            if print_output_on_fail:
+                print(output.raw if type(output) is Output else output)
             return Result(Result.Status.Failure, self.py_filename, error.msg)
 
         return Result(Result.Status.Success, self.py_filename)

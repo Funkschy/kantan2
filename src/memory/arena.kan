@@ -17,6 +17,10 @@ def region(): *Region {
     return region;
 }
 
+// Most of the memory that is needed during compilation comes from an arena.
+// An Arena is just a linked list of memory chunks.
+// This makes managing (especially freeing) memory really easy and also improves performance,
+// because less malloc/free calls are needed
 type TypedArena struct {
     elem_size: usize,
     first: *Region,
@@ -53,6 +57,22 @@ def (a: *TypedArena) free() {
     let region = a.first;
     while region != null {
         let next = region.next;
+        delete region;
+        region = next;
+    }
+}
+
+delegate def Destructor(elem: *void);
+// frees the arena, but also runs the Destructor function on every element
+def (a: *TypedArena) free_destructor(destructor: Destructor) {
+    let region = a.first;
+    while region != null {
+        let next = region.next;
+
+        for let i: usize = 0; i < region.len; i += a.elem_size {
+            destructor(&region.data[i] as *void);
+        }
+
         delete region;
         region = next;
     }

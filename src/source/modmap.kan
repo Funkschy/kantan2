@@ -1,4 +1,5 @@
 import "../std/str";
+import "../std/dbg";
 import "../std/vmap";
 import "../std/files/path";
 
@@ -8,15 +9,20 @@ import "../util";
 import "file" as sf; // source/file
 import "span";
 
+type ModuleInfo struct {
+    was_imported: bool,
+    module: *mod.Module
+}
+
 type Map struct {
     // this has to be a vmap, since we want to mutate it, while iterating. That is not something
     // that the normal map.Map supports, but the vmap can be iterated in order, while appending
     // further modules at the end
-    files: vmap.Map // vmap.Map[path.Path, *mod.Module]
+    files: vmap.Map // vmap.Map[path.Path, ModuleInfo]
 }
 
 def filemap(): Map {
-    return Map { files: vmap.create(sizeof *mod.Module) };
+    return Map { files: vmap.create(sizeof ModuleInfo) };
 }
 
 // add a file the the filemap. The relative_path is resolved in relation to the current working
@@ -29,12 +35,9 @@ def (m: *Map) add_file(cwd: path.Path, relative_path: path.Path, dest_mod: *mod.
     dest_mod.file = file;
 
     if !file.is_error() {
-        m.files.insert(util.key_from_path(file.absolute_path()), &dest_mod as *void);
+        let info = ModuleInfo { was_imported: false, module: dest_mod };
+        m.files.insert(util.key_from_path(file.absolute_path()), &info as *void);
     }
-}
-
-def (m: *Map) get_mod(path: path.Path): *mod.Module {
-    return null;
 }
 
 def (m: *Map) get_mod_from_span(span: span.Span): *mod.Module {
@@ -53,8 +56,26 @@ def (m: *Map) len(): usize {
     return m.files.len();
 }
 
+def (m: *Map) mark_imported(path: path.Path) {
+    let info = m.files.get_ptr(util.key_from_path(path)) as *ModuleInfo;
+    dbg.assert(info != null, "trying to mark non existing module");
+    info.was_imported = true;
+}
+
+def (m: *Map) get_mod(path: path.Path): *mod.Module {
+    let info = m.files.get_ptr(util.key_from_path(path)) as *ModuleInfo;
+    if info == null {
+        return null;
+    }
+    return info.module;
+}
+
 def (m: *Map) at(idx: usize): *mod.Module {
-    return *(m.files.get_ptr_idx(idx) as **mod.Module);
+    let info = m.files.get_ptr_idx(idx) as *ModuleInfo;
+    if info == null {
+        return null;
+    }
+    return info.module;
 }
 
 def (m: *Map) free() {

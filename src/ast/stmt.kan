@@ -1,0 +1,35 @@
+import "../std/vec";
+import "../source/span";
+
+type StmtKind enum {
+    Block
+}
+
+type Stmt struct {
+    kind: StmtKind,
+    span: span.Span,
+    data: StmtData
+}
+
+type StmtData union {
+    block: Block
+}
+
+def (s: *Stmt) free() {
+    if s.kind == StmtKind.Block {
+        s.data.block.free();
+    }
+}
+
+type Block struct {
+    // the block is actually responsible for freeing its statements
+    stmts: vec.Vec
+}
+
+def (b: *Block) free() {
+    for let i: usize = 0; i < b.stmts.len; i += 1 {
+        let stmt = b.stmts.get_ptr(i) as *Stmt;
+        stmt.free();
+    }
+    b.stmts.free();
+}

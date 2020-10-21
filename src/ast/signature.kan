@@ -1,0 +1,47 @@
+import "../std/vec";
+
+import "../source/span";
+import "../source/ident";
+
+import "tyid";
+
+type Modifier struct {
+    // if the span is empty => not extern etc.
+    // the span may be needed for error messages, so we use it instead of a bool
+    extern_span: span.Span,
+    export_span: span.Span
+}
+
+type Param struct {
+    name: ident.Ident,
+    ty: *tyid.Type
+}
+
+def param(name: ident.Ident, ty: *tyid.Type): Param {
+    return Param {
+        name: name, ty: ty
+    };
+}
+
+type ReturnType struct {
+    // the ty can be null, if the return type was emitted. In this case, the span points to the ')'
+    // at the end of the parameters. If the return type was present, this span is the same as
+    // ty.span
+    span: span.Span,
+    ty: *tyid.Type
+}
+
+type Signature struct {
+    modifier: Modifier,
+    params: vec.Vec, // ptrvec.Vec[Param]
+    ret: ReturnType
+}
+
+def (s: *Signature) init() {
+    // the vector needs to be initialized in order to be freed
+    s.params = vec.create(sizeof Param);
+}
+
+def (s: *Signature) free() {
+    s.params.free();
+}

@@ -1,12 +1,20 @@
 import "../std/dbg";
+import "../std/str";
+import "../std/vec";
 
-import "../cli/report";
+import "../cli/report" as _report; // rename this, so I don't use it instead of Parser.report()
 import "../error" as e;
+import "../memory/arena";
+import "../util" as _;
+
 import "../source/span";
 import "../source/ident";
-import "../memory/arena";
 
+import "tyid";
 import "item";
+import "stmt";
+import "signature" as sig;
+
 import "lexer" as l;
 import "token" as tok;
 
@@ -14,22 +22,29 @@ type Parser struct {
     had_error: bool,
     panic_mode: bool,
     lexer: l.Lexer,
-    arena: *arena.TypedArena
+    ast_arena: *arena.TypedArena,
+    ty_arena: *arena.TypedArena
 }
 
-def create(lexer: l.Lexer, arena: *arena.TypedArena): Parser {
-    dbg.assert(arena.elem_size == sizeof item.Item, "wrong arena size");
+def create(lexer: l.Lexer, ast_arena: *arena.TypedArena, ty_arena: *arena.TypedArena): Parser {
+    dbg.assert(ast_arena.elem_size == sizeof item.Item, "wrong ast arena size");
+    dbg.assert(ty_arena.elem_size == sizeof tyid.Type, "wrong ty arena size");
 
     return Parser {
         had_error: false,
         panic_mode: false,
         lexer: lexer,
-        arena: arena
+        ast_arena: ast_arena,
+        ty_arena: ty_arena
     };
 }
 
-def (p: *Parser) alloc(): *item.Item {
-    return p.arena.alloc() as *item.Item;
+def (p: *Parser) alloc_item(): *item.Item {
+    return p.ast_arena.alloc() as *item.Item;
+}
+
+def (p: *Parser) alloc_tyid(): *tyid.Type {
+    return p.ty_arena.alloc() as *tyid.Type;
 }
 
 def (p: *Parser) peek(): tok.Token {
@@ -40,9 +55,9 @@ def (p: *Parser) advance(): tok.Token {
     let current = p.lexer.next_token();
 
     while current.ty.is_err() {
-        // TODO: report lex error
-        import "io";
-        io.printf("parse error\n");
+        let lexeme = current.lexeme();
+        let error = e.string_single(e.ErrorKind.UnknownToken, current.span, lexeme);
+        p.report(&error);
 
         current = p.lexer.next_token();
     }
@@ -54,27 +69,102 @@ def (p: *Parser) check(ty: tok.TokenType): bool {
     return p.peek().ty == ty;
 }
 
+def (p: *Parser) is_at_end(): bool {
+    return p.check(tok.TokenType.EOF);
+}
+
+// consumes a token of the specified type, or does nothing
+// returns true, if a token was consumed
+def (p: *Parser) consume_optional(ty: tok.TokenType): bool {
+    if p.check(ty) {
+        p.advance();
+        return true;
+    }
+    return false;
+}
+
 // this will first check, if the next token the lexer would produce, will be of the expected
-// type, if it is, it will set out to the consumed token and return true
-// if the token type differs, it will report a parse error and return false.
+// type, if it is, it will set out to the consumed token and return Result.OK
+// if the token type differs, it will report a parse error and return Result.Error.
 // In the latter case, the value of out is undefined
-def (p: *Parser) consume_tok(expected: tok.TokenType, out: *tok.Token): bool {
-    if !p.check(expected) {
-        let expected = expected.as_view();
-        let actual = p.peek().ty.as_view();
-        let error = e.string_tuple(e.ErrorKind.ExpectedButGot, p.peek().span, expected, actual);
-        p.report(&error);
-        return false;
+// Any error tokens will be skipped and reported. If the expected token follows after some
+// amount of error tokens, this will succeed, but report the first error that was encountered during
+// skipping.
+def (p: *Parser) consume_tok(expected: tok.TokenType, out: *tok.Token): Result {
+    if p.check(expected) {
+        *out = p.advance();
+        return Result.OK;
     }
 
-    *out = p.advance();
-    return true;
+    // skip all error tokens so that we don't report 2 errors for a single wrong token
+    // (UnknownToken + ExpectedButGot)
+    if p.peek().ty.is_err() {
+        let next_after_errors = p.advance();
+        if next_after_errors.ty == expected {
+            *out = next_after_errors;
+            return Result.OK;
+        }
+    }
+
+    // if we get here, report the consume error (ExpectedButGot)
+    p.report_expected_but_got(expected.as_view());
+    return Result.Error;
 }
 
 // same as consume_tok, but always discards the consumed token
-def (p: *Parser) consume(expected: tok.TokenType): bool {
+def (p: *Parser) consume(expected: tok.TokenType): Result {
     let out: tok.Token = undefined;
     return p.consume_tok(expected, &out);
+}
+
+def (p: *Parser) consume_ident(out: *ident.Ident): Result {
+    let name_token: tok.Token = undefined;
+    if p.consume_tok(tok.TokenType.Ident, &name_token).is_error() {
+        return Result.Error;
+    }
+
+    *out = ident.from_span(name_token.span);
+    return Result.OK;
+}
+
+// consume a type identifier into the previously allocated memory
+// the caller has to ensure, that tyid.Type.free is called in the case of an error.
+// However, this should be handled by the arena
+def (p: *Parser) consume_tyid(memory: *tyid.Type): Result {
+    // if the type starts with '*', it's a pointer. The inner type will be parsed recursively
+    if p.consume_optional(tok.TokenType.Star) {
+        let inner = p.alloc_tyid();
+        tyid.init_pointer(memory, inner);
+        return p.consume_tyid(inner);
+    }
+
+    tyid.init_path(memory);
+    let path = &memory.data.path;
+
+    // a segment is just an identifier
+    // a Path can consist of an arbitrary amount of Segments, which are connected by dots
+    // e.g. tyid.Type.free has 3 segments
+    let segment: ident.Ident = undefined;
+    if p.consume_ident(&segment).is_error() {
+        return Result.Error;
+    }
+    path.push_segment(segment);
+
+    while p.check(tok.TokenType.Dot) {
+        p.advance();
+        if p.consume_ident(&segment).is_error() {
+            return Result.Error;
+        }
+        path.push_segment(segment);
+    }
+
+    return Result.OK;
+}
+
+def (p: *Parser) report_expected_but_got(expected: str.View) {
+    let actual = p.peek().ty.as_view();
+    let error = e.string_tuple(e.ErrorKind.ExpectedButGot, p.peek().span, expected, actual);
+    p.report(&error);
 }
 
 // report an error. If the parser is currently in panic mode, the error will be silently
@@ -85,9 +175,11 @@ def (p: *Parser) report(error: *e.Error) {
     }
 
     p.panic_mode = p.had_error = true;
-    report.print_error(error);
+    _report.print_error(error);
 }
 
+// try to synchronize the compiler. This will skip tokens until we are at the beginning of a new
+// stmt or EOF
 def (p: *Parser) sync() {
     p.panic_mode = false;
 
@@ -137,12 +229,12 @@ def (p: *Parser) parse_next_import(): ParsedImport {
     p.advance();
 
     let import_path: tok.Token = undefined;
-    if !p.consume_tok(tok.TokenType.String, &import_path) {
+    if p.consume_tok(tok.TokenType.String, &import_path).is_error() {
         p.sync();
         return error_import();
     }
 
-    if !p.consume(tok.TokenType.Semi) {
+    if p.consume(tok.TokenType.Semi).is_error() {
         p.sync();
         return error_import();
     }
@@ -153,4 +245,122 @@ def (p: *Parser) parse_next_import(): ParsedImport {
     };
 
     return ParsedImport { is_present: true, was_error: false, import_decl: decl };
+}
+
+def (p: *Parser) parse_item(): *item.Item {
+    // in this model, the caller (this function) allocates the memory neccessary to store an item
+    let item: *item.Item = null;
+
+    if p.check(tok.TokenType.Def) && p.parse_func_def(item = p.alloc_item()).is_ok() {
+        return item;
+    }
+
+    p.report_expected_but_got(str.view_from("def"));
+    if p.panic_mode {
+        p.sync();
+    }
+
+    return null;
+}
+
+// parse a single functino definition and store it in 'memory'
+def (p: *Parser) parse_func_def(memory: *item.Item): Result {
+    memory.init_func_def();
+
+    let def_token: tok.Token = undefined;
+    if p.consume_tok(tok.TokenType.Def, &def_token).is_error() {
+        return Result.Error;
+    }
+
+    let name: ident.Ident = undefined;
+    if p.consume_ident(&name).is_error() {
+        return Result.Error;
+    }
+    memory.name = name;
+
+    let params = &memory.data.func_def.sig.params;
+    let end_span = span.empty();
+    p.parse_param_list(params, &end_span);
+
+    if p.consume_optional(tok.TokenType.Colon) {
+        let ty = p.alloc_tyid();
+        if p.consume_tyid(ty).is_error() {
+            return Result.Error;
+        }
+    }
+
+    let block = &memory.data.func_def.block;
+    if p.parse_block(block).is_error() {
+        return Result.Error;
+    }
+
+    return Result.OK;
+}
+
+// parses the parameter list for a function declaration
+// the parsed parameters are pushed into the 'params' vec and the span of the closing ')' is
+// returned via the rparen_span parameter
+// it does allow for a comma after the last parameter, but not in front of the first
+// see grammar.ebnf -> ParameterList for more information
+def (p: *Parser) parse_param_list(params: *vec.Vec, rparen_span: *span.Span): Result {
+    if p.consume(tok.TokenType.LParen).is_error() {
+        return Result.Error;
+    }
+
+    let first = true;
+
+    // since we allow for trailing ',', we have to check for the closing ')'
+    while !p.check(tok.TokenType.RParen) {
+        // there should be no comma infront of the first parameter, so we can just skip this
+        if !first {
+            // every other parameter should be preceeded by a ','
+            if p.consume(tok.TokenType.Comma).is_error() {
+                return Result.Error;
+            }
+
+            // this allows for a trailing comma after the last parameter
+            if p.check(tok.TokenType.RParen) {
+                break;
+            }
+        }
+        first = false;
+
+        // a parameter has the form 'name: ty'
+        let name: ident.Ident = undefined;
+        if p.consume_ident(&name).is_error() {
+            return Result.Error;
+        }
+
+        if p.consume(tok.TokenType.Colon).is_error() {
+            return Result.Error;
+        }
+
+        let ty = p.alloc_tyid();
+        if p.consume_tyid(ty).is_error() {
+            return Result.Error;
+        }
+
+        let param = sig.param(name, ty);
+        params.push(&param as *void);
+    }
+
+    let closing_rparen: tok.Token = undefined;
+    if p.consume_tok(tok.TokenType.RParen, &closing_rparen).is_error() {
+        return Result.Error;
+    }
+
+    *rparen_span = closing_rparen.span;
+    return Result.OK;
+}
+
+def (p: *Parser) parse_block(block: *stmt.Block): Result {
+    if p.consume(tok.TokenType.LBrace).is_error() {
+        return Result.Error;
+    }
+
+    if p.consume(tok.TokenType.RBrace).is_error() {
+        return Result.Error;
+    }
+
+    return Result.OK;
 }

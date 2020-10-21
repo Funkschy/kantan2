@@ -4,6 +4,7 @@ import "config";
 
 import "../std/str";
 import "../std/dbg";
+import "../std/cdeps";
 
 import "../error" as e;
 
@@ -26,19 +27,24 @@ let modmap: *mods.Map = null;
 // this is used for indenting error messages. Therefore the length of this string is also the
 // maximimum intendation for errors
 let spaces = "                ";
+// errors in human-readable mode will be printed immediately, but for json, we might need some
+// formatting, so it's easier to just write to a buffer
+let json_error_buffer: str.String = undefined;
 
 def init(output_format: config.ErrorOutputFormat, mods: *mods.Map) {
     format = output_format;
     modmap = mods;
 
     if format == config.ErrorOutputFormat.JSON {
-        io.printf("{\"errors\": [");
+        json_error_buffer = str.from("{\"errors\": [");
     }
 }
 
 def finish() {
     if format == config.ErrorOutputFormat.JSON {
-        io.printf("]}\n");
+        json_error_buffer.push(str.view("]}", 2));
+        io.printf("%s\n", json_error_buffer.cstring());
+        json_error_buffer.free();
     }
 }
 
@@ -133,52 +139,59 @@ def print_spanned(line_info: pos.LineInfo, offset: u32) {
 }
 
 def (elem: *ReportElement) print() {
-    elem.print_offset(0);
+    if format == config.ErrorOutputFormat.HumanReadable {
+        elem.print_offset(0);
+    } else {
+        elem.print_json();
+    }
 }
 
 def (elem: *ReportElement) print_offset(offset: u32) {
-    if format == config.ErrorOutputFormat.HumanReadable {
+    io.printf(
+        "\n%.*s%s: %.*s\n%.*s",
+        offset, spaces,
+        elem._type,
+        elem.content.len, elem.content.data,
+        offset, spaces
+    );
+
+    // a file.len of 0 means, that we don't want to print the positional information
+    if elem.file.len > 0 {
         io.printf(
-            "\n%.*s%s: %.*s\n%.*s",
-            offset, spaces,
-            elem._type,
-            elem.content.len, elem.content.data,
-            offset, spaces
+            "--> %.*s:%u:%u\n",
+            elem.file.len, elem.file.data,
+            elem.line.start.lnr, elem.line.start.col
         );
 
-        // a file.len of 0 means, that we don't want to print the positional information
-        if elem.file.len > 0 {
-            io.printf(
-                "--> %.*s:%u:%u\n",
-                elem.file.len, elem.file.data,
-                elem.line.start.lnr, elem.line.start.col
-            );
-
-            if !elem.line.is_empty() {
-                print_spanned(elem.line, offset);
-            }
+        if !elem.line.is_empty() {
+            print_spanned(elem.line, offset);
         }
-
-        let note = elem.first_note;
-        if note != null {
-            report_note(note).print_offset(2);
-        }
-
-        return;
     }
 
+    let note = elem.first_note;
+    if note != null {
+        report_note(note).print_offset(2);
+    }
+}
+
+def (elem: *ReportElement) print_json() {
     if print_comma {
-        io.printf(",");
+        json_error_buffer.push(str.view(",", 1));
     }
     print_comma = true;
 
-    io.printf(
+    // this is just way easier to write/read than pushing each field individually
+    let len: usize = 0;
+    let value = cdeps.l_format_str(
+        &len,
         "{\"type\": \"%s\", \"file\": \"%.*s\", \"content\": \"%.*s\", \"lnr\": %u, \"col\": %u",
         elem._type,
         elem.file.len, elem.file.data,
         elem.content.len, elem.content.data,
         elem.line.start.lnr, elem.line.start.col
     );
+    json_error_buffer.push(str.view(value, len));
+    delete value;
 
     let note = elem.first_note;
     if note != null {
@@ -186,18 +199,17 @@ def (elem: *ReportElement) print_offset(offset: u32) {
         print_comma = false;
     }
 
-    io.printf(", \"notes\": [");
+    json_error_buffer.push(str.view_from(", \"notes\": ["));
+    defer json_error_buffer.push(str.view("]}", 2));
 
     while note != null {
         let element = report_note(note);
         // since we don't want to traverse this recursively, we just set the next note to null
         element.first_note = null;
-        element.print_offset(2);
+        element.print_json();
         note = note.next;
         print_comma = true;
     }
-
-    io.printf("]}");
 }
 
 def print_simple(msg: str.View) {

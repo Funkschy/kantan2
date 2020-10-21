@@ -1,10 +1,12 @@
 import "std/str";
+import "std/dbg";
 import "std/files/path";
 
 import "ast/mod";
+import "ast/tyid";
 import "ast/item";
-import "ast/lexer";
-import "ast/parser";
+import "ast/lexer" as lex;
+import "ast/parser" as parse;
 
 import "cli/config";
 import "cli/report";
@@ -23,7 +25,8 @@ type Compiler struct {
     config: *config.Config,
     modmap: mods.Map,
     mod_arena: arena.TypedArena,
-    ast_arena: arena.TypedArena
+    ast_arena: arena.TypedArena,
+    ty_arena: arena.TypedArena
 }
 
 def compiler(config: *config.Config): Compiler {
@@ -32,7 +35,8 @@ def compiler(config: *config.Config): Compiler {
         config: config,
         modmap: mods.filemap(),
         mod_arena: arena.typed(sizeof mod.Module),
-        ast_arena: arena.typed(sizeof item.Item)
+        ast_arena: arena.typed(sizeof item.Item),
+        ty_arena: arena.typed(sizeof tyid.Type)
     };
 }
 
@@ -49,7 +53,7 @@ def (c: *Compiler) read_files() {
 def (c: *Compiler) add_file(filepath: path.Path, note: *e.ErrorNote): Result {
     let cwd = c.cwd.as_path();
     let mod = c.mod_arena.alloc() as *mod.Module;
-    mod.is_std_lib = false;
+    mod.init(false);
 
     c.modmap.add_file(cwd, filepath, mod);
 
@@ -66,12 +70,11 @@ def (c: *Compiler) resolve_imports() {
     for let i: usize = 0; i < c.modmap.len(); i += 1 {
         let mod = c.modmap.at(i);
 
-        // since neither lexer or parser allocate any memory, this is pretty cheap, so it's not
-        // a problem to create multiple lexer/parser per module
-        let lexer = lexer.create(mod.file.code());
-        let parser = parser.create(lexer, &c.ast_arena);
+        let lexer = lex.create(mod.file.code());
+        let parser = parse.create(lexer, &c.ast_arena, &c.ty_arena);
 
-        // we iterate over all the imports first, to avoid unnecessary parsing
+        // we iterate over all the imports first, since they need to be at the top of the file
+        // while resolving the imports, we keep track of all imported modules
         let parsed_import = parser.parse_next_import();
         while parsed_import.is_present || parsed_import.was_error {
             defer parsed_import = parser.parse_next_import();
@@ -100,8 +103,6 @@ def (c: *Compiler) resolve_imports() {
             // only free this, if the result was no error
             defer full_imported_path.free();
 
-            // TODO: check self import
-
             let full_imported_path = full_imported_path.as_path();
             let imported_module = c.modmap.get_mod(full_imported_path);
             if imported_module == null {
@@ -113,12 +114,49 @@ def (c: *Compiler) resolve_imports() {
                 if c.add_file(full_imported_path, &note).is_error() {
                     continue;
                 }
+
+                imported_module = c.modmap.get_mod(full_imported_path);
+                // this shouldn't happen, since we should've bailed if the file couldn't be added
+                dbg.assert(imported_module != null, "internal modmap error");
+            }
+
+            // at this point we can be sure, that the module does exist and was added to the modmap
+            // so we can mark it as imported
+            // all modules, that were never imported (apart from the main module) are removed before
+            // type checking
+            c.modmap.mark_imported(full_imported_path);
+
+            // check for self import
+            // import cycles are actually allowed, so this wouldn't be a real issue, but since
+            // a self import is never needed, we report an error anyway
+            if imported_module == mod {
+                let error = e.simple_error(e.ErrorKind.SelfImport, decl.path.span);
+                report.print_error(&error);
+                continue;
+            }
+        }
+
+        // at this point all legal imports have been parsed. If we encounter any more, they will
+        // be reported as parse errors
+
+        while !parser.is_at_end() {
+            let parsed_item = parser.parse_item();
+            if parsed_item != null {
+                mod.items.push_ptr(parsed_item as *void);
             }
         }
     }
+
+    // while resolving the imports, we keep track of the modules, that were actually imported
+    // everything else (apart from the main module) can be removed to increase performance
 }
 
-def report_import_error(result: path.Result, relative_to: path.Path, imported_path: path.Path, span: span.Span) {
+def report_import_error(
+    result: path.Result,
+    relative_to: path.Path,
+    imported_path: path.Path,
+    span: span.Span
+) {
     let error_msg = result.to_string(imported_path);
     defer error_msg.free();
 
@@ -146,5 +184,6 @@ def (c: *Compiler) free() {
     c.modmap.free();
 
     c.mod_arena.free();
-    c.ast_arena.free();
+    c.ast_arena.free_destructor(&item.Item.free as arena.Destructor);
+    c.ty_arena.free_destructor(&tyid.Type.free as arena.Destructor);
 }

@@ -1,7 +1,10 @@
 import "../source/span";
 import "../source/ident";
 
-// Import declarations are not Items, since they cannot occur at an arbitrary position inside
+import "stmt";
+import "signature" as sig;
+
+// Import declarations aren't Items, since they cannot occur at an arbitrary position inside
 // the file. All imports have to be decared at the top of the file, before any other ast.Item
 // This makes it easy to determine the dependencies of a single module before we even parse the
 // entire file.
@@ -11,16 +14,39 @@ type ImportDeclaration struct {
 }
 
 type ItemKind enum {
-
+    FuncDef
 }
 
-// a single item inside the ast
+// a single item inside the ast. Items can occur at an arbitrary place inside a module, including
+// the top level
 type Item struct {
     kind: ItemKind,
     span: span.Span,
+    // the name of the item or ident.empty() for nameless items
+    name: ident.Ident,
     data: ItemData
 }
 
 type ItemData union {
+    func_def: FuncDef
+}
 
+def (i: *Item) init_func_def() {
+    i.kind = ItemKind.FuncDef;
+    i.data.func_def.sig.init();
+}
+
+def (i: *Item) free() {
+    if i.kind == ItemKind.FuncDef {
+        i.data.func_def.free();
+    }
+}
+
+type FuncDef struct {
+    sig: sig.Signature,
+    block: stmt.Block
+}
+
+def (f: *FuncDef) free() {
+    f.sig.free();
 }

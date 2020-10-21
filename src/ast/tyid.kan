@@ -1,0 +1,53 @@
+import "../std/vec";
+
+import "../source/span";
+import "../source/ident";
+
+type TypeKind enum {
+    Path,
+    Pointer
+}
+
+// This represents user supplied type information
+// Different ast.ty.Type instances could point to the same types.ty.Type even though they
+// look different
+type Type struct {
+    kind: TypeKind,
+    span: span.Span,
+    data: TypeData
+}
+
+type TypeData struct {
+    path: Path,
+    ptr: Pointer
+}
+
+def init_path(memory: *Type) {
+    memory.kind = TypeKind.Path;
+    memory.data.path = Path { segments: vec.create(sizeof ident.Ident) };
+}
+
+def init_pointer(memory: *Type, inner: *Type) {
+    memory.kind = TypeKind.Pointer;
+    memory.data.ptr = Pointer { inner: inner };
+}
+
+def (t: *Type) free() {
+    if t.kind == TypeKind.Path {
+        t.data.path.segments.free();
+    }
+}
+
+// a path is just a list of names connected by dots
+// e.g. str.String -> ['str', 'String']
+type Path struct {
+    segments: vec.Vec // vec.Vec[ident.Ident]
+}
+
+def (p: *Path) push_segment(segment: ident.Ident) {
+    p.segments.push(&segment as *void);
+}
+
+type Pointer struct {
+    inner: *Type
+}

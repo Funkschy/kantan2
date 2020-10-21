@@ -166,7 +166,7 @@ def (base: *Path) merge_abs_rel_suffix(child: *Path, suffix: string, dest: *Buf)
 // The following files have a common sub path of '/home/user/'
 // /home/user/test.kan
 // /home/user/kantan/other.kan
-def common_parent(first: Path, second: Path): Buf {
+def (first: Path) common_parent(second: Path): Buf {
     dbg.assert(impl.is_abs(&first), "First path was not absolute");
     dbg.assert(impl.is_abs(&second), "Second path was not absolute");
 

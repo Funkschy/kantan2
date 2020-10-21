@@ -5,7 +5,10 @@ K_FILES = src/ast/item.kan \
 		  src/ast/lexer.kan \
 		  src/ast/mod.kan \
 		  src/ast/parser.kan \
+		  src/ast/signature.kan \
+		  src/ast/stmt.kan \
 		  src/ast/token.kan \
+		  src/ast/tyid.kan \
 		  src/cli/config.kan \
 		  src/cli/opt.kan \
 		  src/cli/report.kan \
@@ -63,6 +66,8 @@ $(BIN_NAME) : $(K_FILES) $(C_OBJ_FILES)
 		g++ $(LD_FLAGS) -o $(BIN_NAME) out.o $(C_OBJ_FILES) $(LIBS); \
 		rm out.o ; \
 		rm $(C_OBJ_FILES) ; \
+	else \
+		exit 1; \
 	fi
 
 $(C_OBJ_FILES) : $(C_FILES)
@@ -83,7 +88,7 @@ endif
 .PHONY: test
 test : $(BIN_NAME)
 	pushd test && \
-	python3 -m runner.main ../$(BIN_NAME) runner/cases --valgrind $(TEST_ARGS); \
+	python3 -m runner.main ../$(BIN_NAME) runner/cases $(TEST_ARGS); \
 	popd
 
 .PHONY: clean

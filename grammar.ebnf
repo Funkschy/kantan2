@@ -22,7 +22,7 @@ TypeIdentifier = NamedTypeIdentifier | PointerTypeIdentifier | ArrayTypeIdentifi
 ArrayTypeIdentifier = "[" Expression "]" TypeIdentifier;
 SliceTypeIdentifier = "[" "]" TypeIdentifier;
 PointerTypeIdentifier = "*" TypeIdentifier;
-NamedTypeIdentifier = Identifier [ TypeList ];
+NamedTypeIdentifier = Identifier { "." Identifier } [ TypeList ];
 
 FunctionDefinition = ExternDefinition | DelegateDefinition | NormalDefinition;
 NormalDefinition = ["export"] FunctionSignature BlockStmt;
@@ -30,7 +30,7 @@ ExternDefinition = "extern" FunctionSignature ";";
 DelegateDefinition = "delegate" FunctionSignature ";";
 FunctionSignature = "def" [ ( ReceiverArgument | TyParamList ) ] Identifier "(" [ ParameterList ] ")" [":" TypeIdentifier ];
 ReceiverArgument = "(" Parameter ")";
-ParameterList = Parameter { "," Parameter };
+ParameterList = Parameter { "," Parameter } [ "," ];
 Parameter = Identifier ":" TypeIdentifier;
 TyParamList = "[" Identifier { "," Identifier } "]";
 TypeList = "[" TypeIdentifier { ","TypeIdentifier } "]"
@@ -38,7 +38,7 @@ TypeList = "[" TypeIdentifier { ","TypeIdentifier } "]"
 TypeDeclaration = "type" Identifier [ TyParamList ] (StructDeclaration | EnumDeclaration | UnionDeclaration);
 StructDeclaration = "struct" "{" [ FieldList ] "}";
 UnionDeclaration = "union" "{" [ FieldList ] "}";
-FieldList = Field { "," Field };
+FieldList = Field { "," Field } [ "," ];
 Field = Identifier ":" TypeIdentifier ;
 
 EnumDeclaration = "enum" "{" [ EnumValueList ] "}";
