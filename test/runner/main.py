@@ -3,7 +3,6 @@
 import argparse
 import multiprocessing
 import threading
-import traceback
 from concurrent.futures.thread import ThreadPoolExecutor
 from os import listdir
 from os.path import splitext, basename, abspath, join, isfile
@@ -53,19 +52,13 @@ def main():
 
 
 def run_test_case(runner: TestRunner, state):
-    # ThreadPoolExecutor actually swallows all exceptions, so we just catch & report them here
-    try:
-        result = runner.run(state.print_fail_output)
-        state.add(result.status)
+    result = runner.run(state.print_fail_output)
+    state.add(result.status)
 
-        if result.status == Result.Status.Skipped and not state.show_skipped:
-            return
+    if result.status == Result.Status.Skipped and not state.show_skipped:
+        return
 
-        print(result.status.value[0], ':', result.py_filename, '' if result.msg is None else f': {result.msg}')
-    except Exception as e:
-        # add a failure manually
-        state.add(Result.Status.Failure)
-        traceback.print_exc()
+    print(result.status.value[0], ':', result.py_filename, '' if result.msg is None else f':\n{result.msg}')
 
 
 class State(object):

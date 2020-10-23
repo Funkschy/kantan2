@@ -1,6 +1,6 @@
 import "map";
 import "vec";
-import "cdeps";
+import "num";
 
 type Map struct {
     mappings: map.Map, // map.Map<Key, usize (index into values)>
@@ -30,7 +30,7 @@ def (m: *Map) free() {
 // inserts value into map at key
 def (m: *Map) insert(key: map.Key, value: *void) {
     let idx = m.values.len + 1;
-    m.mappings.insert(key, cdeps.int_to_ptr(idx));
+    m.mappings.insert(key, num.int_to_ptr(idx));
 
     m.values.push(value);
 }
@@ -41,7 +41,7 @@ def (m: *Map) get_ptr(key: map.Key): *void {
         return null;
     }
 
-    let idx = cdeps.ptr_to_int(idx_p) - 1;
+    let idx = num.ptr_to_int(idx_p) - 1;
     return m.values.get_ptr(idx);
 }
 

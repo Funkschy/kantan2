@@ -1,0 +1,77 @@
+import "../std/str";
+import "../source/span";
+
+import "token" as tok;
+
+type ExprKind enum {
+    IntLiteral,
+    Binary
+}
+
+type Expr struct {
+    kind: ExprKind,
+    span: span.Span,
+    data: ExprData
+}
+
+type ExprData union {
+    lit: Literal,
+    binary: BinaryExpr
+}
+
+def (e: *Expr) init_int(token: tok.Token) {
+    e.kind = ExprKind.IntLiteral;
+    e.span = token.span;
+    e.data = ExprData { lit: Literal { kind: LiteralKind.Int, token: token } };
+}
+
+def (e: *Expr) init_binary(kind: BinaryKind, left: *Expr, right: *Expr) {
+    e.kind = ExprKind.Binary;
+    e.span = left.span.merge(right.span);
+    e.data = ExprData { binary: BinaryExpr { kind: kind, left: left, right: right } };
+}
+
+type LiteralKind enum {
+    Int
+}
+
+type Literal struct {
+    kind: LiteralKind,
+    token: tok.Token // the original token
+}
+
+type BinaryKind enum {
+    Add
+}
+
+type BinaryExpr struct {
+    kind: BinaryKind,
+    left: *Expr,
+    right: *Expr
+}
+
+def (e: *Expr) to_json(): str.String {
+    if e.kind == ExprKind.IntLiteral {
+        let json = str.from("{\"kind\": \"int_literal\", \"value\": ");
+        json.push(e.data.lit.token.span.as_view());
+        json.push(str.view_from("}"));
+        return json;
+    }
+
+    if e.kind == ExprKind.Binary {
+        let json = str.from("{\"kind\": \"binary\", ");
+        let left = e.data.binary.left.to_json();
+        defer left.free();
+        json.push(str.view_from("\"left\": "));
+        json.push(left.view());
+        json.push(str.view_from(", \"op\": \"+\", "));
+        let right = e.data.binary.right.to_json();
+        defer right.free();
+        json.push(str.view_from("\"right\": "));
+        json.push(right.view());
+        json.push(str.view_from("}"));
+        return json;
+    }
+
+    return str.from("{\"kind\": \"error\", \"value\": {}}");
+}

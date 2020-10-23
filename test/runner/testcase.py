@@ -1,6 +1,6 @@
 import sys
 from os.path import splitext
-from typing import Optional, List
+from typing import Optional, List, Union
 
 from runner.execute import CompilerExecutor
 from runner.output import Output, OutputElement
@@ -27,7 +27,7 @@ class TestCase(object):
     def files(self) -> List[str]:
         return [self.kantan_filename()]
 
-    def run(self) -> Output:
+    def run(self) -> Union[Output, List[str]]:
         return self.executor.run(self.base_filename(), self.files(), self.options)
 
     def test_output(self, output: Output) -> Optional[TestError]:

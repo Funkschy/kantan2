@@ -1,7 +1,8 @@
 import "../str";
 import "../dbg";
 import "../libc";
-import "../cdeps";
+
+import "../../cdeps";
 
 // TODO: this must be platform dependent
 import "unix" as impl;
@@ -108,6 +109,15 @@ def (b: *Buf) free() {
     b.inner.free();
 }
 
+def (b: *Buf) push(p: Path) {
+    let separator = str.view("/", 1);
+    if !b.inner.view().ends_with(separator) {
+        b.inner.push(separator);
+    }
+
+    b.inner.push(p.as_view());
+}
+
 def (base: *Path) merge_abs_rel(child: *Path, dest: *Buf): Result {
     return base.merge_abs_rel_suffix(child, null, dest);
 }
@@ -127,6 +137,7 @@ def (base: *Path) merge_abs_rel_suffix(child: *Path, suffix: string, dest: *Buf)
     let combined: string = null;
     defer delete combined;
 
+    // TODO: remove any dependencies to cdeps inside the std directory
     if suffix != null {
         combined = cdeps.format_str(
             "%.*s%c%.*s%s",

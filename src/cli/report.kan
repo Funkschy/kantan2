@@ -4,8 +4,8 @@ import "config";
 
 import "../std/str";
 import "../std/dbg";
-import "../std/cdeps";
 
+import "../cdeps";
 import "../error" as e;
 
 import "../source/span";
@@ -36,15 +36,17 @@ def init(output_format: config.ErrorOutputFormat, mods: *mods.Map) {
     modmap = mods;
 
     if format == config.ErrorOutputFormat.JSON {
-        json_error_buffer = str.from("{\"errors\": [");
+        io.printf("{");
+        json_error_buffer = str.from("\"errors\": [");
     }
 }
 
 def finish() {
     if format == config.ErrorOutputFormat.JSON {
-        json_error_buffer.push(str.view("]}", 2));
+        json_error_buffer.push(str.view("]", 1));
         io.printf("%s\n", json_error_buffer.cstring());
         json_error_buffer.free();
+        io.printf("}\n");
     }
 }
 

@@ -21,3 +21,10 @@ extern def strerror(err: i32): string;
 extern def getenv(name: string): string;
 extern def snprintf(str: string, size: usize, fmt: string, ...): i32;
 
+def find_char(haystack: *i8, needle: i8): *i8 {
+    return strchr(haystack, needle as i32);
+}
+
+def find_last_char(haystack: *i8, needle: i8): *i8 {
+    return strrchr(haystack, needle as i32);
+}

@@ -5,9 +5,18 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <errno.h>
+
 #include <sys/stat.h>
 
 #define DEBUG_ASSERT 1
+
+#ifndef STDLIB_DIR
+#define STDLIB_DIR "~/.kantan/std"
+#endif
+
+char const *const get_stdlib_directory() {
+    return STDLIB_DIR;
+}
 
 // forward decls
 ssize_t vformat_str(char **dest, char const *fmt, va_list args);
@@ -62,28 +71,6 @@ char const *const format_str(char const *fmt, ...) {
     }
 
     return s;
-}
-
-size_t read_char(char const *string, size_t s_len, int32_t *ch) {
-    int32_t c_len = 1;
-
-    if ((*string & 0xf8) == 0xf0) {
-        c_len = 4;
-    } else if ((*string & 0xf0) == 0xe0) {
-        c_len = 3;
-    } else if ((*string & 0xe0) == 0xc0) {
-        c_len = 2;
-    }
-
-    if (c_len > s_len) {
-        return s_len;
-    }
-
-    if (ch != NULL) {
-        memcpy(ch, string, c_len);
-    }
-
-    return (size_t) c_len;
 }
 
 bool is_file(char const *path) {

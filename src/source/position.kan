@@ -1,6 +1,6 @@
 import "../std/str";
 import "../std/dbg";
-import "../std/cdeps";
+import "../std/libc";
 import "../std/ptrvec";
 
 import "span";
@@ -40,7 +40,7 @@ def map_from_source(code: str.View): LineMap {
 
     while pos != null && pos != end {
         vec.push_ptr(pos as *void);
-        pos = cdeps.find_char(pos, '\n');
+        pos = libc.find_char(pos, '\n');
         if pos != null {
             pos = pos + 1;
         }
@@ -118,7 +118,7 @@ def (m: *LineMap) get_line_info(code: str.View, target: span.Span): LineInfo {
     line_info.span.start = last_nl + 1;
 
     // the \n at the end of the line with span in it
-    line_info.span.end = cdeps.find_char(target.end, '\n');
+    line_info.span.end = libc.find_char(target.end, '\n');
     if line_info.span.end == null {
         // if there was no next new line, we just use the EOF
         line_info.span.end = eof;

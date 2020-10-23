@@ -5,6 +5,7 @@ import "std/files/path";
 import "ast/mod";
 import "ast/tyid";
 import "ast/item";
+import "ast/expr";
 import "ast/lexer" as lex;
 import "ast/parser" as parse;
 
@@ -15,45 +16,51 @@ import "memory/arena";
 import "source/span";
 import "source/modmap" as mods;
 
+import "cdeps";
 import "error" as e;
 import "util" as _;
 
 // the main data structure for the compiler
 // this holds all of the memory for types and the ast
+// so if we need to keep data alive for the entire lifetime of the program, it goes here
 type Compiler struct {
     cwd: path.Buf,
+    std_path: path.Path,
     config: *config.Config,
     modmap: mods.Map,
     mod_arena: arena.TypedArena,
     ast_arena: arena.TypedArena,
-    ty_arena: arena.TypedArena
+    ty_arena: arena.TypedArena,
+    expr_arena: arena.TypedArena
 }
 
 def compiler(config: *config.Config): Compiler {
     return Compiler {
         cwd: path.get_cwd(),
+        std_path: find_stdlib_path(),
         config: config,
         modmap: mods.filemap(),
         mod_arena: arena.typed(sizeof mod.Module),
         ast_arena: arena.typed(sizeof item.Item),
-        ty_arena: arena.typed(sizeof tyid.Type)
+        ty_arena: arena.typed(sizeof tyid.Type),
+        expr_arena: arena.typed(sizeof expr.Expr)
     };
 }
 
 def (c: *Compiler) read_files() {
     for let i: usize = 0; i < c.config.files.len; i += 1 {
         let filepath = path.create(c.config.files.get(i) as string);
-        c.add_file(filepath, null);
+        c.add_file(filepath, false, null);
     }
 }
 
 // try to add a single file to the modmap
 // it is also possible to supply an error note which will be displayed in case the file
 // could not be added
-def (c: *Compiler) add_file(filepath: path.Path, note: *e.ErrorNote): Result {
+def (c: *Compiler) add_file(filepath: path.Path, stdlib: bool, note: *e.ErrorNote): Result {
     let cwd = c.cwd.as_path();
     let mod = c.mod_arena.alloc() as *mod.Module;
-    mod.init(false);
+    mod.init(stdlib);
 
     c.modmap.add_file(cwd, filepath, mod);
 
@@ -66,12 +73,36 @@ def (c: *Compiler) add_file(filepath: path.Path, note: *e.ErrorNote): Result {
     return Result.OK;
 }
 
+def (c: *Compiler) resolve_import_path(
+    imported: path.Path,
+    relative_to: path.Path,
+    full_imported_path: *path.Buf,
+    is_std_lib: *bool
+): path.Result {
+    // try to resolve the imported path relative to the parent of the current file, so
+    // e.g. if we are in /etc/test.kan and import "../root", we will try to
+    // resolve /root.kan
+    let result = relative_to.merge_abs_rel_suffix(&imported, ".kan", full_imported_path);
+    if result.is_ok() {
+        *is_std_lib = false;
+        return result;
+    }
+
+    *is_std_lib = true;
+    // if the first try failed, we try to resolve the import inside the stdlib instead
+    return c.std_path.merge_abs_rel_suffix(&imported, ".kan", full_imported_path);
+}
+
 def (c: *Compiler) resolve_imports() {
     for let i: usize = 0; i < c.modmap.len(); i += 1 {
         let mod = c.modmap.at(i);
 
-        let lexer = lex.create(mod.file.code());
-        let parser = parse.create(lexer, &c.ast_arena, &c.ty_arena);
+        let parser = parse.create(
+            lex.create(mod.file.code()),
+             &c.ast_arena,
+             &c.ty_arena,
+             &c.expr_arena
+         );
 
         // we iterate over all the imports first, since they need to be at the top of the file
         // while resolving the imports, we keep track of all imported modules
@@ -89,17 +120,19 @@ def (c: *Compiler) resolve_imports() {
 
             // imports are resolved relative to the current file by default
             let relative_to = mod.file.absolute_path().parent();
-            let imported_path = path.from_view(decl.path.as_view());
+            let imported = path.from_view(decl.path.as_view());
 
-            // try to resolve the imported path relative to the parent of the current file, so
-            // e.g. if we are in /etc/test.kan and import "../root", we will try to
-            // resolve /root.kan
             let full_imported_path: path.Buf = undefined;
-            let result = relative_to.merge_abs_rel_suffix(&imported_path, ".kan", &full_imported_path);
+            let is_std_lib = false;
+
+            let result = c.resolve_import_path(
+                imported, relative_to, &full_imported_path, &is_std_lib
+            );
             if result.is_error() {
-                report_import_error(result, relative_to, imported_path, decl.path.span);
+                report_import_error(result, relative_to, imported, decl.path.span);
                 continue;
             }
+
             // only free this, if the result was no error
             defer full_imported_path.free();
 
@@ -111,7 +144,7 @@ def (c: *Compiler) resolve_imports() {
                 let note = e.note(str.view("imported here", 13), decl.path.span);
 
                 // try to add the imported file to the modmap, if this fails, we bail
-                if c.add_file(full_imported_path, &note).is_error() {
+                if c.add_file(full_imported_path, is_std_lib, &note).is_error() {
                     continue;
                 }
 
@@ -119,6 +152,7 @@ def (c: *Compiler) resolve_imports() {
                 // this shouldn't happen, since we should've bailed if the file couldn't be added
                 dbg.assert(imported_module != null, "internal modmap error");
             }
+
 
             // at this point we can be sure, that the module does exist and was added to the modmap
             // so we can mark it as imported
@@ -136,8 +170,28 @@ def (c: *Compiler) resolve_imports() {
             }
         }
 
-        // at this point all legal imports have been parsed. If we encounter any more, they will
-        // be reported as parse errors
+        // since the parser is more or less stateless, it's sufficient to save the lexer
+        // this is needed in order to continue parsing at the same statement we left
+        c.modmap.save_state_for(i, parser.lexer);
+
+    }
+
+    // while resolving the imports, we keep track of the modules, that were actually imported.
+    // At this point all legal imports have been parsed. If we encounter any more, they will
+    // be reported as parse errors
+
+}
+
+def (c: *Compiler) parse() {
+    for let i: usize = 0; i < c.modmap.len(); i += 1 {
+        let info = c.modmap.info_at(i);
+        let mod = info.module;
+
+        let parser = parse.create(info.lexer, &c.ast_arena, &c.ty_arena, &c.expr_arena);
+        // try to recover from import errors
+        if parser.panic_mode {
+            parser.sync();
+        }
 
         while !parser.is_at_end() {
             let parsed_item = parser.parse_item();
@@ -147,8 +201,6 @@ def (c: *Compiler) resolve_imports() {
         }
     }
 
-    // while resolving the imports, we keep track of the modules, that were actually imported
-    // everything else (apart from the main module) can be removed to increase performance
 }
 
 def report_import_error(
@@ -184,6 +236,12 @@ def (c: *Compiler) free() {
     c.modmap.free();
 
     c.mod_arena.free();
+    c.expr_arena.free();
     c.ast_arena.free_destructor(&item.Item.free as arena.Destructor);
     c.ty_arena.free_destructor(&tyid.Type.free as arena.Destructor);
+}
+
+def find_stdlib_path(): path.Path {
+    let install_dir = cdeps.get_stdlib_directory();
+    return path.create(install_dir);
 }

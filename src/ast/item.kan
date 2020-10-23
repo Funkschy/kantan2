@@ -1,3 +1,5 @@
+import "../std/str";
+
 import "../source/span";
 import "../source/ident";
 
@@ -34,6 +36,7 @@ type ItemData union {
 def (i: *Item) init_func_def() {
     i.kind = ItemKind.FuncDef;
     i.data.func_def.sig.init();
+    i.data.func_def.block.init();
 }
 
 def (i: *Item) free() {
@@ -49,4 +52,18 @@ type FuncDef struct {
 
 def (f: *FuncDef) free() {
     f.sig.free();
+    f.block.free();
+}
+
+def (i: *Item) to_json(): str.String {
+    if i.kind == ItemKind.FuncDef {
+        let json = str.from("{\"kind\": \"func_def\", \"body\": ");
+        let inner = i.data.func_def.block.to_json();
+        defer inner.free();
+        json.push(inner.view());
+        json.push(str.view_from("}"));
+        return json;
+    }
+
+    return str.from("{\"kind\": \"error\", \"value\": {}}");
 }

@@ -137,6 +137,15 @@ type Precedence enum {
     Call        // . () [] {}
 }
 
+def (p: Precedence) next_higher(): Precedence {
+    if p == Precedence.Call {
+        return p;
+    }
+
+    let plus_one = p as i32 + 1;
+    return *(&plus_one as *Precedence);
+}
+
 type TokenInfo struct {
     precedence: Precedence,
     view: str.View

@@ -1,9 +1,11 @@
 import "../std/str";
 import "../std/dbg";
+import "../std/map";
 import "../std/vmap";
 import "../std/files/path";
 
 import "../ast/mod";
+import "../ast/lexer" as lex;
 import "../util";
 
 import "file" as sf; // source/file
@@ -11,18 +13,34 @@ import "span";
 
 type ModuleInfo struct {
     was_imported: bool,
-    module: *mod.Module
+    has_lexer: bool,
+    module: *mod.Module,
+    // we safe the lexer if we want to resume the parsing at a later point
+    lexer: lex.Lexer
+}
+
+def info(module: *mod.Module): ModuleInfo {
+    return ModuleInfo {
+        was_imported: false,
+        has_lexer: false,
+        module: module,
+        lexer: undefined
+    };
+}
+
+def (i: *ModuleInfo) key(): map.Key {
+    return util.key_from_path(i.module.file.absolute_path());
 }
 
 type Map struct {
     // this has to be a vmap, since we want to mutate it, while iterating. That is not something
     // that the normal map.Map supports, but the vmap can be iterated in order, while appending
     // further modules at the end
-    files: vmap.Map // vmap.Map[path.Path, ModuleInfo]
+    modules: vmap.Map // vmap.Map[path.Path, ModuleInfo]
 }
 
 def filemap(): Map {
-    return Map { files: vmap.create(sizeof ModuleInfo) };
+    return Map { modules: vmap.create(sizeof ModuleInfo) };
 }
 
 // add a file the the filemap. The relative_path is resolved in relation to the current working
@@ -35,13 +53,13 @@ def (m: *Map) add_file(cwd: path.Path, relative_path: path.Path, dest_mod: *mod.
     dest_mod.file = file;
 
     if !file.is_error() {
-        let info = ModuleInfo { was_imported: false, module: dest_mod };
-        m.files.insert(util.key_from_path(file.absolute_path()), &info as *void);
+        let info = info(dest_mod);
+        m.modules.insert(info.key(), &info as *void);
     }
 }
 
 def (m: *Map) get_mod_from_span(span: span.Span): *mod.Module {
-    for let i: usize = 0; i < m.files.len(); i += 1 {
+    for let i: usize = 0; i < m.modules.len(); i += 1 {
         let mod = m.at(i);
         let code = mod.file.code();
         if span.start >= code.data && span.end <= code.data + code.len {
@@ -53,17 +71,17 @@ def (m: *Map) get_mod_from_span(span: span.Span): *mod.Module {
 }
 
 def (m: *Map) len(): usize {
-    return m.files.len();
+    return m.modules.len();
 }
 
 def (m: *Map) mark_imported(path: path.Path) {
-    let info = m.files.get_ptr(util.key_from_path(path)) as *ModuleInfo;
+    let info = m.modules.get_ptr(util.key_from_path(path)) as *ModuleInfo;
     dbg.assert(info != null, "trying to mark non existing module");
     info.was_imported = true;
 }
 
 def (m: *Map) get_mod(path: path.Path): *mod.Module {
-    let info = m.files.get_ptr(util.key_from_path(path)) as *ModuleInfo;
+    let info = m.modules.get_ptr(util.key_from_path(path)) as *ModuleInfo;
     if info == null {
         return null;
     }
@@ -71,16 +89,27 @@ def (m: *Map) get_mod(path: path.Path): *mod.Module {
 }
 
 def (m: *Map) at(idx: usize): *mod.Module {
-    let info = m.files.get_ptr_idx(idx) as *ModuleInfo;
+    let info = m.info_at(idx);
     if info == null {
         return null;
     }
     return info.module;
 }
 
+def (m: *Map) info_at(idx: usize): *ModuleInfo {
+    return m.modules.get_ptr_idx(idx) as *ModuleInfo;
+}
+
+def (m: *Map) save_state_for(idx: usize, lexer: lex.Lexer) {
+    let info = m.info_at(idx);
+    dbg.assert(info != null, "trying to safe state for non existing module");
+    info.has_lexer = true;
+    info.lexer = lexer;
+}
+
 def (m: *Map) free() {
-    for let i: usize = 0; i < m.files.len(); i += 1 {
+    for let i: usize = 0; i < m.modules.len(); i += 1 {
         m.at(i).free();
     }
-    m.files.free();
+    m.modules.free();
 }

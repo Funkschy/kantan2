@@ -1,7 +1,12 @@
 import "../std/vec";
+import "../std/str";
+import "../std/dbg";
 import "../source/span";
 
+import "expr" as _;
+
 type StmtKind enum {
+    Expr,
     Block
 }
 
@@ -12,7 +17,17 @@ type Stmt struct {
 }
 
 type StmtData union {
+    expr: Expr,
     block: Block
+}
+
+def (s: *Stmt) init_expr() {
+    s.kind = StmtKind.Expr;
+}
+
+def (s: *Stmt) init_block() {
+    s.kind = StmtKind.Block;
+    s.data.block.init();
 }
 
 def (s: *Stmt) free() {
@@ -26,6 +41,41 @@ type Block struct {
     stmts: vec.Vec
 }
 
+def (b: *Block) init() {
+    b.stmts = vec.create(sizeof Stmt);
+}
+
+// reserve memory for a single statement inside the block. If the data for the statement was
+// actually initialized, the caller of this function must also call push_reserved()
+def (b: *Block) reserve(): *Stmt {
+    return b.stmts.reserve_single() as *Stmt;
+}
+
+// mark the reserved space as initialized
+def (b: *Block) push_reserved() {
+    dbg.assert(b.stmts.len < b.stmts.cap, "invalid push_reserved call");
+    b.stmts.len += 1;
+}
+
+def (b: *Block) at(idx: usize): *Stmt {
+    return b.stmts.get_ptr(idx) as *Stmt;
+}
+
+def (b: *Block) len(): usize {
+    return b.stmts.len;
+}
+
+def (b: *Block) to_json(): str.String {
+    let json = str.from("{\"kind\": \"block\", \"stmts\": [");
+    for let i: usize = 0; i < b.len(); i += 1 {
+        let inner = b.at(i).to_json();
+        defer inner.free();
+        json.push(inner.view());
+    }
+    json.push(str.view_from("]}"));
+    return json;
+}
+
 def (b: *Block) free() {
     for let i: usize = 0; i < b.stmts.len; i += 1 {
         let stmt = b.stmts.get_ptr(i) as *Stmt;
@@ -33,3 +83,21 @@ def (b: *Block) free() {
     }
     b.stmts.free();
 }
+
+def (s: *Stmt) to_json(): str.String {
+    if s.kind == StmtKind.Expr {
+        let json = str.from("{\"kind\": \"expr_stmt\", \"expr\": ");
+        let inner = s.data.expr.to_json();
+        defer inner.free();
+        json.push(inner.view());
+        json.push(str.view_from("}"));
+        return json;
+    }
+
+    if s.kind == StmtKind.Block {
+        return s.data.block.to_json();
+    }
+
+    return str.from("{\"kind\": \"error\", \"value\": {}}");
+}
+

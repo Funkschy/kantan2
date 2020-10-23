@@ -1,5 +1,5 @@
 import "std/str";
-import "std/cdeps";
+import "cdeps";
 
 import "source/span";
 

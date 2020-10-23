@@ -48,6 +48,25 @@ def main(argc: i32, argv: *string): ReturnCode {
 
     compiler.read_files();
     compiler.resolve_imports();
+    compiler.parse();
+
+    // TODO: remove this temporary code
+    if opts.dump_ast {
+        import "io";
+        io.printf("\"modules\": [");
+        defer io.printf("],\n");
+
+        for let i: usize = 0; i < compiler.modmap.len(); i += 1 {
+            if i > 0 {
+                io.printf(", ");
+            }
+
+            let mod = compiler.modmap.at(i);
+            let json = mod.to_json();
+            io.printf("%s\n", json.cstring());
+            json.free();
+        }
+    }
 
     return ReturnCode.OK;
 }

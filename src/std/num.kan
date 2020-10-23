@@ -14,3 +14,11 @@ def next_pow_of_2(n: i64): i64 {
 
     return n + 1;
 }
+
+def ptr_to_int(p: *void): usize {
+    return *(&p as *usize);
+}
+
+def int_to_ptr(i: usize): *void {
+    return *(&i as **void);
+}

@@ -5,8 +5,7 @@ from enum import Enum
 from os.path import splitext
 from typing import Optional
 
-from runner import execute
-from runner.execute import CompilerExecutor
+from runner.execute import CompilerExecutor, ExecutionError
 from runner.output import Output
 
 
@@ -50,30 +49,26 @@ class TestRunner(object):
 
         test = module.Test(self.default_executor)
 
-        output = test.run()
-        if output is None:
-            return Result(Result.Status.Skipped, self.py_filename)
+        output = None
+        try:
+            output = test.run()
+            if output is None:
+                return Result(Result.Status.Skipped, self.py_filename)
 
-        # the output could just be a string, if the NonParsingExecutor was used
-        if test.executor.valgrind_opts.use_valgrind:
-            if type(output) is Output:
-                # check for valgrind errors
-                if output.rc == execute.error_rc:
-                    return Result(Result.Status.Failure, self.py_filename, 'has memory leaks')
-                if output.rc == execute.segfault_rc:
-                    return Result(Result.Status.Failure, self.py_filename, 'segfaulted')
-                if output.rc == execute.abort_rc:
-                    return Result(Result.Status.Failure, self.py_filename, 'aborted')
+            if type(output) is ExecutionError:
+                if print_output_on_fail:
+                    print(output.raw)
+                return Result(Result.Status.Failure, self.py_filename, output.msg)
 
-                # cleanup useless valgrind xml files, only keep them for failed tests
-                os.remove(test.base_filename() + '.xml')
-            else:
-                os.remove(test.base_filename() + '.xml')
+            error = test.test_output(output)
+            if error is not None:
+                if print_output_on_fail:
+                    print(output.raw if type(output) is Output else output)
+                return Result(Result.Status.Failure, self.py_filename, error.msg)
 
-        error = test.test_output(output)
-        if error is not None:
-            if print_output_on_fail:
+        except Exception as e:
+            if output is not None and print_output_on_fail:
                 print(output.raw if type(output) is Output else output)
-            return Result(Result.Status.Failure, self.py_filename, error.msg)
+            return Result(Result.Status.Failure, self.py_filename, str(e))
 
         return Result(Result.Status.Success, self.py_filename)

@@ -12,7 +12,8 @@ import "../source/ident";
 
 import "tyid";
 import "item";
-import "stmt";
+import "stmt" as _;
+import "expr" as _;
 import "signature" as sig;
 
 import "lexer" as l;
@@ -23,11 +24,18 @@ type Parser struct {
     panic_mode: bool,
     lexer: l.Lexer,
     ast_arena: *arena.TypedArena,
-    ty_arena: *arena.TypedArena
+    ty_arena: *arena.TypedArena,
+    expr_arena: *arena.TypedArena
 }
 
-def create(lexer: l.Lexer, ast_arena: *arena.TypedArena, ty_arena: *arena.TypedArena): Parser {
+def create(
+    lexer: l.Lexer,
+    ast_arena: *arena.TypedArena,
+    ty_arena: *arena.TypedArena,
+    expr_arena: *arena.TypedArena
+): Parser {
     dbg.assert(ast_arena.elem_size == sizeof item.Item, "wrong ast arena size");
+    dbg.assert(expr_arena.elem_size == sizeof Expr, "wrong expr arena size");
     dbg.assert(ty_arena.elem_size == sizeof tyid.Type, "wrong ty arena size");
 
     return Parser {
@@ -35,7 +43,8 @@ def create(lexer: l.Lexer, ast_arena: *arena.TypedArena, ty_arena: *arena.TypedA
         panic_mode: false,
         lexer: lexer,
         ast_arena: ast_arena,
-        ty_arena: ty_arena
+        ty_arena: ty_arena,
+        expr_arena: expr_arena
     };
 }
 
@@ -45,6 +54,10 @@ def (p: *Parser) alloc_item(): *item.Item {
 
 def (p: *Parser) alloc_tyid(): *tyid.Type {
     return p.ty_arena.alloc() as *tyid.Type;
+}
+
+def (p: *Parser) alloc_expr(): *Expr {
+    return p.expr_arena.alloc() as *Expr;
 }
 
 def (p: *Parser) peek(): tok.Token {
@@ -263,6 +276,19 @@ def (p: *Parser) parse_item(): *item.Item {
     return null;
 }
 
+def (p: *Parser) parse_stmt(memory: *Stmt): Result {
+    memory.init_expr();
+    if p.parse_expr(&memory.data.expr).is_error() {
+        return Result.Error;
+    }
+
+    if p.consume(tok.TokenType.Semi).is_error() {
+        return Result.Error;
+    }
+
+    return Result.OK;
+}
+
 // parse a single functino definition and store it in 'memory'
 def (p: *Parser) parse_func_def(memory: *item.Item): Result {
     memory.init_func_def();
@@ -353,9 +379,19 @@ def (p: *Parser) parse_param_list(params: *vec.Vec, rparen_span: *span.Span): Re
     return Result.OK;
 }
 
-def (p: *Parser) parse_block(block: *stmt.Block): Result {
+def (p: *Parser) parse_block(block: *Block): Result {
     if p.consume(tok.TokenType.LBrace).is_error() {
         return Result.Error;
+    }
+
+    while !(p.is_at_end() || p.check(tok.TokenType.RBrace)) {
+        // we reserve memory inside the block and the parse directly into it
+        let stmt = block.reserve();
+        if p.parse_stmt(stmt).is_error() {
+            return Result.Error;
+        }
+        // mark the reserved memory inside the block as initialized
+        block.push_reserved();
     }
 
     if p.consume(tok.TokenType.RBrace).is_error() {
@@ -363,4 +399,65 @@ def (p: *Parser) parse_block(block: *stmt.Block): Result {
     }
 
     return Result.OK;
+}
+
+def (p: *Parser) parse_expr(memory: *Expr): Result {
+    return p.parse_precedence(memory, tok.Precedence.Assign);
+}
+
+// parse an expression with a certain start precedence (current). This will consume tokens
+// until a token with a lower precedence than 'current' is found
+// the resulting expression is stored in 'memory'
+def (p: *Parser) parse_precedence(memory: *Expr, current: tok.Precedence): Result {
+    if p.parse_prefix(memory).is_error() {
+        return Result.Error;
+    }
+
+    while p.next_higher_precedence(current) {
+        // copy the old prefix expression data...
+        let prefix = p.alloc_expr();
+        *prefix = *memory;
+        // ... since we overwrite it here
+        if p.parse_infix(memory, prefix).is_error() {
+            return Result.Error;
+        }
+    }
+
+    return Result.OK;
+}
+
+def (p: *Parser) next_higher_precedence(current: tok.Precedence): bool {
+    return p.peek().ty.precedence() > current;
+}
+
+// parse a prefix expression. e.g. a literal or a unary expression
+// the parsed expression will be initialized into 'memory'
+def (p: *Parser) parse_prefix(memory: *Expr): Result {
+    let token = p.advance();
+
+    if token.ty == tok.TokenType.Int {
+        memory.init_int(token);
+        return Result.OK;
+    }
+
+    return Result.Error;
+}
+
+// parse an infix expression. e.g. a binary expression
+// the parsed expression will be initialized into 'memory'
+def (p: *Parser) parse_infix(memory: *Expr, left: *Expr): Result {
+    let token = p.advance();
+
+    if token.ty == tok.TokenType.Plus {
+        let right = p.alloc_expr();
+        let precedence = token.ty.precedence().next_higher();
+        if p.parse_precedence(right, precedence).is_error() {
+            return Result.Error;
+        }
+
+        memory.init_binary(BinaryKind.Add, left, right);
+        return Result.OK;
+    }
+
+    return Result.Error;
 }

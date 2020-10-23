@@ -169,3 +169,8 @@ def (v: View) starts_with(prefix: View): bool {
     return v.len >= prefix.len
         && libc.strncmp(v.data, prefix.data, prefix.len) == 0;
 }
+
+def (v: View) ends_with(postfix: View): bool {
+    return v.len >= postfix.len
+        && libc.strncmp(v.data + (v.len - postfix.len), postfix.data, postfix.len) == 0;
+}

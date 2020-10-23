@@ -1,6 +1,6 @@
 import json
 from subprocess import CompletedProcess
-from typing import List
+from typing import List, Union
 
 
 class OutputElement(object):
@@ -22,6 +22,7 @@ class OutputElement(object):
 class Output(object):
     def __init__(self, errors: List[OutputElement]):
         self.errors = errors
+        self.modules = {}
 
     @classmethod
     def from_json(cls, data: dict):
@@ -29,9 +30,17 @@ class Output(object):
         return cls(errors)
 
 
-def parse_output(completed_process: CompletedProcess) -> Output:
+def parse_output(completed_process: CompletedProcess) -> Union[Output, List[str]]:
     raw_stdout = completed_process.stdout.decode('utf-8')
-    output = Output.from_json(json.loads(raw_stdout))
+
+    try:
+        data = json.loads(raw_stdout)
+        output = Output.from_json(data)
+        if 'modules' in data:
+            output.modules = data['modules']
+    except json.decoder.JSONDecodeError as e:
+        return [raw_stdout, str(e)]
+
     output.rc = completed_process.returncode
     output.raw = raw_stdout
     return output

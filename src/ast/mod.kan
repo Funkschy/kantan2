@@ -8,7 +8,7 @@ type Module struct {
     // the stdlib may sometimes behave differently
     is_std_lib: bool,
     file: sf.SourceFile,
-    items: ptrvec.Vec // ptrvec.Vec[item.Item]
+    items: ptrvec.Vec // ptrvec.Vec[*item.Item]
 }
 
 def (memory: *Module) init(is_std_lib: bool) {
@@ -20,4 +20,24 @@ def (memory: *Module) init(is_std_lib: bool) {
 def (m: *Module) free() {
     m.file.free();
     m.items.free();
+}
+
+def (m: *Module) to_json(): str.String {
+    let json = str.from("{\"kind\": \"module\", \"path\": \"");
+    json.push(m.file.absolute_path().as_view());
+    json.push(str.view_from("\", \"items\": ["));
+
+    for let i: usize = 0; i < m.items.len; i += 1 {
+        if i > 0 {
+            json.push(str.view(", ", 2));
+        }
+
+        let item = m.items.get(i) as *item.Item;
+        let item_json = item.to_json();
+        json.push(item_json.view());
+        item_json.free();
+    }
+
+    json.push(str.view("]}", 2));
+    return json;
 }
