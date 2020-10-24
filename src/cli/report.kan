@@ -150,11 +150,10 @@ def (elem: *ReportElement) print() {
 
 def (elem: *ReportElement) print_offset(offset: u32) {
     io.printf(
-        "\n%.*s%s: %.*s\n%.*s",
+        "\n%.*s%s: %.*s\n",
         offset, spaces,
         elem._type,
-        elem.content.len, elem.content.data,
-        offset, spaces
+        elem.content.len, elem.content.data
     );
 
     // a file.len of 0 means, that we don't want to print the positional information

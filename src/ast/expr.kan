@@ -1,10 +1,12 @@
 import "../std/str";
+import "../std/dbg";
 import "../source/span";
+import "../util";
 
 import "token" as tok;
 
 type ExprKind enum {
-    IntLiteral,
+    Literal,
     Binary
 }
 
@@ -19,10 +21,13 @@ type ExprData union {
     binary: BinaryExpr
 }
 
-def (e: *Expr) init_int(token: tok.Token) {
-    e.kind = ExprKind.IntLiteral;
+def (e: *Expr) init_lit(token: tok.Token) {
+    e.kind = ExprKind.Literal;
     e.span = token.span;
-    e.data = ExprData { lit: Literal { kind: LiteralKind.Int, token: token } };
+    e.data = ExprData { lit: Literal { kind: undefined, token: token } };
+
+    let kind_value = token.ty as i32 - tok.TokenType.DecInt as i32;
+    e.data.lit.kind = *(&kind_value as *LiteralKind);
 }
 
 def (e: *Expr) init_binary(kind: BinaryKind, left: *Expr, right: *Expr) {
@@ -31,8 +36,15 @@ def (e: *Expr) init_binary(kind: BinaryKind, left: *Expr, right: *Expr) {
     e.data = ExprData { binary: BinaryExpr { kind: kind, left: left, right: right } };
 }
 
+// note: these have to be aligned with ast/token/TokenType
 type LiteralKind enum {
-    Int
+    DecInt,
+    HexInt,
+    Float,
+    String,
+    Char,
+    Null,
+    Undefined
 }
 
 type Literal struct {
@@ -41,7 +53,13 @@ type Literal struct {
 }
 
 type BinaryKind enum {
-    Add
+    Add, Sub, Mul, Div, Mod
+}
+
+def (k: BinaryKind) with_offset(offset: i32): BinaryKind {
+    dbg.assert(k as i32 + offset <= BinaryKind.Mod as i32, "offset too large");
+    let next = k as i32 + offset;
+    return *(&next as *BinaryKind);
 }
 
 type BinaryExpr struct {
@@ -50,10 +68,52 @@ type BinaryExpr struct {
     right: *Expr
 }
 
+// to string/json stuff
+
+def (k: BinaryKind) as_view(): str.View {
+    if k == BinaryKind.Add {
+        return str.view("+", 1);
+    }
+
+    if k == BinaryKind.Sub {
+        return str.view("-", 1);
+    }
+
+    if k == BinaryKind.Mul {
+        return str.view("*", 1);
+    }
+
+    if k == BinaryKind.Div {
+        return str.view("/", 1);
+    }
+
+    if k == BinaryKind.Mod {
+        return str.view("%", 1);
+    }
+
+    return str.view("error", 5);
+}
+
 def (e: *Expr) to_json(): str.String {
-    if e.kind == ExprKind.IntLiteral {
-        let json = str.from("{\"kind\": \"int_literal\", \"value\": ");
-        json.push(e.data.lit.token.span.as_view());
+    if e.kind == ExprKind.Literal {
+        let json = str.from("{\"kind\": \"literal\", \"value\": ");
+        let view = e.data.lit.token.span.as_view();
+
+        let kind = e.data.lit.kind;
+        if kind == LiteralKind.HexInt {
+            // since json can't handle hex literals, we need to convert them to decimal
+            let value = util.int_from_view(view, 16);
+            let value = str.i64_to_string(value);
+            json.push(value.view());
+        } else if kind < LiteralKind.String {
+            json.push(view);
+        } else {
+            json.push(str.view_from("\""));
+            json.push(view);
+            json.push(str.view_from("\""));
+        }
+
+        // defer value.free();
         json.push(str.view_from("}"));
         return json;
     }
@@ -64,7 +124,9 @@ def (e: *Expr) to_json(): str.String {
         defer left.free();
         json.push(str.view_from("\"left\": "));
         json.push(left.view());
-        json.push(str.view_from(", \"op\": \"+\", "));
+        json.push(str.view_from(", \"op\": \""));
+        json.push(e.data.binary.kind.as_view());
+        json.push(str.view_from("\", "));
         let right = e.data.binary.right.to_json();
         defer right.free();
         json.push(str.view_from("\"right\": "));

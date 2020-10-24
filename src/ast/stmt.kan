@@ -65,23 +65,29 @@ def (b: *Block) len(): usize {
     return b.stmts.len;
 }
 
-def (b: *Block) to_json(): str.String {
-    let json = str.from("{\"kind\": \"block\", \"stmts\": [");
-    for let i: usize = 0; i < b.len(); i += 1 {
-        let inner = b.at(i).to_json();
-        defer inner.free();
-        json.push(inner.view());
-    }
-    json.push(str.view_from("]}"));
-    return json;
-}
-
 def (b: *Block) free() {
     for let i: usize = 0; i < b.stmts.len; i += 1 {
         let stmt = b.stmts.get_ptr(i) as *Stmt;
         stmt.free();
     }
     b.stmts.free();
+}
+
+// to string/json stuff
+
+def (b: *Block) to_json(): str.String {
+    let json = str.from("{\"kind\": \"block\", \"stmts\": [");
+    for let i: usize = 0; i < b.len(); i += 1 {
+        if i > 0 {
+            json.push(str.view(", ", 2));
+        }
+
+        let inner = b.at(i).to_json();
+        defer inner.free();
+        json.push(inner.view());
+    }
+    json.push(str.view_from("]}"));
+    return json;
 }
 
 def (s: *Stmt) to_json(): str.String {

@@ -1,0 +1,9 @@
+def main() {
+    null;
+    undefined;
+    "test";
+    'a';
+    0xaffe;
+    1;
+    3.14;
+}

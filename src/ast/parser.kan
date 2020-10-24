@@ -68,8 +68,9 @@ def (p: *Parser) advance(): tok.Token {
     let current = p.lexer.next_token();
 
     while current.ty.is_err() {
-        let lexeme = current.lexeme();
-        let error = e.string_single(e.ErrorKind.UnknownToken, current.span, lexeme);
+        let error = e.simple_error(e.ErrorKind.CouldNotScanToken, current.span);
+        let note = e.simple_note(current.ty.as_view());
+        error.add_note(&note);
         p.report(&error);
 
         current = p.lexer.next_token();
@@ -264,21 +265,33 @@ def (p: *Parser) parse_item(): *item.Item {
     // in this model, the caller (this function) allocates the memory neccessary to store an item
     let item: *item.Item = null;
 
-    if p.check(tok.TokenType.Def) && p.parse_func_def(item = p.alloc_item()).is_ok() {
-        return item;
+    if p.check(tok.TokenType.Def) {
+        if p.parse_func_def(item = p.alloc_item()).is_ok() {
+            return item;
+        }
+
+        return null;
     }
 
     p.report_expected_but_got(str.view_from("def"));
-    if p.panic_mode {
-        p.sync();
+    p.sync();
+    return null;
+}
+
+def (p: *Parser) statement(memory: *Stmt): Result {
+    if p.parse_stmt(memory).is_error() {
+        if p.panic_mode {
+            p.sync();
+        }
+        return Result.Error;
     }
 
-    return null;
+    return Result.OK;
 }
 
 def (p: *Parser) parse_stmt(memory: *Stmt): Result {
     memory.init_expr();
-    if p.parse_expr(&memory.data.expr).is_error() {
+    if p.expression(&memory.data.expr).is_error() {
         return Result.Error;
     }
 
@@ -384,11 +397,13 @@ def (p: *Parser) parse_block(block: *Block): Result {
         return Result.Error;
     }
 
+    let result = Result.OK;
     while !(p.is_at_end() || p.check(tok.TokenType.RBrace)) {
         // we reserve memory inside the block and the parse directly into it
         let stmt = block.reserve();
-        if p.parse_stmt(stmt).is_error() {
-            return Result.Error;
+        if p.statement(stmt).is_error() {
+            result = Result.Error;
+            continue;
         }
         // mark the reserved memory inside the block as initialized
         block.push_reserved();
@@ -398,10 +413,11 @@ def (p: *Parser) parse_block(block: *Block): Result {
         return Result.Error;
     }
 
-    return Result.OK;
+    return result;
 }
 
-def (p: *Parser) parse_expr(memory: *Expr): Result {
+// parse a single expression
+def (p: *Parser) expression(memory: *Expr): Result {
     return p.parse_precedence(memory, tok.Precedence.Assign);
 }
 
@@ -427,7 +443,7 @@ def (p: *Parser) parse_precedence(memory: *Expr, current: tok.Precedence): Resul
 }
 
 def (p: *Parser) next_higher_precedence(current: tok.Precedence): bool {
-    return p.peek().ty.precedence() > current;
+    return p.peek().ty.precedence() >= current;
 }
 
 // parse a prefix expression. e.g. a literal or a unary expression
@@ -435,9 +451,16 @@ def (p: *Parser) next_higher_precedence(current: tok.Precedence): bool {
 def (p: *Parser) parse_prefix(memory: *Expr): Result {
     let token = p.advance();
 
-    if token.ty == tok.TokenType.Int {
-        memory.init_int(token);
+    if token.ty.is_literal() {
+        memory.init_lit(token);
         return Result.OK;
+    }
+
+    if token.ty == tok.TokenType.LParen {
+        if p.expression(memory).is_error() {
+            return Result.Error;
+        }
+        return p.consume(tok.TokenType.RParen);
     }
 
     return Result.Error;
@@ -448,14 +471,16 @@ def (p: *Parser) parse_prefix(memory: *Expr): Result {
 def (p: *Parser) parse_infix(memory: *Expr, left: *Expr): Result {
     let token = p.advance();
 
-    if token.ty == tok.TokenType.Plus {
+    // + - * / %
+    if token.ty.is_between(tok.TokenType.Plus, tok.TokenType.Percent) {
         let right = p.alloc_expr();
         let precedence = token.ty.precedence().next_higher();
         if p.parse_precedence(right, precedence).is_error() {
             return Result.Error;
         }
 
-        memory.init_binary(BinaryKind.Add, left, right);
+        let offset = token.ty as i32 - tok.TokenType.Plus as i32;
+        memory.init_binary(BinaryKind.Add.with_offset(offset), left, right);
         return Result.OK;
     }
 

@@ -1,1 +1,6 @@
 import 今 "helper/some-module";
+
+def main() {
+    'aa';
+    "aa\oaa";
+}

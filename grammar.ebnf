@@ -66,10 +66,13 @@ Arguments = Expression { "," Arguments };
 
 Identifier = "_" [ { "_" | Digit } Identifier ] | Letter { Letter | Digit | "_" };
 Letter = "a".."z" | "A".."Z";
-Digit = "0".."9";
+DecDigit = "0".."9";
+HexDigit = "0".."9" | "a".."f" | "A".."F";
 
 StringLiteral = "\"" { Char } "\"";
 CharLiteral = "'" Char "'";
 NumberLiteral = IntLiteral [ "." IntLiteral ]);
-IntLiteral = Digit { Digit };
+IntLiteral = DecLiteral | HexLiteral;
+DecLiteral = DecDigit { DecDigit };
+HexLiteral = "0" ("x" | "X") HexDigit { HexDigit };
 Char = A single unicode code point;

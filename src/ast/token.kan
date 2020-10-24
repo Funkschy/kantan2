@@ -2,7 +2,7 @@ import "../std/str";
 
 import "../source/span";
 
-let token_info: [74]TokenInfo = undefined;
+let token_info: [75]TokenInfo = undefined;
 
 type TokenType enum {
     UnknownErr,
@@ -10,9 +10,15 @@ type TokenType enum {
     EscapeErr,
     InvalidIdentifierErr,
 
-    Int,
+    // note: these have to be aligned with ast/expr/LiteralKind
+    DecInt,
+    HexInt,
     Float,
+    String,
+    Char,
     Null,
+    Undefined,
+
     Ident,
 
     Let,
@@ -34,7 +40,6 @@ type TokenType enum {
     Delegate,
     Sizeof,
     For,
-    Undefined,
     Continue,
     Break,
     Defer,
@@ -85,14 +90,20 @@ type TokenType enum {
     RBrace,
     LBracket,
     RBracket,
-    String,
-    Char,
 
     EOF
 }
 
+def (ty: TokenType) is_between(start: TokenType, end: TokenType): bool {
+    return ty >= start && ty <= end;
+}
+
 def (ty: TokenType) is_assign(): bool {
-    return ty >= TokenType.Eq && ty<= TokenType.CaretEq;
+    return ty.is_between(TokenType.Eq, TokenType.CaretEq);
+}
+
+def (ty: TokenType) is_literal(): bool {
+    return ty.is_between(TokenType.DecInt, TokenType.Undefined);
 }
 
 def (ty: TokenType) is_err(): bool {
@@ -165,9 +176,14 @@ def init() {
     token_info[TokenType.EscapeErr as i32]  = info_none(str.view("invalid escape sequence", 23));
     token_info[TokenType.InvalidIdentifierErr as i32] = info_none(str.view("invalid identifier", 18));
 
-    token_info[TokenType.Int as i32]             = info_none(str.view("integer", 7));
+    token_info[TokenType.DecInt as i32]          = info_none(str.view("integer", 7));
+    token_info[TokenType.HexInt as i32]          = info_none(str.view("integer", 7));
     token_info[TokenType.Float as i32]           = info_none(str.view("float", 5));
+    token_info[TokenType.String as i32]          = info_none(str.view("string literal", 14));
+    token_info[TokenType.Char as i32]            = info_none(str.view("char literal", 12));
     token_info[TokenType.Null as i32]            = info_none(str.view("null", 4));
+    token_info[TokenType.Undefined as i32]       = info_none(str.view("undefined", 9));
+
     token_info[TokenType.Ident as i32]           = info_none(str.view("identifier", 10));
 
     token_info[TokenType.Let as i32]             = info_none(str.view("let", 3));
@@ -189,7 +205,6 @@ def init() {
     token_info[TokenType.Delegate as i32]        = info_none(str.view("delegate", 8));
     token_info[TokenType.Sizeof as i32]          = info_none(str.view("sizeof", 6));
     token_info[TokenType.For as i32]             = info_none(str.view("for", 3));
-    token_info[TokenType.Undefined as i32]       = info_none(str.view("undefined", 9));
     token_info[TokenType.Continue as i32]        = info_none(str.view("continue", 8));
     token_info[TokenType.Break as i32]           = info_none(str.view("break", 5));
     token_info[TokenType.Defer as i32]           = info_none(str.view("defer", 5));
@@ -241,9 +256,6 @@ def init() {
     token_info[TokenType.RBrace as i32]          = info_none(str.view("}", 1));
     token_info[TokenType.LBracket as i32]        = info(Precedence.Call, str.view("[", 1));
     token_info[TokenType.RBracket as i32]        = info_none(str.view("]", 1));
-
-    token_info[TokenType.String as i32]          = info_none(str.view("string literal", 14));
-    token_info[TokenType.Char as i32]            = info_none(str.view("char literal", 12));
 
     token_info[TokenType.EOF as i32]             = info_none(str.view("EOF", 3));
 }

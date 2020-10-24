@@ -6,7 +6,7 @@ from runner.testcase import SuccessTestCase, TestError, expected_but_got
 
 expected_modules = [{
     'kind': 'module',
-    'path': str(Path(__file__).parent) + '/parse-simple-expr.kan',
+    'path': str(Path(__file__).parent) + '/parse-simple-expr2.kan',
     'items': [
         {
             'kind': 'func_def',
@@ -18,21 +18,21 @@ expected_modules = [{
                         'expr': {
                             'kind': 'binary',
                             'left': {
-                                'kind': 'binary',
-                                'left': {
-                                    'kind': 'literal',
-                                    'value': 1
-                                },
-                                'op': '+',
-                                'right': {
-                                    'kind': 'literal',
-                                    'value': 2
-                                }
+                                'kind': 'literal',
+                                'value': 1
                             },
                             'op': '+',
                             'right': {
-                                'kind': 'literal',
-                                'value': 3
+                                'kind': 'binary',
+                                'left': {
+                                    'kind': 'literal',
+                                    'value': 2
+                                },
+                                'op': '*',
+                                'right': {
+                                    'kind': 'literal',
+                                    'value': 3
+                                }
                             }
                         }
                     }

@@ -11,7 +11,7 @@ type ErrorKind enum {
     SelfImport,
     // parse errors
     ExpectedButGot,
-    UnknownToken
+    CouldNotScanToken
 }
 
 type ErrorDataKind enum {
@@ -116,11 +116,11 @@ type StringTuple struct {
 }
 
 def init() {
-    error_strings[0] = "Invalid import: %.*s";
-    error_strings[1] = "Modules cannot import themselves";
+    error_strings[ErrorKind.CouldNotImport as i32]  = "Invalid import: %.*s";
+    error_strings[ErrorKind.SelfImport as i32]      = "Modules cannot import themselves";
     // parse errors
-    error_strings[2] = "Expected '%.*s', but got '%.*s'";
-    error_strings[3] = "Unknown token '%.*s'";
+    error_strings[ErrorKind.ExpectedButGot as i32]      = "Expected '%.*s', but got '%.*s'";
+    error_strings[ErrorKind.CouldNotScanToken as i32]   = "Could not scan token";
 }
 
 // A Linked List of additional information regarding an error, e.g. the location of usage
