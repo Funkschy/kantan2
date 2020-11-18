@@ -1,0 +1,3 @@
+[submodule "src/std"]
+	path = src/std
+	url = git@github.com:Funkschy/kantan-std.git
