@@ -1,13 +1,19 @@
 import "../std/str";
 import "../std/dbg";
-import "../source/span";
 import "../util";
+
+import "../source/span";
+import "../source/ident";
+import "../types/types" as ty;
 
 import "token" as tok;
 
 type ExprKind enum {
     Literal,
-    Binary
+    Binary,
+    Unary,
+    Ident,
+    Assign
 }
 
 type Expr struct {
@@ -18,11 +24,18 @@ type Expr struct {
 
 type ExprData union {
     lit: Literal,
-    binary: BinaryExpr
+    binary: BinaryExpr,
+    unary: UnaryExpr,
+    ident: IdentExpr,
+    assign: AssignExpr
+}
+
+def (e: *Expr) init_basic(kind: ExprKind) {
+    e.kind = kind;
 }
 
 def (e: *Expr) init_lit(token: tok.Token) {
-    e.kind = ExprKind.Literal;
+    e.init_basic(ExprKind.Literal);
     e.span = token.span;
     e.data = ExprData { lit: Literal { kind: undefined, token: token } };
 
@@ -31,9 +44,27 @@ def (e: *Expr) init_lit(token: tok.Token) {
 }
 
 def (e: *Expr) init_binary(kind: BinaryKind, left: *Expr, right: *Expr) {
-    e.kind = ExprKind.Binary;
+    e.init_basic(ExprKind.Binary);
     e.span = left.span.merge(right.span);
     e.data = ExprData { binary: BinaryExpr { kind: kind, left: left, right: right } };
+}
+
+def (e: *Expr) init_unary(kind: UnaryKind, tok: tok.Token, right: *Expr) {
+    e.init_basic(ExprKind.Unary);
+    e.span = tok.span.merge(right.span);
+    e.data = ExprData { unary: UnaryExpr { kind: kind, right: right } };
+}
+
+def (e: *Expr) init_ident(name: ident.Ident) {
+    e.init_basic(ExprKind.Ident);
+    e.span = name.span;
+    e.data = ExprData { ident: IdentExpr { name: name, ty: null } };
+}
+
+def (e: *Expr) init_assign(kind: AssignKind, left: *Expr, right: *Expr) {
+    e.init_basic(ExprKind.Assign);
+    e.span = left.span.merge(right.span);
+    e.data = ExprData { assign: AssignExpr { kind: kind, left: left, right: right } };
 }
 
 // note: these have to be aligned with ast/token/TokenType
@@ -52,6 +83,21 @@ type Literal struct {
     token: tok.Token // the original token
 }
 
+type IdentExpr struct {
+    name: ident.Ident,
+    // the type of the ident will be inserted during type checking
+    ty: *ty.Type
+}
+
+type UnaryKind enum {
+    Deref
+}
+
+type UnaryExpr struct {
+    kind: UnaryKind,
+    right: *Expr
+}
+
 type BinaryKind enum {
     Add, Sub, Mul, Div, Mod
 }
@@ -68,33 +114,97 @@ type BinaryExpr struct {
     right: *Expr
 }
 
-// to string/json stuff
+type AssignKind enum {
+    Eq,
+    AddEq,
+    MinusEq,
+    MulEq,
+    DivEq,
+    ModEq,
+    BinAddEq,
+    BinOrEq,
+    BinXorEq
+}
+
+def (k: AssignKind) with_offset(offset: i32): AssignKind {
+    dbg.assert(k as i32 + offset <= AssignKind.BinXorEq as i32, "offset too large");
+    let next = k as i32 + offset;
+    return *(&next as *AssignKind);
+}
+
+
+type AssignExpr struct {
+    kind: AssignKind,
+    left: *Expr,
+    right: *Expr
+}
+
+// ------------ to string/json stuff ------------
+
+let _binary_kind_strings: [5]str.View = undefined;
+// TODO: change this to 'false' when global variables work correctly
+let  _binary_kind_strings_initialized: bool = undefined;
 
 def (k: BinaryKind) as_view(): str.View {
-    if k == BinaryKind.Add {
-        return str.view("+", 1);
+    if !_binary_kind_strings_initialized {
+        _binary_kind_strings[BinaryKind.Add as i32] = str.view("+", 1);
+        _binary_kind_strings[BinaryKind.Sub as i32] = str.view("-", 1);
+        _binary_kind_strings[BinaryKind.Mul as i32] = str.view("*", 1);
+        _binary_kind_strings[BinaryKind.Div as i32] = str.view("/", 1);
+        _binary_kind_strings[BinaryKind.Mod as i32] = str.view("%", 1);
+        _binary_kind_strings_initialized = true;
     }
 
-    if k == BinaryKind.Sub {
-        return str.view("-", 1);
+    return _binary_kind_strings[k as i32];
+}
+
+let _unary_kind_strings: [1]str.View = undefined;
+// TODO: change this to 'false' when global variables work correctly
+let  _unary_kind_strings_initialized: bool = undefined;
+
+def (k: UnaryKind) as_view(): str.View {
+    if !_unary_kind_strings_initialized {
+        _unary_kind_strings[UnaryKind.Deref as i32] = str.view("*", 1);
     }
 
-    if k == BinaryKind.Mul {
-        return str.view("*", 1);
+    return _unary_kind_strings[k as i32];
+}
+
+let _assign_kind_strings: [9]str.View = undefined;
+// TODO: change this to 'false' when global variables work correctly
+let  _assign_kind_strings_initialized: bool = undefined;
+
+def (k: AssignKind) as_view(): str.View {
+    if !_assign_kind_strings_initialized {
+        _assign_kind_strings[AssignKind.Eq as i32] = str.view("=", 1);
+        _assign_kind_strings[AssignKind.AddEq as i32] = str.view("+=", 2);
+        _assign_kind_strings[AssignKind.MinusEq as i32] = str.view("-=", 2);
+        _assign_kind_strings[AssignKind.MulEq as i32] = str.view("*=", 2);
+        _assign_kind_strings[AssignKind.DivEq as i32] = str.view("/=", 2);
+        _assign_kind_strings[AssignKind.ModEq as i32] = str.view("%=", 2);
+        _assign_kind_strings[AssignKind.BinAddEq as i32] = str.view("&=", 2);
+        _assign_kind_strings[AssignKind.BinOrEq as i32] = str.view("|=", 2);
+        _assign_kind_strings[AssignKind.BinXorEq as i32] = str.view("^=", 2);
+        _assign_kind_strings_initialized = true;
     }
 
-    if k == BinaryKind.Div {
-        return str.view("/", 1);
-    }
-
-    if k == BinaryKind.Mod {
-        return str.view("%", 1);
-    }
-
-    return str.view("error", 5);
+    return _assign_kind_strings[k as i32];
 }
 
 def (e: *Expr) to_json(): str.String {
+    if e.kind == ExprKind.Ident {
+        let json = str.from("{\"kind\": \"identifier\", \"value\": ");
+        json.push(str.view_from("\""));
+        json.push(e.data.ident.name.as_view());
+        json.push(str.view_from("\","));
+        json.push(str.view_from("\"ty\": \""));
+        let ty = e.data.ident.ty.to_string();
+        defer ty.free();
+        json.push(ty.view());
+        json.push(str.view_from("\"}"));
+        return json;
+    }
+
     if e.kind == ExprKind.Literal {
         let json = str.from("{\"kind\": \"literal\", \"value\": ");
         let view = e.data.lit.token.span.as_view();
@@ -104,6 +214,7 @@ def (e: *Expr) to_json(): str.String {
             // since json can't handle hex literals, we need to convert them to decimal
             let value = util.int_from_view(view, 16);
             let value = str.i64_to_string(value);
+            defer value.free();
             json.push(value.view());
         } else if kind < LiteralKind.String {
             json.push(view);
@@ -113,7 +224,6 @@ def (e: *Expr) to_json(): str.String {
             json.push(str.view_from("\""));
         }
 
-        // defer value.free();
         json.push(str.view_from("}"));
         return json;
     }
@@ -128,6 +238,35 @@ def (e: *Expr) to_json(): str.String {
         json.push(e.data.binary.kind.as_view());
         json.push(str.view_from("\", "));
         let right = e.data.binary.right.to_json();
+        defer right.free();
+        json.push(str.view_from("\"right\": "));
+        json.push(right.view());
+        json.push(str.view_from("}"));
+        return json;
+    }
+
+    if e.kind == ExprKind.Unary {
+        let json = str.from("{\"kind\": \"unary\", ");
+        json.push(str.view_from("\"op\": \""));
+        json.push(e.data.unary.kind.as_view());
+        json.push(str.view_from("\", \"right\": "));
+        let right = e.data.unary.right.to_json();
+        defer right.free();
+        json.push(right.view());
+        json.push(str.view_from("}"));
+        return json;
+    }
+
+    if e.kind == ExprKind.Assign {
+        let json = str.from("{\"kind\": \"assign\", ");
+        let left = e.data.assign.left.to_json();
+        defer left.free();
+        json.push(str.view_from("\"left\": "));
+        json.push(left.view());
+        json.push(str.view_from(", \"op\": \""));
+        json.push(e.data.assign.kind.as_view());
+        json.push(str.view_from("\", "));
+        let right = e.data.assign.right.to_json();
         defer right.free();
         json.push(str.view_from("\"right\": "));
         json.push(right.view());

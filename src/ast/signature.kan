@@ -31,6 +31,14 @@ type ReturnType struct {
     ty: *tyid.Type
 }
 
+def empty_return(closing_rparen_span: span.Span): ReturnType {
+    return ReturnType { span: closing_rparen_span, ty: null };
+}
+
+def return_from_tyid(ty: *tyid.Type): ReturnType {
+    return ReturnType { span: ty.span, ty: ty };
+}
+
 type Signature struct {
     modifier: Modifier,
     params: vec.Vec, // ptrvec.Vec[Param]

@@ -1,11 +1,12 @@
 import "../std/vec";
+import "../std/str";
 
 import "../source/span";
 import "../source/ident";
 
 type TypeKind enum {
     Path,
-    Pointer
+    Ptr
 }
 
 // This represents user supplied type information
@@ -19,7 +20,7 @@ type Type struct {
 
 type TypeData struct {
     path: Path,
-    ptr: Pointer
+    ptr: Ptr
 }
 
 def init_path(memory: *Type) {
@@ -28,14 +29,34 @@ def init_path(memory: *Type) {
 }
 
 def init_pointer(memory: *Type, inner: *Type) {
-    memory.kind = TypeKind.Pointer;
-    memory.data.ptr = Pointer { inner: inner };
+    memory.kind = TypeKind.Ptr;
+    memory.data.ptr = Ptr { inner: inner };
 }
 
 def (t: *Type) free() {
     if t.kind == TypeKind.Path {
         t.data.path.segments.free();
     }
+}
+
+def (t: *Type) to_string(): str.String {
+    if t.kind == TypeKind.Ptr {
+        let star = str.from("*");
+
+        let inner = t.data.ptr.inner.to_string();
+        defer inner.free();
+        star.push(inner.view());
+        return star;
+    }
+
+    return t.data.path.to_string();
+}
+
+def (t: *Type) inner(): *Type {
+    if t.kind == TypeKind.Ptr {
+        return t.data.ptr.inner;
+    }
+    return null;
 }
 
 // a path is just a list of names connected by dots
@@ -48,6 +69,22 @@ def (p: *Path) push_segment(segment: ident.Ident) {
     p.segments.push(&segment as *void);
 }
 
-type Pointer struct {
+def (p: *Path) segment_at(idx: usize): *ident.Ident {
+    return p.segments.get_ptr(idx) as *ident.Ident;
+}
+
+def (p: *Path) to_string(): str.String {
+    let s = str.from("");
+    for let i: usize = 0; i < p.segments.len; i += 1 {
+        if i > 0 {
+            s.push(str.view(".", 1));
+        }
+        let seg = p.segments.get_ptr(i) as *ident.Ident;
+        s.push(seg.as_view());
+    }
+    return s;
+}
+
+type Ptr struct {
     inner: *Type
 }

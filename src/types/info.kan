@@ -1,0 +1,31 @@
+import "../std/dbg";
+
+type Size struct {
+    bit_size: i32
+}
+
+def initial_size(): Size {
+    return Size { bit_size: -1 };
+}
+
+def size_bytes(bytes: i32): Size {
+    return Size { bit_size: bytes * 8 };
+}
+
+def (s: Size) bits(): u32 {
+    dbg.assert(s.bit_size> 0, "trying to query size of unsized type");
+    return s.bit_size as u32;
+}
+
+def (s: Size) bytes(): u32 {
+    dbg.assert(s.bit_size > 0, "trying to query size of unsized type");
+    return (s.bit_size / 8) as u32;
+}
+
+def (s: Size) equals(other: Size): bool {
+    return s.bit_size == other.bit_size;
+}
+
+type Visibility enum {
+    Public, Private
+}

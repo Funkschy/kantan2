@@ -81,50 +81,6 @@ bool is_file(char const *path) {
     return false;
 }
 
-// these have to match src/std/files/path.Error
-#define ERROR_COULD_NOT_OPEN_FILE       2
-#define ERROR_COULD_NOT_ALLOCATE_BUFFER 3
-#define ERROR_COULD_NOT_READ_FILE       4
-
-int32_t read_file(char const *path, char const **content, size_t *len) {
-    if (!is_file(path)) {
-        // TODO: custom error, and check if this works on windows
-        return ERROR_COULD_NOT_OPEN_FILE;
-    }
-
-    FILE *file = fopen(path, "r");
-    if (file == NULL) {
-        return ERROR_COULD_NOT_OPEN_FILE;
-    }
-
-    fseek(file, 0L, SEEK_END);
-    size_t file_size = (size_t) ftell(file);
-    rewind(file);
-
-    char *buffer = malloc(file_size + 1);
-
-    if (buffer == NULL) {
-        fclose(file);
-        return ERROR_COULD_NOT_ALLOCATE_BUFFER;
-    }
-
-    size_t bytes_read = fread(buffer, sizeof(char), file_size, file);
-
-    if (bytes_read < file_size) {
-        fclose(file);
-        free(buffer);
-        return ERROR_COULD_NOT_READ_FILE;
-    }
-
-    buffer[bytes_read] = '\0';
-
-    fclose(file);
-    *content = buffer;
-    *len = file_size;
-
-    return 0;
-}
-
 ssize_t vformat_str(char **dest, char const *fmt, va_list args){
     int size = 0;
     va_list tmp_args;

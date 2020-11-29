@@ -1,0 +1,18 @@
+import "../../std/dbg";
+import "../../util" as _;
+import "../../ast/item" as _;
+
+import "../ctx" as _;
+import "../types" as _;
+
+import "stmt" as tychk;
+
+def check(ctx: *TyCtx, item: *Item): Result {
+    if item.kind == ItemKind.FuncDef {
+        // TODO: ctx.bind_public(item.name, func_ty)
+        return tychk.check(ctx, &item.data.func_def.block_stmt);
+    }
+
+    dbg.assert(false, "Unhandled ItemKind");
+    return Result.Error;
+}

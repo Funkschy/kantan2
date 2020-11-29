@@ -3,7 +3,7 @@ import "cdeps";
 
 import "source/span";
 
-let error_strings: [4]string = undefined;
+let error_strings: [9]string = undefined;
 
 type ErrorKind enum {
     // import errors
@@ -11,7 +11,13 @@ type ErrorKind enum {
     SelfImport,
     // parse errors
     ExpectedButGot,
-    CouldNotScanToken
+    CouldNotScanToken,
+    ExpectedExpression,
+    // type errors
+    UndeclaredIdentifier,
+    CouldNotInfer,
+    WrongType,
+    DerefNonPtr
 }
 
 type ErrorDataKind enum {
@@ -121,6 +127,12 @@ def init() {
     // parse errors
     error_strings[ErrorKind.ExpectedButGot as i32]      = "Expected '%.*s', but got '%.*s'";
     error_strings[ErrorKind.CouldNotScanToken as i32]   = "Could not scan token";
+    error_strings[ErrorKind.ExpectedExpression as i32]  = "Expected expression";
+    // type errors
+    error_strings[ErrorKind.UndeclaredIdentifier as i32]  = "No identifer '%.*s' in scope";
+    error_strings[ErrorKind.CouldNotInfer as i32]  = "Could not infer type";
+    error_strings[ErrorKind.WrongType as i32]  = "Expected '%.*s', but got '%.*s'";
+    error_strings[ErrorKind.DerefNonPtr as i32]  = "Trying to deref '%.*s', which is not a pointer";
 }
 
 // A Linked List of additional information regarding an error, e.g. the location of usage

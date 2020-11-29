@@ -24,6 +24,7 @@ K_FILES = src/ast/expr.kan \
 		  src/source/modmap.kan \
 		  src/source/position.kan \
 		  src/source/span.kan \
+		  src/std/alloc.kan \
 		  src/std/dbg.kan \
 		  src/std/files/path.kan \
 		  src/std/files/unix.kan \
@@ -35,9 +36,15 @@ K_FILES = src/ast/expr.kan \
 		  src/std/str.kan \
 		  src/std/vec.kan \
 		  src/std/vmap.kan \
+		  src/types/check/expr.kan \
+		  src/types/check/item.kan \
+		  src/types/check/stmt.kan \
+		  src/types/ctx.kan \
 		  src/types/data.kan \
+		  src/types/function.kan \
+		  src/types/info.kan \
 		  src/types/primitive.kan \
-		  src/types/subst.kan \
+		  src/types/scope.kan \
 		  src/types/types.kan \
 		  src/util.kan
 
@@ -45,7 +52,7 @@ START_FOLDER := $(shell pwd)
 STDLIB_DIR := $(START_FOLDER)/src/std
 C_DEFINES := -DSTDLIB_DIR=\"$(STDLIB_DIR)\"
 C_FILES := lib.c
-C_OBJ_FILES := $(C_FILES:.c=.c.o)
+C_OBJ_FILES := $(patsubst %.c,%.o,$(C_FILES))
 
 LLVM_PATH := $(HOME)/Downloads/llvm/llvm-10.0.0.src/build
 LLVM_CONFIG := $(LLVM_PATH)/bin/llvm-config
@@ -61,22 +68,18 @@ LD_FLAGS := $(LLVM_LD_FLAGS) -fdata-sections -ffunction-sections
 LIBS := $(LLVM_LIBS) $(LLVM_SYS_LIBS) -Wl,--gc-sections
 
 KANTAN_STABLE := $(START_FOLDER)/../kantan -g
-KANTAN_KANTAN_MEMCHECK := valgrind --leak-check=full --suppressions=$(START_FOLDER)/suppress-llvm-errors.supp $(START_FOLDER)/compiler
-KANTAN_KANTAN_MASSIF := valgrind --tool=massif --massif-out-file=../massif.out $(START_FOLDER)/compiler
-KANTAN_KANTAN := $(KANTAN_KANTAN_MEMCHECK) -g
 
-$(BIN_NAME) : $(K_FILES) $(C_OBJ_FILES)
+$(BIN_NAME) : Makefile $(K_FILES) $(C_OBJ_FILES)
 	if $(KANTAN_STABLE) $(K_FILES) -o out.o; then \
 		g++ $(LD_FLAGS) -o $(BIN_NAME) out.o $(C_OBJ_FILES) $(LIBS); \
 		rm out.o ; \
-		rm $(C_OBJ_FILES) ; \
 	else \
 		exit 1; \
 	fi
 
 $(C_OBJ_FILES) : $(C_FILES)
 	for file in $(C_FILES) ; do \
-		gcc -O3 -Wall -c $$file -o $(addsuffix .o, $$file) $(C_DEFINES); \
+		gcc -O3 -Wall -c $$file -o $(patsubst %.c,%.o,$(wildcard *.c)) $(C_DEFINES); \
 	done
 
 # This makes it possible to do stuff like `make test -- --show-skipped`

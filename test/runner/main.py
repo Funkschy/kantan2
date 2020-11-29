@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import argparse
 import multiprocessing
 import threading
@@ -107,8 +108,12 @@ def read(test_path: str, default_executor: CompilerExecutor) -> List[TestRunner]
         st = splitext(f)
         return st[1] == '.py' and basename(st[0]) not in ignored
 
-    files = filter(add_file, [abspath(join(test_path, f)) for f in listdir(test_path)])
-    return create_runners(default_executor, list(files))
+    test_files = []
+    for d, _, files in os.walk(test_path):
+        paths = filter(add_file, map(lambda f: abspath(join(d, f)), files))
+        test_files += paths
+
+    return create_runners(default_executor, list(test_files))
 
 
 def read_ignored(test_path: str) -> Set[str]:

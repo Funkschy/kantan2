@@ -1,18 +1,35 @@
 import "../source/ident";
 
-import "subst";
+import "scope";
+import "ctx" as _;
 import "types" as _;
+import "info" as _;
+
+type UserDefinedKind enum {
+    Struct, Union
+}
 
 // either a struct or a union
 type UserDefined struct {
-    original_name: ident.Ident
+    kind: UserDefinedKind,
+    original_name: ident.Ident,
+    // user defined types can contain other declarations, e.g. methods or fields.
+    // These are stored in the types scope
+    scope: scope.Scope
+}
+
+def (u: *UserDefined) init(kind: UserDefinedKind, original_name: ident.Ident) {
+    u.kind = kind;
+    u.original_name = original_name;
+    u.scope = scope.scope();
+}
+
+def (u: *UserDefined) free() {
+    u.scope.free();
 }
 
 type Field struct {
     name: ident.Ident,
+    ty: *Type,
     visibility: Visibility
-}
-
-def (f: *Field) ty(substitutions: *subst.Map): *Type {
-    return null;
 }

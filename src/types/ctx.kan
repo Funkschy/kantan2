@@ -1,0 +1,182 @@
+import "../std/dbg";
+import "../std/str";
+
+import "../ast/tyid";
+import "../memory/arena";
+
+import "scope";
+
+import "info" as _;
+import "types" as _;
+import "primitive";
+
+// the context used while type checking
+type TyCtx struct {
+    arena: *arena.TypedArena,
+    // this holds the types of lvalues, for later lookup by name
+    values: scope.ScopeStack,
+    // this holds declared types, e.g. structs
+    types: scope.ScopeStack
+}
+
+def create(arena: *arena.TypedArena): TyCtx {
+    dbg.assert(arena.elem_size == sizeof Type, "invalid memory arena");
+    return TyCtx {
+        arena: arena,
+        values: scope.scope_stack(),
+        types: scope.scope_stack()
+    };
+}
+
+def (ctx: *TyCtx) free() {
+    ctx.values.free();
+    ctx.types.free();
+}
+
+def (ctx: *TyCtx) open_scope() {
+    ctx.values.open();
+    ctx.types.open();
+}
+
+def (ctx: *TyCtx) close_scope() {
+    // this 'collapses' undecided types
+    // If we encounter anyInt types, they will be converted to i32
+    // TODO: 'any' types should be reported as errors
+    let current = ctx.values.top();
+    for let i: usize = 0; i < current.bindings.len(); i += 1 {
+        let bound = current.bindings.get_ptr_idx(i) as *scope.BoundItem;
+        let ty = bound.ty;
+
+        while ty.kind == TypeKind.Ptr {
+            ty = ty.data.ptr_to;
+        }
+
+        if ty.kind == TypeKind.Variable {
+            // TODO: not memory safe
+            *ty = *ty.data.inner;
+        }
+
+        if ty.kind == TypeKind.AnyInt {
+            // convert anyInt to i32
+            ty.init_int(primitive.Signedness.Signed, size_bytes(4));
+        }
+    }
+
+    ctx.values.close();
+    ctx.types.close();
+}
+
+def (ctx: *TyCtx) alloc(): *Type {
+    return ctx.arena.alloc() as *Type;
+}
+
+// a type variable to any
+def (ctx: *TyCtx) any_var(): *Type {
+    let anyTy = ctx.alloc();
+    anyTy.kind = TypeKind.Any;
+
+    let var = ctx.alloc();
+    var.kind = TypeKind.Variable;
+    var.data.inner = anyTy;
+    return var;
+}
+
+// a type variable to anyInt
+def (ctx: *TyCtx) any_var_int(): *Type {
+    let anyIntTy = ctx.alloc();
+    anyIntTy.kind = TypeKind.AnyInt;
+
+    let var = ctx.alloc();
+    var.kind = TypeKind.Variable;
+    var.data.inner = anyIntTy;
+    return var;
+}
+
+def lookup_in(name: str.View, stack: *scope.ScopeStack): *Type {
+    let item: scope.BoundItem = undefined;
+    if stack.lookup(name, &item).is_error() {
+        return null;
+    }
+
+    return item.ty;
+}
+
+def (ctx: *TyCtx) lookup_type(name: str.View): *Type {
+    return lookup_in(name, &ctx.types);
+}
+
+def (ctx: *TyCtx) lookup_value(name: str.View): *Type {
+    return lookup_in(name, &ctx.values);
+}
+
+def (ctx: *TyCtx) lookup_tyid(ty: *tyid.Type): *Type {
+    if ty.kind == tyid.TypeKind.Ptr {
+        let ptr = ctx.alloc();
+        ptr.kind = TypeKind.Ptr;
+
+        let inner = ctx.lookup_tyid(ty.inner());
+        if inner == null {
+            return null;
+        }
+        ptr.data.ptr_to = inner;
+    }
+
+    let p = &ty.data.path;
+    dbg.assert(p.segments.len == 1, "TODO: handle arbitrary tyid segments");
+
+    return ctx.lookup_type(p.segment_at(0).as_view());
+}
+
+def bind_in(name: str.View, ty: *Type, vis: Visibility, stack: *scope.ScopeStack) {
+    let item = scope.BoundItem {
+        ty: ty,
+        vis: vis,
+        declared_in: stack.top()
+    };
+    stack.bind(name, item);
+}
+
+def (ctx: *TyCtx) bind_value_public(name: str.View, ty: *Type) {
+    bind_in(name, ty, Visibility.Public, &ctx.values);
+}
+
+def (ctx: *TyCtx) bind_type_public(name: str.View, ty: *Type) {
+    bind_in(name, ty, Visibility.Public, &ctx.types);
+}
+
+def (ctx: *TyCtx) unify(a: *Type, previous: *Type): *Type {
+    if a.equals(previous) {
+        return a;
+    }
+
+    if a.is_concrete_version_of(previous) {
+
+        if previous.kind == TypeKind.Variable {
+            if a.kind == TypeKind.Variable  {
+                previous.data.inner = a.data.inner;
+            } else {
+                // overwrite the old value
+                // TODO: this will cause memory problems with types that own memory
+                //  this can happen, if we assign something to any
+                *previous.data.inner = *a;
+            }
+        }
+
+        return a;
+    }
+
+    if a.is_less_concrete_version_of(previous) {
+
+        if a.kind == TypeKind.Variable {
+            if previous.kind == TypeKind.Variable {
+                a.data.inner = previous.data.inner;
+            } else {
+                *a.data.inner = *previous;
+            }
+        }
+
+        return previous;
+    }
+
+    return null;
+}

@@ -97,6 +97,15 @@ def (p: *Parser) consume_optional(ty: tok.TokenType): bool {
     return false;
 }
 
+// see consume_optional and consume_tok
+def (p: *Parser) consume_optional_tok(ty: tok.TokenType, out: *tok.Token): bool {
+    if p.check(ty) {
+        *out = p.advance();
+        return true;
+    }
+    return false;
+}
+
 // this will first check, if the next token the lexer would produce, will be of the expected
 // type, if it is, it will set out to the consumed token and return Result.OK
 // if the token type differs, it will report a parse error and return Result.Error.
@@ -146,10 +155,16 @@ def (p: *Parser) consume_ident(out: *ident.Ident): Result {
 // However, this should be handled by the arena
 def (p: *Parser) consume_tyid(memory: *tyid.Type): Result {
     // if the type starts with '*', it's a pointer. The inner type will be parsed recursively
-    if p.consume_optional(tok.TokenType.Star) {
+    let star: tok.Token = undefined;
+    if p.consume_optional_tok(tok.TokenType.Star, &star) {
         let inner = p.alloc_tyid();
         tyid.init_pointer(memory, inner);
-        return p.consume_tyid(inner);
+        if p.consume_tyid(inner).is_error() {
+            return Result.Error;
+        }
+
+        memory.span = star.span.merge(inner.span);
+        return Result.OK;
     }
 
     tyid.init_path(memory);
@@ -162,6 +177,8 @@ def (p: *Parser) consume_tyid(memory: *tyid.Type): Result {
     if p.consume_ident(&segment).is_error() {
         return Result.Error;
     }
+
+    memory.span = segment.span;
     path.push_segment(segment);
 
     while p.check(tok.TokenType.Dot) {
@@ -169,6 +186,7 @@ def (p: *Parser) consume_tyid(memory: *tyid.Type): Result {
         if p.consume_ident(&segment).is_error() {
             return Result.Error;
         }
+        memory.span = memory.span.merge(segment.span);
         path.push_segment(segment);
     }
 
@@ -178,6 +196,11 @@ def (p: *Parser) consume_tyid(memory: *tyid.Type): Result {
 def (p: *Parser) report_expected_but_got(expected: str.View) {
     let actual = p.peek().ty.as_view();
     let error = e.string_tuple(e.ErrorKind.ExpectedButGot, p.peek().span, expected, actual);
+    p.report(&error);
+}
+
+def (p: *Parser) report_simple(kind: e.ErrorKind, span: span.Span) {
+    let error = e.simple_error(kind, span);
     p.report(&error);
 }
 
@@ -290,9 +313,28 @@ def (p: *Parser) statement(memory: *Stmt): Result {
 }
 
 def (p: *Parser) parse_stmt(memory: *Stmt): Result {
-    memory.init_expr();
-    if p.expression(&memory.data.expr).is_error() {
-        return Result.Error;
+    // CompoundStatements
+    if p.check(tok.TokenType.LBrace) {
+        memory.init_block();
+        if p.parse_block(memory).is_error() {
+            return Result.Error;
+        }
+        return Result.OK;
+    }
+
+    // all statements after this have to be followed by a semicolon (SimpleStatement)
+    if p.check(tok.TokenType.Let) {
+        memory.init_var_decl();
+        if p.parse_let_binding(memory).is_error() {
+            return Result.Error;
+        }
+    } else {
+        memory.init_expr();
+        if p.expression(&memory.data.expr).is_error() {
+            return Result.Error;
+        }
+        // Parser.expression cannot initialize the span, since it only get the expr memory
+        memory.span = memory.data.expr.span;
     }
 
     if p.consume(tok.TokenType.Semi).is_error() {
@@ -302,7 +344,7 @@ def (p: *Parser) parse_stmt(memory: *Stmt): Result {
     return Result.OK;
 }
 
-// parse a single functino definition and store it in 'memory'
+// parse a single function definition and store it in 'memory'
 def (p: *Parser) parse_func_def(memory: *item.Item): Result {
     memory.init_func_def();
 
@@ -315,20 +357,31 @@ def (p: *Parser) parse_func_def(memory: *item.Item): Result {
     if p.consume_ident(&name).is_error() {
         return Result.Error;
     }
-    memory.name = name;
 
-    let params = &memory.data.func_def.sig.params;
+    memory.name = name;
+    let signature = &memory.data.func_def.sig;
+
+    // the parameters
+    let params = &signature.params;
     let end_span = span.empty();
     p.parse_param_list(params, &end_span);
 
+    // the return type must be initialized even if there was no return type, since we might need
+    // the span for error messages. In the case of a missing return type declaration, we just
+    // use the closing ')' of the param list as the return type span
+    let ret = sig.empty_return(end_span);
+
+    // the optional return type
     if p.consume_optional(tok.TokenType.Colon) {
         let ty = p.alloc_tyid();
         if p.consume_tyid(ty).is_error() {
             return Result.Error;
         }
+        // if we actually had a return type, we obviously use that instead of the 'ret' above
+        ret = sig.return_from_tyid(ty);
     }
 
-    let block = &memory.data.func_def.block;
+    let block = &memory.data.func_def.block_stmt;
     if p.parse_block(block).is_error() {
         return Result.Error;
     }
@@ -392,11 +445,13 @@ def (p: *Parser) parse_param_list(params: *vec.Vec, rparen_span: *span.Span): Re
     return Result.OK;
 }
 
-def (p: *Parser) parse_block(block: *Block): Result {
-    if p.consume(tok.TokenType.LBrace).is_error() {
+def (p: *Parser) parse_block(memory: *Stmt): Result {
+    let left_brace: tok.Token = undefined;
+    if p.consume_tok(tok.TokenType.LBrace, &left_brace).is_error() {
         return Result.Error;
     }
 
+    let block = &memory.data.block;
     let result = Result.OK;
     while !(p.is_at_end() || p.check(tok.TokenType.RBrace)) {
         // we reserve memory inside the block and the parse directly into it
@@ -409,11 +464,51 @@ def (p: *Parser) parse_block(block: *Block): Result {
         block.push_reserved();
     }
 
-    if p.consume(tok.TokenType.RBrace).is_error() {
+    let right_brace: tok.Token = undefined;
+    if p.consume_tok(tok.TokenType.RBrace, &right_brace).is_error() {
         return Result.Error;
     }
 
+    memory.span = left_brace.span.merge(right_brace.span);
     return result;
+}
+
+def (p: *Parser) parse_let_binding(memory: *Stmt): Result {
+    let local = &memory.data.local;
+
+    let let_tok: tok.Token = undefined;
+    if p.consume_tok(tok.TokenType.Let, &let_tok).is_error() {
+        return Result.Error;
+    }
+
+    let name: ident.Ident = undefined;
+    if p.consume_ident(&name).is_error() {
+        return Result.Error;
+    }
+    local.name = name;
+
+    // a let statement may have an optional type identifier, which can change the type of the expr
+    // let i = 0;       // sizeof(i) == 4
+    // let i: i64 = 0;  // sizeof(i) == 8
+    if p.consume_optional(tok.TokenType.Colon) {
+        let ty = p.alloc_tyid();
+        if p.consume_tyid(ty).is_error() {
+            return Result.Error;
+        }
+
+        local.ty = ty;
+    }
+
+    if p.consume(tok.TokenType.Eq).is_error() {
+        return Result.Error;
+    }
+
+    local.value = p.alloc_expr();
+    if p.expression(local.value).is_error() {
+        return Result.Error;
+    }
+
+    return Result.OK;
 }
 
 // parse a single expression
@@ -429,7 +524,7 @@ def (p: *Parser) parse_precedence(memory: *Expr, current: tok.Precedence): Resul
         return Result.Error;
     }
 
-    while p.next_higher_precedence(current) {
+    while p.next_higher_or_eq_precedence(current) {
         // copy the old prefix expression data...
         let prefix = p.alloc_expr();
         *prefix = *memory;
@@ -442,7 +537,7 @@ def (p: *Parser) parse_precedence(memory: *Expr, current: tok.Precedence): Resul
     return Result.OK;
 }
 
-def (p: *Parser) next_higher_precedence(current: tok.Precedence): bool {
+def (p: *Parser) next_higher_or_eq_precedence(current: tok.Precedence): bool {
     return p.peek().ty.precedence() >= current;
 }
 
@@ -456,13 +551,36 @@ def (p: *Parser) parse_prefix(memory: *Expr): Result {
         return Result.OK;
     }
 
+    if token.ty == tok.TokenType.Ident {
+        memory.init_ident(ident.from_span(token.span));
+        return Result.OK;
+    }
+
     if token.ty == tok.TokenType.LParen {
+        let start_span = token.span;
         if p.expression(memory).is_error() {
             return Result.Error;
         }
-        return p.consume(tok.TokenType.RParen);
+        if p.consume_tok(tok.TokenType.RParen, &token).is_error() {
+            return Result.Error;
+        }
+
+        memory.span = start_span.merge(token.span);
+        return Result.OK;
     }
 
+    // unary deref
+    if token.ty == tok.TokenType.Star {
+        let right = p.alloc_expr();
+        if p.parse_precedence(right, tok.Precedence.Unary).is_error() {
+            return Result.Error;
+        }
+
+        memory.init_unary(UnaryKind.Deref, token, right);
+        return Result.OK;
+    }
+
+    p.report_simple(e.ErrorKind.ExpectedExpression, token.span);
     return Result.Error;
 }
 
@@ -474,6 +592,8 @@ def (p: *Parser) parse_infix(memory: *Expr, left: *Expr): Result {
     // + - * / %
     if token.ty.is_between(tok.TokenType.Plus, tok.TokenType.Percent) {
         let right = p.alloc_expr();
+        // calling parse_precedence with a higher precedence makes the expression left-associative
+        // using the same precedence would make it right-associative
         let precedence = token.ty.precedence().next_higher();
         if p.parse_precedence(right, precedence).is_error() {
             return Result.Error;
@@ -481,6 +601,22 @@ def (p: *Parser) parse_infix(memory: *Expr, left: *Expr): Result {
 
         let offset = token.ty as i32 - tok.TokenType.Plus as i32;
         memory.init_binary(BinaryKind.Add.with_offset(offset), left, right);
+        return Result.OK;
+    }
+
+    // TODO: assignment parsing needs tests
+    // TODO: check if left is an lvalue
+    // assignments
+    if token.ty.is_between(tok.TokenType.Eq, tok.TokenType.CaretEq) {
+        let right = p.alloc_expr();
+        // using the same precedence makes assignments right-associative
+        let precedence = token.ty.precedence();
+        if p.parse_precedence(right, precedence).is_error() {
+            return Result.Error;
+        }
+
+        let offset = token.ty as i32 - tok.TokenType.Eq as i32;
+        memory.init_assign(AssignKind.Eq.with_offset(offset), left, right);
         return Result.OK;
     }
 

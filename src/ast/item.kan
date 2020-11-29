@@ -36,7 +36,7 @@ type ItemData union {
 def (i: *Item) init_func_def() {
     i.kind = ItemKind.FuncDef;
     i.data.func_def.sig.init();
-    i.data.func_def.block.init();
+    i.data.func_def.block_stmt.init_block();
 }
 
 def (i: *Item) free() {
@@ -47,18 +47,22 @@ def (i: *Item) free() {
 
 type FuncDef struct {
     sig: sig.Signature,
-    block: stmt.Block
+    block_stmt: stmt.Stmt
+}
+
+def (f: *FuncDef) block(): *stmt.Block {
+    return &f.block_stmt.data.block;
 }
 
 def (f: *FuncDef) free() {
     f.sig.free();
-    f.block.free();
+    f.block_stmt.free();
 }
 
 def (i: *Item) to_json(): str.String {
     if i.kind == ItemKind.FuncDef {
         let json = str.from("{\"kind\": \"func_def\", \"body\": ");
-        let inner = i.data.func_def.block.to_json();
+        let inner = i.data.func_def.block_stmt.to_json();
         defer inner.free();
         json.push(inner.view());
         json.push(str.view_from("}"));

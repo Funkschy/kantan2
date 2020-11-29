@@ -5,8 +5,6 @@ import "../std/files/path";
 import "span";
 import "position";
 
-extern def read_file(path: string, content: *string, len: *usize): path.Result;
-
 type Status enum {
     // the file was read without any errors
     Read,
@@ -78,15 +76,13 @@ def read_kantan_file(cwd: path.Path, rel_path: path.Path): SourceFile {
         return _error(abs_path, str.from("Kantan files should have a '.kan' file extension"));
     }
 
-    let content = "";
-    let len: usize = 0;
-    result = read_file(abs_path.as_path().inner, &content, &len);
+    let code: str.String = undefined;
+    result = abs_path.as_path().read_to_string(&code);
 
     if result.is_error() {
         return _error(abs_path, result.to_string(abs_path.as_path()));
     }
 
-    let code = str.move_l(content, len);
     return SourceFile {
         _status: Status.Read,
         _code_or_error: code,

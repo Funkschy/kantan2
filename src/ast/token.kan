@@ -199,7 +199,7 @@ def init() {
     token_info[TokenType.Struct as i32]          = info_none(str.view("struct", 6));
     token_info[TokenType.Enum as i32]            = info_none(str.view("enum", 4));
     token_info[TokenType.Union as i32]           = info_none(str.view("union", 5));
-    token_info[TokenType.As as i32]              = info(Precedence.Product, str.view("as", 2));
+    token_info[TokenType.As as i32]              = info(Precedence.Call, str.view("as", 2));
     token_info[TokenType.Extern as i32]          = info_none(str.view("extern", 6));
     token_info[TokenType.Export as i32]          = info_none(str.view("export", 6));
     token_info[TokenType.Delegate as i32]        = info_none(str.view("delegate", 8));

@@ -100,7 +100,7 @@ def report_element(
     }
 
     let mod = modmap.get_mod_from_span(span);
-    dbg.assert_fmt(mod != null, "could not get module for %s", _type);
+    cdeps.assert_fmt(mod != null, "could not get module for %s", _type);
     let line_info = mod.file.line_info(span);
 
     return ReportElement {

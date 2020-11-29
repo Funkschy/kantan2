@@ -28,6 +28,7 @@ type Compiler struct {
     std_path: path.Path,
     config: *config.Config,
     modmap: mods.Map,
+
     mod_arena: arena.TypedArena,
     ast_arena: arena.TypedArena,
     ty_arena: arena.TypedArena,

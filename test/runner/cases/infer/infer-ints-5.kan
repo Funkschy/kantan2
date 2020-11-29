@@ -1,0 +1,11 @@
+def main() {
+    // infer p to *u32, i to u32
+    let i = 0;
+    let u: u32 = 0;
+    let p = null;
+    *p = i;
+    u = i;
+    p;
+    i;
+    u;
+}

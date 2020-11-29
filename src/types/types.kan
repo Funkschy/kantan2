@@ -1,44 +1,190 @@
-import "../std/dbg";
+import "../std/str";
+import "../source/ident";
 
 import "data";
-import "subst";
 import "primitive";
+import "info";
 
-type Kind enum {
-    Infer,      // only used during typechecking and illegal afterwards
-    Int, Float,
-    DataType,   // Structs and Unions
-    TemplateParam
+type TypeKind enum {
+    // only used to infer types during typechecking and illegal afterwards
+    // this is basically just a wrapper around another type. When checking agains a variable type,
+    // the type that this points to may be changed (just the pointer, not the real type)
+    Variable,
+    // constraint types, only used to infer types during typechecking and illegal afterwards
+    Any, AnyInt,
+    // builtin primitives
+    Int, Float, Ptr,
+    // a type parameter. E.g 'T' in type Vec[T] struct {...}
+    Param,
+    // Functions are anonymous, while Signatures also have a name
+    Function, Signature,
+    // Structs and Unions
+    DataType
 }
 
 type Type struct {
-    kind: Kind,
-    width: Size,
-    align: Size,
+    kind: TypeKind,
+    width: info.Size,
+    align: info.Size,
     data: TypeData
 }
 
 type TypeData union {
+    inner: *Type,
     int: primitive.Integer,
     float: primitive.Float,
-    data_type: data.UserDefined,
-    template_param: subst.TemplateParam
+    ptr_to: *Type, // the inner type
+    param: TypeParam,
+    data_type: data.UserDefined
 }
 
-type Size struct {
-    bit_size: i32
+def (t: *Type) init_int(signedness: primitive.Signedness, width: info.Size) {
+    t.kind = TypeKind.Int;
+    t.data.int.signedness = signedness;
+    t.width = t.align = width;
 }
 
-def (s: Size) bits(): u32 {
-    dbg.assert(s.bit_size> 0, "trying to query size of unsized type");
-    return s.bit_size as u32;
+def (t: *Type) init_ptr(inner: *Type) {
+    t.kind = TypeKind.Ptr;
+    t.data.ptr_to = inner;
+    // TODO: make this platform dependent
+    t.width = t.align = info.size_bytes(8);
 }
 
-def (s: Size) bytes(): u32 {
-    dbg.assert(s.bit_size > 0, "trying to query size of unsized type");
-    return (s.bit_size / 8) as u32;
+def (t: *Type) is_concrete_version_of(other: *Type): bool {
+    if t.kind == TypeKind.Variable {
+        t = t.data.inner;
+    }
+    if other.kind == TypeKind.Variable {
+        other = other.data.inner;
+    }
+
+    return other.kind == TypeKind.Any
+        || t.kind == TypeKind.Int && other.kind == TypeKind.AnyInt;
 }
 
-type Visibility enum {
-    Public, Private
+def (t: *Type) is_less_concrete_version_of(other: *Type): bool {
+    if t.kind == TypeKind.Variable {
+        t = t.data.inner;
+    }
+    if other.kind == TypeKind.Variable {
+        other = other.data.inner;
+    }
+
+    return t.kind == TypeKind.Any
+        || t.kind == TypeKind.AnyInt && other.kind == TypeKind.Int;
+}
+
+def (t: *Type) is_variable(): bool {
+    return t.kind == TypeKind.Variable;
+}
+
+def (t: *Type) equals(other: *Type): bool {
+    if t == other {
+        return true;
+    }
+
+    if t == null || other == null {
+        return false;
+    }
+
+    if t.kind == TypeKind.Variable {
+        t = t.data.inner;
+    }
+
+    if other.kind == TypeKind.Variable {
+        other = other.data.inner;
+    }
+
+
+    if t.kind != other.kind {
+        return false;
+    }
+
+    if t.kind == TypeKind.Int {
+        return t.data.int.signedness == other.data.int.signedness && t.width.equals(other.width);
+    }
+
+    if t.kind == TypeKind.Any || t.kind == TypeKind.AnyInt {
+        return true;
+    }
+
+    return false;
+}
+
+def (t: *Type) to_string(): str.String {
+    if t == null {
+        return str.from("null");
+    }
+
+    if t.kind == TypeKind.Variable {
+        let s = str.from("->");
+        let inner = t.data.inner.to_string();
+        s.push(inner.view());
+        inner.free();
+        return s;
+    }
+
+    if t.kind == TypeKind.AnyInt {
+        return str.from("integer");
+    }
+
+    if t.kind == TypeKind.Any {
+        return str.from("$T");
+    }
+
+    if t.kind == TypeKind.Int {
+        let s = str.from("");
+
+        let prefix = 'u' - 12 * (t.data.int.is_signed() as i8);
+        s.push(str.view(&prefix, 1));
+
+        let width = str.i64_to_string(t.width.bits() as i64);
+        defer width.free();
+        s.push(width.view());
+
+        return s;
+    }
+
+    if t.kind == TypeKind.Ptr {
+        let s = str.from("*");
+        let inner = t.data.ptr_to.to_string();
+        defer inner.free();
+        s.push(inner.view());
+        return s;
+    }
+
+    let s = str.from("ERROR: ");
+    let kind = str.i64_to_string(t.kind as i32 as i64);
+    defer kind.free();
+    s.push(kind.view());
+    return s;
+}
+
+// this is the declared type parameter
+// e.g. for
+//   type Struct[T] struct {}
+// T would be this parameter with the index 0 and name 'T'
+type TypeParam struct {
+    index: u32,
+    name: ident.Ident
+}
+
+def (t: *Type) init_userdefined(kind: data.UserDefinedKind, original_name: ident.Ident) {
+    t.kind = TypeKind.DataType;
+    t.width = t.align = info.initial_size();
+    t.data.data_type.init(kind, original_name);
+}
+
+def (t: *Type) free() {
+    if t.kind < TypeKind.Function {
+        return;
+    }
+
+    if t.kind == TypeKind.Function {
+    }
+
+    if t.kind == TypeKind.DataType {
+        t.data.data_type.free();
+    }
 }

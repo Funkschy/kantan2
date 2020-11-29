@@ -3,6 +3,8 @@ import "../std/dbg";
 import "../std/libc";
 import "../std/ptrvec";
 
+import "../cdeps";
+
 import "span";
 
 type SourcePos struct {
@@ -88,7 +90,7 @@ def (m: *LineMap) line_at(idx: u32): string {
 def (m: *LineMap) get_line_info(code: str.View, target: span.Span): LineInfo {
     let eof = code.data + code.len;
 
-    dbg.assert_fmt(
+    cdeps.assert_fmt(
         code.data <= target.start && target.end <= eof,
         "invalid target (%p-%p) for source (%p-%p)",
         target.start, target.end,

@@ -1,6 +1,8 @@
 import "../std/dbg";
 import "../std/str";
 
+import "../cdeps";
+
 type Arch enum {
     X86_64, Wasm32
 }
@@ -44,7 +46,7 @@ def (a: Arch) register() {
         return;
     }
 
-    dbg.assert_fmt(0 == 1, "unknown target architecture: %d", a);
+    cdeps.assert_fmt(0 == 1, "unknown target architecture: %d", a);
 }
 
 def (a: Arch) pointer_width_bits(): u32 {

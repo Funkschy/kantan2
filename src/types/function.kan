@@ -1,0 +1,26 @@
+import "../std/vec";
+import "../source/ident";
+
+import "scope";
+import "ctx" as _;
+import "types" as _;
+
+type ABI enum {
+    C, Kantan
+}
+
+type Function struct {
+    abi: ABI,
+    c_variadic: bool,
+    params: vec.Vec, // vec.Vec[Param]
+    ret: *Type
+}
+
+def (f: *Function) free() {
+    f.params.free();
+}
+
+type Param struct {
+    name: ident.Ident,
+    ty: *Type
+}

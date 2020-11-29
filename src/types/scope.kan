@@ -1,0 +1,126 @@
+import "../std/dbg";
+import "../std/str";
+import "../std/vmap";
+import "../std/ptrvec";
+
+import "info";
+import "types" as ty;
+import "../util" as _;
+
+
+type BoundItem struct {
+    ty: *ty.Type,
+    vis: info.Visibility,
+    declared_in: *Scope
+}
+
+type Scope struct {
+    bindings: vmap.Map // vmap.Map[str.View, BoundItem]
+}
+
+def scope(): Scope {
+    return Scope { bindings: vmap.create(sizeof BoundItem) };
+}
+
+def new_scope(): *Scope {
+    return new scope();
+}
+
+def (s: *Scope) free() {
+    s.bindings.free();
+}
+
+def (s: *Scope) clear() {
+    s.bindings.clear();
+}
+
+def (s: *Scope) lookup(name: str.View, out: *BoundItem): Result {
+    let key = key_from_view(name);
+    let item = s.bindings.get_ptr(key) as *BoundItem;
+    if item == null {
+        return Result.Error;
+    }
+
+    *out = *item;
+    return Result.OK;
+}
+
+def (s: *Scope) bind(name: str.View, item: BoundItem) {
+    let key = key_from_view(name);
+    s.bindings.insert(key, &item as *void);
+}
+
+type ScopeStack struct {
+    // to safe memory, scopes are not freed on close(). Instead they are put in the queue
+    // and may be recycled later.
+    // since we always use pop_last, this is technically a stack, but because all recycled scopes
+    // are identical, this does not really matter. The name Queue makes more sense in describing
+    // the actual function
+    scope_queue: ptrvec.Vec, // ptrvec.Vec[*Scope]
+    // a stack of currently open scopes
+    // lookup() will always access the top element (last in vec) of this stack
+    open_scopes: ptrvec.Vec  // ptrvec.Vec[*Scope]
+}
+
+def scope_stack(): ScopeStack {
+    return ScopeStack {
+        scope_queue: ptrvec.create(),
+        open_scopes: ptrvec.create()
+    };
+}
+
+def (s: *ScopeStack) free() {
+    for let i: usize = 0; i < s.scope_queue.len; i += 1 {
+        let scope = s.scope_queue.get(i) as *Scope;
+        scope.free();
+        delete scope;
+    }
+    for let i: usize = 0; i < s.open_scopes.len; i += 1 {
+        let scope = s.open_scopes.get(i) as *Scope;
+        scope.free();
+        delete scope;
+    }
+    s.scope_queue.free();
+    s.open_scopes.free();
+}
+
+def (s: *ScopeStack) open() {
+    let scope: *Scope = null;
+    if s.scope_queue.len > 0 {
+        // recycle an old scope from the queue
+        scope = s.scope_queue.pop_last() as *Scope;
+        // delete the old bindings
+        scope.clear();
+    } else {
+        scope = new_scope();
+    }
+
+    s.open_scopes.push_ptr(scope as *void);
+}
+
+def (s: *ScopeStack) close() {
+    dbg.assert(s.open_scopes.len > 0, "trying to close empty scope stack");
+    s.scope_queue.push_ptr(s.open_scopes.pop_last());
+}
+
+def (s: *ScopeStack) top(): *Scope {
+    dbg.assert(s.open_scopes.len > 0, "trying to get top of empty scope stack");
+    return s.open_scopes.get(s.open_scopes.len - 1) as *Scope;
+}
+
+def (s: *ScopeStack) lookup(name: str.View, out: *BoundItem): Result {
+    // using an isize here is important, since the >= operator does not work
+    // for usize if we go below zero. -1 will just be interpreted as 64 ones
+    for let i = s.open_scopes.len as isize - 1; i >= 0; i -= 1 {
+        let s = s.open_scopes.get(i) as *Scope;
+        if s.lookup(name, out).is_ok() {
+            return Result.OK;
+        }
+    }
+
+    return Result.Error;
+}
+
+def (s: *ScopeStack) bind(name: str.View, item: BoundItem) {
+    s.top().bind(name, item);
+}

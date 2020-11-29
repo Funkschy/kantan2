@@ -4,6 +4,8 @@ import "std/str";
 import "std/num";
 import "std/files/path";
 
+import "cdeps";
+
 import "source/ident";
 
 type Result enum {
@@ -26,6 +28,10 @@ def key_from_path(p: path.Path): map.Key {
     return map.create_key(p.len, p.inner);
 }
 
+def key_from_view(s: str.View): map.Key {
+    return map.create_key(s.len, s.data);
+}
+
 def int_from_char(c: i8, base: u32): i64 {
     if c >= '0' && c <= '9' {
         return c as i64 - '0';
@@ -36,7 +42,7 @@ def int_from_char(c: i8, base: u32): i64 {
         return upper as i64 - 'A' + 10;
     }
 
-    dbg.assert_fmt(false, "invalid char '%c'", c);
+    cdeps.assert_fmt(false, "invalid char '%c'", c);
     return 0;
 }
 

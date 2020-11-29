@@ -32,7 +32,7 @@ def (m: *Module) to_json(): str.String {
             json.push(str.view(", ", 2));
         }
 
-        let item = m.items.get(i) as *item.Item;
+        let item = m.item_at(i);
         let item_json = item.to_json();
         json.push(item_json.view());
         item_json.free();
@@ -40,4 +40,12 @@ def (m: *Module) to_json(): str.String {
 
     json.push(str.view("]}", 2));
     return json;
+}
+
+def (m: *Module) num_items(): usize {
+    return m.items.len;
+}
+
+def (m: *Module) item_at(idx: usize): *item.Item {
+    return m.items.get(idx) as *item.Item;
 }

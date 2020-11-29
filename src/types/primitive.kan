@@ -1,11 +1,14 @@
 type Signedness enum {
-    Infer, // only used during typechecking and illegal afterwards
     Signed,
     Unsigned
 }
 
 type Integer struct {
     signedness: Signedness
+}
+
+def (i: Integer) is_signed(): bool {
+    return i.signedness == Signedness.Signed;
 }
 
 type Float struct {}

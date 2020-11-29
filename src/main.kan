@@ -50,6 +50,46 @@ def main(argc: i32, argv: *string): ReturnCode {
     compiler.resolve_imports();
     compiler.parse();
 
+    // TODO: this is debug code
+    import "types/types";
+    import "memory/arena";
+
+    let arena = arena.typed(sizeof types.Type);
+    defer arena.free_destructor(&types.Type.free as arena.Destructor);
+    {
+        import "types/ctx";
+        import "types/check/item" as i_check;
+        import "types/info";
+        import "types/primitive";
+
+        let ctx = ctx.create(&arena);
+        defer ctx.free();
+
+        ctx.open_scope();
+        defer ctx.close_scope();
+
+        let c_ty = arena.alloc() as *types.Type;
+        c_ty.init_int(primitive.Signedness.Signed, info.size_bytes(1));
+
+        let s_ty = arena.alloc() as *types.Type;
+        s_ty.init_ptr(c_ty);
+        ctx.bind_type_public(str.view_from("string"), s_ty);
+
+        let u32_ty = arena.alloc() as *types.Type;
+        u32_ty.init_int(primitive.Signedness.Unsigned, info.size_bytes(4));
+        ctx.bind_type_public(str.view_from("u32"), u32_ty);
+
+
+        for let i: usize = 0; i < compiler.modmap.len(); i += 1 {
+            let mod = compiler.modmap.at(i);
+
+            for let j: usize = 0; j < mod.num_items(); j += 1 {
+                let item = mod.item_at(j);
+                i_check.check(&ctx, item);
+            }
+        }
+    }
+
     // TODO: remove this temporary code
     if opts.dump_ast {
         import "io";

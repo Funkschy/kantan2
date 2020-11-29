@@ -53,10 +53,10 @@ LogicAnd = Equality { "&&" Equality };
 Equality = Comparison { ("==" | "!=") Comparison };
 Comparison = Addition { ("<" | "<=" | ">=" | ">") Addition };
 Addition = Multiplication { ("+" | "-") Multiplication };
-Multiplication = Unary { ( "*" | "/" | "%" | "as" | "<<" | ">>" ) Unary };
+Multiplication = Unary { ( "*" | "/" | "%" | "<<" | ">>" ) Unary };
 Unary = ("!" | "-" | "*" | "&") Unary | Call;
 Call = Access { "(" [ Arguments ] ")" };
-Access = Unit { ( "." Identifier | "[" Expression [ ":" Expression ] "]") }
+Access = Unit { ( "." Identifier | "[" Expression [ ":" Expression ] "]") } [ "as" TypeIdentifier ]
 Unit = "true" | "false" | "null" | "undefined" | NumberLiteral | StringLiteral | Identifier | CharLiteral | "(" Expression ")" | "sizeof" TypeIdentifier | "new" Expression | Identifier "{" [ InitList ] "}" | ArrayTypeIdentifier "{" [ InitList ] "}";
 
 InitList = FieldInit { "," FieldInit };
