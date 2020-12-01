@@ -41,15 +41,21 @@ def main():
     with ThreadPoolExecutor(max_workers=args.threads) as pool:
         pool.map(lambda runner: run_test_case(runner, state), tests)
 
+    ret = 0
     print(Result.Status.Success.value[1], state.successful)
     if state.failures > 0:
         print(Result.Status.Failure.value[1], state.failures)
+        ret |= 1
     if state.skipped > 0 and state.show_skipped:
         print(Result.Status.Skipped.value[1], state.skipped)
+        ret |= 2
 
     if len(tests) != state.successful + state.skipped + state.failures:
         # this can happen, if the test itself contained python errors
         print("Some tests could not be executed")
+        ret |= 4
+
+    exit(ret)
 
 
 def run_test_case(runner: TestRunner, state):

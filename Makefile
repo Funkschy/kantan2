@@ -95,8 +95,7 @@ endif
 .PHONY: test
 test : $(BIN_NAME)
 	pushd test && \
-	python3 -m runner.main ../$(BIN_NAME) runner/cases $(TEST_ARGS); \
-	popd
+	python3 -m runner.main ../$(BIN_NAME) runner/cases $(TEST_ARGS)
 
 .PHONY: clean
 clean :
