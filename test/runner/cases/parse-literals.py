@@ -10,6 +10,8 @@ expected_modules = [{
     'items': [
         {
             'kind': 'func_def',
+            "name": "main",
+            "ret": "void",
             'body': {
                 'kind': 'block',
                 'stmts': [

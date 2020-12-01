@@ -48,6 +48,7 @@ type Signature struct {
 def (s: *Signature) init() {
     // the vector needs to be initialized in order to be freed
     s.params = vec.create(sizeof Param);
+    s.ret.ty = null;
 }
 
 def (s: *Signature) free() {

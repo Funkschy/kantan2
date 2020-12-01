@@ -380,6 +380,7 @@ def (p: *Parser) parse_func_def(memory: *item.Item): Result {
         // if we actually had a return type, we obviously use that instead of the 'ret' above
         ret = sig.return_from_tyid(ty);
     }
+    memory.data.func_def.sig.ret = ret;
 
     let block = &memory.data.func_def.block_stmt;
     if p.parse_block(block).is_error() {

@@ -61,10 +61,25 @@ def (f: *FuncDef) free() {
 
 def (i: *Item) to_json(): str.String {
     if i.kind == ItemKind.FuncDef {
-        let json = str.from("{\"kind\": \"func_def\", \"body\": ");
+        let json = str.from("{\"kind\": \"func_def\", \"name\": \"");
+        json.push(i.name.as_view());
+        json.push(str.view_from("\","));
+
+        json.push(str.view_from("\"ret\": \""));
+        if i.data.func_def.sig.ret.ty != null {
+            let ret = i.data.func_def.sig.ret.ty.to_string();
+            defer ret.free();
+            json.push(ret.view());
+        } else {
+            json.push(str.view("void", 4));
+        }
+        json.push(str.view_from("\""));
+
+        json.push(str.view_from(",\"body\": "));
         let inner = i.data.func_def.block_stmt.to_json();
         defer inner.free();
         json.push(inner.view());
+
         json.push(str.view_from("}"));
         return json;
     }
