@@ -49,7 +49,10 @@ K_FILES = src/ast/expr.kan \
 		  src/util.kan
 
 START_FOLDER := $(shell pwd)
-STDLIB_DIR := $(START_FOLDER)/src/std
+
+STDLIB_DIR ?= $(START_FOLDER)/src/std
+KANTAN_STABLE ?= $(START_FOLDER)/../kantan -g
+
 C_DEFINES := -DSTDLIB_DIR=\"$(STDLIB_DIR)\"
 C_FILES := lib.c
 C_OBJ_FILES := $(patsubst %.c,%.o,$(C_FILES))
@@ -66,8 +69,6 @@ LLVM_SYS_LIBS := $(shell $(LLVM_CONFIG) --system-libs)
 
 LD_FLAGS := $(LLVM_LD_FLAGS) -fdata-sections -ffunction-sections
 LIBS := $(LLVM_LIBS) $(LLVM_SYS_LIBS) -Wl,--gc-sections
-
-KANTAN_STABLE := $(START_FOLDER)/../kantan -g
 
 $(BIN_NAME) : Makefile $(K_FILES) $(C_OBJ_FILES)
 	if $(KANTAN_STABLE) $(K_FILES) -o out.o; then \

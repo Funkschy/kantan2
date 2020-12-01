@@ -3,7 +3,7 @@ name: run-test
 on: [push]
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/setup-python@v1
         with:
@@ -12,5 +12,8 @@ jobs:
         with:
           fetch-depth: 1
           submodules: true
+      - run: curl -s https://api.github.com/repos/funkschy/kantan-lang/releases/latest | grep browser_download_url | grep linux-amd64 | cut -d '"' -f 4 | wget -qi -
+      - run: sudo chmod +x kantan-linux-amd64
+      - run: 'mkdir -p ~/.kantan/std && echo "extern def printf(fmt: string, ...): i32; extern def puts(s: string): i32; extern def putchar(c: i32): i32;" > ~/.kantan/std/io.kan'
       - name: Run Test
-        run: make test
+        run: make KANTAN_STABLE="./kantan-linux-amd64" test
