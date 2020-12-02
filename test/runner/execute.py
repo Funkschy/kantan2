@@ -67,6 +67,8 @@ class CompilerExecutor(object):
 
     def run(self, filename: str, files: List[str], options: List[str]) -> Union[Output, ExecutionError]:
         completed_process = self._run(filename, files, options)
+        if type(completed_process) is ExecutionError:
+            return completed_process
 
         parsed = parse_output(completed_process)
         if type(parsed) is Output:
@@ -95,4 +97,7 @@ class NonParsingExecutor(CompilerExecutor):
 
     def run(self, filename: str, files: List[str], options: List[str]) -> Optional[str]:
         completed_process = self._run(filename, files, options)
+        if type(completed_process) is ExecutionError:
+            return completed_process
+
         return completed_process.stdout.decode('utf-8')
