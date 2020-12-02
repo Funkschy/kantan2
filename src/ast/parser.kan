@@ -20,8 +20,8 @@ import "lexer" as l;
 import "token" as tok;
 
 type Parser struct {
-    had_error: bool,
     panic_mode: bool,
+    error_count: usize,
     lexer: l.Lexer,
     ast_arena: *arena.TypedArena,
     ty_arena: *arena.TypedArena,
@@ -39,8 +39,8 @@ def create(
     dbg.assert(ty_arena.elem_size == sizeof tyid.Type, "wrong ty arena size");
 
     return Parser {
-        had_error: false,
         panic_mode: false,
+        error_count: 0,
         lexer: lexer,
         ast_arena: ast_arena,
         ty_arena: ty_arena,
@@ -211,28 +211,32 @@ def (p: *Parser) report(error: *e.Error) {
         return;
     }
 
-    p.panic_mode = p.had_error = true;
+    p.panic_mode = true;
+    p.error_count += 1;
     _report.print_error(error);
 }
 
 // try to synchronize the compiler. This will skip tokens until we are at the beginning of a new
 // stmt or EOF
-def (p: *Parser) sync() {
+// it will return the span of the last consume token
+def (p: *Parser) sync(): span.Span {
     p.panic_mode = false;
 
     let previous = p.advance();
     while !p.check(tok.TokenType.EOF) {
         if previous.ty == tok.TokenType.Semi {
-            return;
+            return previous.span;
         }
 
         let current = p.peek();
         if current.ty == tok.TokenType.Import {
-            return;
+            return previous.span;
         }
 
         previous = p.advance();
     }
+
+    return previous.span;
 }
 
 // Basically a Result type for import parsing, since ImportDeclarations aren't Items, we cannot
@@ -302,10 +306,21 @@ def (p: *Parser) parse_item(): *item.Item {
 }
 
 def (p: *Parser) statement(memory: *Stmt): Result {
+    let error_count = p.error_count;
+    let start = p.peek().span;
+
     if p.parse_stmt(memory).is_error() {
+        let current = p.peek().span;
         if p.panic_mode {
-            p.sync();
+            current = p.sync();
         }
+
+        // an error occured, but we haven't reported anything yet, so we just use the generic
+        // "failed to parse statement" error
+        if p.error_count == error_count {
+            p.report_simple(e.ErrorKind.CouldNotParseStmt, start.merge(current));
+        }
+
         return Result.Error;
     }
 
@@ -621,5 +636,6 @@ def (p: *Parser) parse_infix(memory: *Expr, left: *Expr): Result {
         return Result.OK;
     }
 
+    p.report_simple(e.ErrorKind.ExpectedOperator, token.span);
     return Result.Error;
 }
