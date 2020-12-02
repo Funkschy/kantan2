@@ -1,4 +1,5 @@
 import "../../std/str";
+import "../../std/dbg";
 
 import "../../error" as e;
 import "../../ast/expr" as _;
@@ -99,6 +100,11 @@ def infer(ctx: *TyCtx, expr: *Expr): TyResult {
 
         if expr.data.lit.kind == LiteralKind.String {
             return ok(ctx.lookup_type(str.view("string", 6)));
+        }
+
+        if expr.data.lit.kind == LiteralKind.Undefined {
+            // undefined can be anything
+            return ok(ctx.any_var());
         }
 
         return error();

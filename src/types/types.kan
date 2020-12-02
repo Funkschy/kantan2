@@ -52,10 +52,10 @@ def (t: *Type) init_ptr(inner: *Type) {
 }
 
 def (t: *Type) is_concrete_version_of(other: *Type): bool {
-    if t.kind == TypeKind.Variable {
+    while t.is_variable() {
         t = t.data.inner;
     }
-    if other.kind == TypeKind.Variable {
+    while other.is_variable() {
         other = other.data.inner;
     }
 
@@ -64,10 +64,10 @@ def (t: *Type) is_concrete_version_of(other: *Type): bool {
 }
 
 def (t: *Type) is_less_concrete_version_of(other: *Type): bool {
-    if t.kind == TypeKind.Variable {
+    while t.is_variable() {
         t = t.data.inner;
     }
-    if other.kind == TypeKind.Variable {
+    while other.is_variable() {
         other = other.data.inner;
     }
 
@@ -88,17 +88,21 @@ def (t: *Type) equals(other: *Type): bool {
         return false;
     }
 
-    if t.kind == TypeKind.Variable {
+    while t.kind == TypeKind.Variable {
         t = t.data.inner;
     }
 
-    if other.kind == TypeKind.Variable {
+    while other.is_variable() {
         other = other.data.inner;
     }
 
 
     if t.kind != other.kind {
         return false;
+    }
+
+    if t.kind == TypeKind.Ptr {
+        return t.data.ptr_to.equals(other.data.ptr_to);
     }
 
     if t.kind == TypeKind.Int {

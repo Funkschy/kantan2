@@ -47,13 +47,16 @@ def (ctx: *TyCtx) close_scope() {
         let bound = current.bindings.get_ptr_idx(i) as *scope.BoundItem;
         let ty = bound.ty;
 
-        while ty.kind == TypeKind.Ptr {
-            ty = ty.data.ptr_to;
-        }
-
-        if ty.kind == TypeKind.Variable {
-            // TODO: not memory safe
-            *ty = *ty.data.inner;
+        // deref the type to the most basic level
+        while true {
+            if ty.kind == TypeKind.Variable {
+                // TODO: this could maybe cause issues with types that own memory
+                *ty = *ty.data.inner;
+            } else if ty.kind == TypeKind.Ptr {
+                ty = ty.data.ptr_to;
+            } else {
+                break;
+            }
         }
 
         if ty.kind == TypeKind.AnyInt {
@@ -145,20 +148,16 @@ def (ctx: *TyCtx) bind_type_public(name: str.View, ty: *Type) {
 }
 
 def (ctx: *TyCtx) unify(a: *Type, previous: *Type): *Type {
-    if a.equals(previous) {
-        return a;
-    }
-
     if a.is_concrete_version_of(previous) {
 
         if previous.kind == TypeKind.Variable {
             if a.kind == TypeKind.Variable  {
-                previous.data.inner = a.data.inner;
+                // point to a instead
+                previous.data.inner = a;
             } else {
-                // overwrite the old value
-                // TODO: this will cause memory problems with types that own memory
-                //  this can happen, if we assign something to any
-                *previous.data.inner = *a;
+                // "overwrite" the old value
+                previous.data.inner.kind = TypeKind.Variable;
+                previous.data.inner.data.inner = a;
             }
         }
 
@@ -169,13 +168,22 @@ def (ctx: *TyCtx) unify(a: *Type, previous: *Type): *Type {
 
         if a.kind == TypeKind.Variable {
             if previous.kind == TypeKind.Variable {
-                a.data.inner = previous.data.inner;
+                a.data.inner = previous;
             } else {
-                *a.data.inner = *previous;
+                a.data.inner.kind = TypeKind.Variable;
+                a.data.inner.data.inner = previous;
             }
         }
 
         return previous;
+    }
+
+    if a.kind == TypeKind.Ptr && previous.kind == TypeKind.Ptr {
+        return ctx.unify(a.data.ptr_to, previous.data.ptr_to);
+    }
+
+    if a.equals(previous) {
+        return a;
     }
 
     return null;

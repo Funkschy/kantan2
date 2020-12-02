@@ -1,4 +1,7 @@
 import "../../std/dbg";
+import "../../cli/report";
+import "../../error" as e;
+
 import "../../util" as _;
 import "../../ast/stmt" as _;
 
@@ -40,7 +43,9 @@ def check(ctx: *TyCtx, stmt: *Stmt): Result {
         if decl.ty != null {
             let expected = ctx.lookup_tyid(decl.ty);
             if expected == null {
-                dbg.assert(false, "todo handle error");
+                let error = e.string_single(e.ErrorKind.UndeclaredType, decl.ty.span, decl.ty.span.as_view());
+                report.print_error(&error);
+                return Result.Error;
             }
 
             let instance = tychk.try_unify(ctx, decl.value, inferred.ty, expected);
