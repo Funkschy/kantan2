@@ -1,0 +1,76 @@
+import ":std/str";
+import ":std/dbg";
+
+import ":cli/report";
+import ":error" as e;
+import ":source/span";
+import ":ast/expr" as ast;
+
+import "ctx";
+import "types" as ty;
+
+
+type TyResult struct {
+    ty: *ty.Type
+}
+
+def ok(ty: *ty.Type): TyResult {
+    return TyResult { ty: ty };
+}
+
+def error(): TyResult {
+    return TyResult { ty: null };
+}
+
+def (r: TyResult) is_ok(): bool {
+    return r.ty != null;
+}
+
+def (r: TyResult) is_error(): bool {
+    return r.ty == null;
+}
+
+// this performs a normal type lookup, but reports an internal error, if the type as not found
+def lookup_builtin(ctx: *ctx.TyCtx, name: str.View): TyResult {
+    let ty = ctx.lookup_type(name);
+    if ty == null {
+        let note = e.simple_note(name);
+        report_internal_error_note(str.view_from("builtin type not found"), &note);
+        return error();
+    }
+    return ok(ty);
+}
+
+def report_simple(kind: e.ErrorKind, expr: *ast.Expr) {
+    let error = e.simple_error(kind, expr.span);
+    report.print_error(&error);
+}
+
+def report_span(kind: e.ErrorKind, span: span.Span) {
+    let error = e.simple_error(kind, span);
+    report.print_error(&error);
+}
+
+def report_str(kind: e.ErrorKind, expr: *ast.Expr, s: str.View) {
+    let error = e.string_single(kind, expr.span, s);
+    report.print_error(&error);
+}
+
+def report_str_str(kind: e.ErrorKind, expr: *ast.Expr, first: str.View, second: str.View) {
+    let error = e.string_tuple(kind, expr.span, first, second);
+    report.print_error(&error);
+}
+
+def report_internal_error(text: str.View) {
+    let msg = str.from("Internal compiler error: ");
+    msg.push(text);
+    report.print_simple(msg.view());
+    msg.free();
+}
+
+def report_internal_error_note(text: str.View, note: *e.ErrorNote) {
+    let msg = str.from("Internal compiler error: ");
+    msg.push(text);
+    report.print_simple_with_note(msg.view(), note);
+    msg.free();
+}

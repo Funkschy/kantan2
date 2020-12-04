@@ -38,7 +38,9 @@ K_FILES = src/ast/expr.kan \
 		  src/std/vmap.kan \
 		  src/types/check/expr.kan \
 		  src/types/check/item.kan \
+		  src/types/check/literal.kan \
 		  src/types/check/stmt.kan \
+		  src/types/check/unary.kan \
 		  src/types/ctx.kan \
 		  src/types/data.kan \
 		  src/types/function.kan \
@@ -46,6 +48,7 @@ K_FILES = src/ast/expr.kan \
 		  src/types/primitive.kan \
 		  src/types/scope.kan \
 		  src/types/types.kan \
+		  src/types/util.kan \
 		  src/util.kan
 
 START_FOLDER := $(shell pwd)

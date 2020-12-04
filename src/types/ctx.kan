@@ -2,8 +2,14 @@ import "../std/dbg";
 import "../std/str";
 
 import "../ast/tyid";
+import "../util" as _;
+import "../source/span";
 import "../memory/arena";
 
+import "../error" as e;
+import "../cli/report" as report;
+
+import "util";
 import "scope";
 
 import "info" as _;
@@ -38,7 +44,7 @@ def (ctx: *TyCtx) open_scope() {
     ctx.types.open();
 }
 
-def (ctx: *TyCtx) close_scope() {
+def (ctx: *TyCtx) close_scope(): Result {
     // this 'collapses' undecided types
     // If we encounter anyInt types, they will be converted to i32
     // TODO: 'any' types should be reported as errors
@@ -63,10 +69,24 @@ def (ctx: *TyCtx) close_scope() {
             // convert anyInt to i32
             ty.init_int(primitive.Signedness.Signed, size_bytes(4));
         }
+
+        // a type that could not be inferred is considered an error
+        if ty.kind == TypeKind.Any {
+            if bound.declared_at == null {
+                let msg = str.view_from("could not infer type for an item without a source position");
+                util.report_internal_error(msg);
+                return Result.Error;
+            }
+
+            util.report_span(e.ErrorKind.CouldNotInfer, *bound.declared_at);
+            return Result.Error;
+        }
     }
 
     ctx.values.close();
     ctx.types.close();
+
+    return Result.OK;
 }
 
 def (ctx: *TyCtx) alloc(): *Type {
@@ -130,21 +150,21 @@ def (ctx: *TyCtx) lookup_tyid(ty: *tyid.Type): *Type {
     return ctx.lookup_type(p.segment_at(0).as_view());
 }
 
-def bind_in(name: str.View, ty: *Type, vis: Visibility, stack: *scope.ScopeStack) {
+def bind_in(name: str.View, ty: *Type, vis: Visibility, stack: *scope.ScopeStack, declared_at: *span.Span) {
     let item = scope.BoundItem {
         ty: ty,
         vis: vis,
-        declared_in: stack.top()
+        declared_at: declared_at
     };
     stack.bind(name, item);
 }
 
-def (ctx: *TyCtx) bind_value_public(name: str.View, ty: *Type) {
-    bind_in(name, ty, Visibility.Public, &ctx.values);
+def (ctx: *TyCtx) bind_value_public(name: str.View, ty: *Type, declared_at: *span.Span) {
+    bind_in(name, ty, Visibility.Public, &ctx.values, declared_at);
 }
 
-def (ctx: *TyCtx) bind_type_public(name: str.View, ty: *Type) {
-    bind_in(name, ty, Visibility.Public, &ctx.types);
+def (ctx: *TyCtx) bind_type_public(name: str.View, ty: *Type, declared_at: *span.Span) {
+    bind_in(name, ty, Visibility.Public, &ctx.types, declared_at);
 }
 
 def (ctx: *TyCtx) unify(a: *Type, previous: *Type): *Type {

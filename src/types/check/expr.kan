@@ -1,13 +1,12 @@
-import "../../std/str";
-import "../../std/dbg";
+import ":error" as e;
+import ":ast/expr" as _;
 
-import "../../error" as e;
-import "../../ast/expr" as _;
-import "../../cli/report" as report;
-
-import "../scope";
-import "../ctx" as _;
+import "../ctx";
+import "../util" as _;
 import "../types" as _;
+
+import "unary";
+import "literal";
 
 // An example of how the type checking/infering works:
 // the following is program structure is implied:
@@ -15,14 +14,10 @@ import "../types" as _;
 //      def [T] create(): Vec[T] {...};
 //
 // 1) let v = create(); // no type information was provided
-//  from the return type of 'create', we know that 'v' has to be a Vec, but we don't know T, so
-//  the type context looks as follows:
-//  Ctx { scopes: [ { "v": Vec[any] } ] }
-//  this step only used 'infer' since no type annotations were provided
+//  from the return type of 'create', we know that 'v' has to be a Vec, but we don't know T
 //
 // 2) v.push(1);
 //  we know that T has to be some kind of integer, so we can infer v to be Vec[anyInt]
-//  Ctx { scopes: [ { "v": Vec[anyInt] } ] }
 //  this first infers the type of push to be (Vec[any]) -> void and the type of 1 to be anyInt
 //  and then checks, if anyInt can be used as any. This is were the kantan typechecker behaves
 //  different from other bidirectional typecheckers, since the check may actually change the type
@@ -30,84 +25,14 @@ import "../types" as _;
 //
 // 3) v.push(undefined); // this does not change anything, since undefined can be any type
 // 4) let first = *v.values; // we can infer first to be of type anyInt
-//  Ctx { scopes: [ { "v": Vec[anyInt], "first": anyInt } ] }
-//
 // 5) first = 2 as u32;
 // since u32 is more concrete than anyInt, we know that first has to be of type u32 and therefore
 // Vec.elements must be *u32, meaning that v has type Vec[u32]
-//  Ctx { scopes: [ { "v": Vec[u32], "first": u32 } ] }
-//
-//
-// We also carry around type mappings, which work as follows:
-// after 1)
-// types: {
-//      "t1": any,   // actually in bindings.ScopeStack
-//      "v": Vec[t1] // actually in scope.ScopeStack
-// }
-// after 2) and 3)
-// types: {
-//      "t1": anyInt,
-//      "v": Vec[t1]
-// }
-//
-// after 4)
-// types: {
-//      "t1": anyInt,
-//      "v": Vec[t1],
-//      "first": t1
-// }
-//
-// after 5)
-// types: {
-//      "t1": u32,
-//      "v": Vec[t1],
-//      "first": t1
-// }
 
-type TyResult struct {
-    ty: *Type
-}
-
-def ok(ty: *Type): TyResult {
-    return TyResult { ty: ty };
-}
-
-def error(): TyResult {
-    return TyResult { ty: null };
-}
-
-def (r: TyResult) is_ok(): bool {
-    return r.ty != null;
-}
-
-def (r: TyResult) is_error(): bool {
-    return r.ty == null;
-}
-
-// if an error occurs, it will be reported and the returned type will be null
-def infer(ctx: *TyCtx, expr: *Expr): TyResult {
+// if an error occurs, it will be reported and the returned type will be error
+def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
     if expr.kind == ExprKind.Literal {
-        if expr.data.lit.kind == LiteralKind.DecInt || expr.data.lit.kind == LiteralKind.HexInt {
-            return ok(ctx.any_var_int());
-        }
-
-        if expr.data.lit.kind == LiteralKind.Null {
-            let ty = ctx.alloc();
-            ty.kind = TypeKind.Ptr;
-            ty.data.ptr_to = ctx.any_var();
-            return ok(ty);
-        }
-
-        if expr.data.lit.kind == LiteralKind.String {
-            return ok(ctx.lookup_type(str.view("string", 6)));
-        }
-
-        if expr.data.lit.kind == LiteralKind.Undefined {
-            // undefined can be anything
-            return ok(ctx.any_var());
-        }
-
-        return error();
+        return literal.infer(ctx, expr);
     }
 
     if expr.kind == ExprKind.Ident {
@@ -137,26 +62,14 @@ def infer(ctx: *TyCtx, expr: *Expr): TyResult {
         return ok(right.ty);
     }
 
-    if expr.kind == ExprKind.Unary && expr.data.unary.kind == UnaryKind.Deref {
-        let right = infer(ctx, expr.data.unary.right);
-        if right.is_error() {
-            return right;
-        }
-
-        if right.ty.kind != TypeKind.Ptr {
-            let actual = right.ty.to_string();
-            defer actual.free();
-            report_str(e.ErrorKind.DerefNonPtr, expr, actual.view());
-            return error();
-        }
-
-        return ok(right.ty.data.ptr_to);
+    if expr.kind == ExprKind.Unary {
+        return unary.infer(ctx, expr);
     }
 
     return error();
 }
 
-def check(ctx: *TyCtx, expr: *Expr, expected: *Type): TyResult {
+def check(ctx: *ctx.TyCtx, expr: *Expr, expected: *Type): TyResult {
     let inferred = infer(ctx, expr);
     if inferred.is_error() {
         report_simple(e.ErrorKind.CouldNotInfer, expr);
@@ -166,7 +79,7 @@ def check(ctx: *TyCtx, expr: *Expr, expected: *Type): TyResult {
     return try_unify(ctx, expr, inferred.ty, expected);
 }
 
-def try_unify(ctx: *TyCtx, expr: *Expr, inferred: *Type, expected: *Type): TyResult {
+def try_unify(ctx: *ctx.TyCtx, expr: *Expr, inferred: *Type, expected: *Type): TyResult {
     let instance = ctx.unify(inferred, expected);
     if instance == null {
         let expected = expected.to_string();
@@ -178,19 +91,4 @@ def try_unify(ctx: *TyCtx, expr: *Expr, inferred: *Type, expected: *Type): TyRes
     }
 
     return ok(instance);
-}
-
-def report_simple(kind: e.ErrorKind, expr: *Expr) {
-    let error = e.simple_error(kind, expr.span);
-    report.print_error(&error);
-}
-
-def report_str(kind: e.ErrorKind, expr: *Expr, s: str.View) {
-    let error = e.string_single(kind, expr.span, s);
-    report.print_error(&error);
-}
-
-def report_str_str(kind: e.ErrorKind, expr: *Expr, first: str.View, second: str.View) {
-    let error = e.string_tuple(kind, expr.span, first, second);
-    report.print_error(&error);
 }

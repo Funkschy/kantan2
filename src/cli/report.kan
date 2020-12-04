@@ -63,6 +63,10 @@ def report_error(content: str.View, span: span.Span, note: *e.ErrorNote): Report
     return report_element("error", false, content, span, note);
 }
 
+def report_nopos_error(content: str.View, note: *e.ErrorNote): ReportElement {
+    return report_element("error", true, content, undefined, note);
+}
+
 def report_note(note: *e.ErrorNote): ReportElement {
     return report_element("note", note.without_position, note.message, note.span, note.next);
 }
@@ -150,7 +154,7 @@ def (elem: *ReportElement) print() {
 
 def (elem: *ReportElement) print_offset(offset: u32) {
     io.printf(
-        "\n%.*s%s: %.*s\n",
+        "%.*s%s: %.*s",
         offset, spaces,
         elem._type,
         elem.content.len, elem.content.data
@@ -159,20 +163,24 @@ def (elem: *ReportElement) print_offset(offset: u32) {
     // a file.len of 0 means, that we don't want to print the positional information
     if elem.file.len > 0 {
         io.printf(
-            "--> %.*s:%u:%u\n",
+            "\n--> %.*s:%u:%u",
             elem.file.len, elem.file.data,
             elem.line.start.lnr, elem.line.start.col
         );
 
         if !elem.line.is_empty() {
+            io.printf("\n");
             print_spanned(elem.line, offset);
         }
     }
 
     let note = elem.first_note;
     if note != null {
+        io.printf("\n");
         report_note(note).print_offset(2);
     }
+
+    io.printf("\n");
 }
 
 def (elem: *ReportElement) print_json() {
@@ -219,6 +227,10 @@ def print_simple(msg: str.View) {
     } else {
         report_error_opts(str.view_from(""), msg, pos.empty_line_info(), null).print();
     }
+}
+
+def print_simple_with_note(msg: str.View, note: *e.ErrorNote) {
+    report_nopos_error(msg, note).print();
 }
 
 def print_file_error(file: *sf.SourceFile, note: *e.ErrorNote) {

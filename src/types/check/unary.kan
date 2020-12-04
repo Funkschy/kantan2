@@ -1,0 +1,31 @@
+import ":std/str";
+import ":error" as e;
+import ":ast/expr" as _;
+
+import "../ctx";
+import "../types" as _;
+import "../util" as _;
+
+// this kinda works like a super class, so i think this name is intuitive
+import "expr" as super;
+
+def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
+    if expr.data.unary.kind == UnaryKind.Deref {
+        let right = super.infer(ctx, expr.data.unary.right);
+        if right.is_error() {
+            return right;
+        }
+
+        if right.ty.kind != TypeKind.Ptr {
+            let actual = right.ty.to_string();
+            defer actual.free();
+            report_str(e.ErrorKind.DerefNonPtr, expr, actual.view());
+            return error();
+        }
+
+        return ok(right.ty.data.ptr_to);
+    }
+
+    report_internal_error(str.view_from("unhandled unary kind"));
+    return error();
+}

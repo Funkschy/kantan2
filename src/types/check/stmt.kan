@@ -20,11 +20,16 @@ def check(ctx: *TyCtx, stmt: *Stmt): Result {
         let block = &stmt.data.block;
         let len = block.len();
 
+        let had_errors = false;
         for let i: usize = 0; i < len; i += 1 {
             let s = block.at(i);
             if check(ctx, s).is_error() {
-                return Result.Error;
+                had_errors = true;
             }
+        }
+
+        if had_errors {
+            return Result.Error;
         }
 
         return Result.OK;
@@ -34,6 +39,7 @@ def check(ctx: *TyCtx, stmt: *Stmt): Result {
         let decl = &stmt.data.local;
 
         let inferred = tychk.infer(ctx, decl.value);
+        // TODO: bind special error type to avoid repeating error messages
         if inferred.is_error() {
             return Result.Error;
         }
@@ -55,7 +61,7 @@ def check(ctx: *TyCtx, stmt: *Stmt): Result {
             ty = instance.ty;
         }
 
-        ctx.bind_value_public(decl.name.as_view(), ty);
+        ctx.bind_value_public(decl.name.as_view(), ty, &decl.name.span);
         return Result.OK;
     }
 

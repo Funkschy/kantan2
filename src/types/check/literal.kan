@@ -1,0 +1,40 @@
+import ":std/str";
+import ":ast/expr" as _;
+
+import "../ctx";
+import "../util" as _;
+import "../types" as _;
+
+def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
+    if expr.data.lit.kind == LiteralKind.DecInt || expr.data.lit.kind == LiteralKind.HexInt {
+        return ok(ctx.any_var_int());
+    }
+
+    // TODO: floats should have the same type inference as ints
+    if expr.data.lit.kind == LiteralKind.Float {
+        return lookup_builtin(ctx, str.view("f32", 3));
+    }
+
+    if expr.data.lit.kind == LiteralKind.Null {
+        let ty = ctx.alloc();
+        ty.kind = TypeKind.Ptr;
+        ty.data.ptr_to = ctx.any_var();
+        return ok(ty);
+    }
+
+    if expr.data.lit.kind == LiteralKind.String {
+        return lookup_builtin(ctx, str.view("string", 6));
+    }
+
+    if expr.data.lit.kind == LiteralKind.Char {
+        return lookup_builtin(ctx, str.view("i8", 2));
+    }
+
+    if expr.data.lit.kind == LiteralKind.Undefined {
+        // undefined can be anything
+        return ok(ctx.any_var());
+    }
+
+    report_internal_error(str.view_from("unhandled literal kind"));
+    return error();
+}

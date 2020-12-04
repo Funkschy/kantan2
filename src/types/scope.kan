@@ -5,13 +5,15 @@ import "../std/ptrvec";
 
 import "info";
 import "types" as ty;
+
 import "../util" as _;
+import "../source/span";
 
 
 type BoundItem struct {
     ty: *ty.Type,
     vis: info.Visibility,
-    declared_in: *Scope
+    declared_at: *span.Span // can be null (e.g for builtin types)
 }
 
 type Scope struct {

@@ -159,6 +159,7 @@ def (c: *Compiler) resolve_imports() {
             // so we can mark it as imported
             // all modules, that were never imported (apart from the main module) are removed before
             // type checking
+            // TODO: actually remove unused imports
             c.modmap.mark_imported(full_imported_path);
 
             // check for self import
@@ -178,30 +179,34 @@ def (c: *Compiler) resolve_imports() {
     }
 
     // while resolving the imports, we keep track of the modules, that were actually imported.
-    // At this point all legal imports have been parsed. If we encounter any more, they will
+    // At this point all legal imports have been parsed. If we encounter any more, they should
     // be reported as parse errors
 
 }
 
-def (c: *Compiler) parse() {
+def (c: *Compiler) parse(): Result {
+    let had_errors = false;
+
     for let i: usize = 0; i < c.modmap.len(); i += 1 {
         let info = c.modmap.info_at(i);
         let mod = info.module;
 
         let parser = parse.create(info.lexer, &c.ast_arena, &c.ty_arena, &c.expr_arena);
-        // try to recover from import errors
-        if parser.panic_mode {
-            parser.sync();
-        }
-
         while !parser.is_at_end() {
             let parsed_item = parser.parse_item();
             if parsed_item != null {
                 mod.items.push_ptr(parsed_item as *void);
+            } else {
+                had_errors = true;
             }
         }
     }
 
+    if had_errors {
+        return Result.Error;
+    }
+
+    return Result.OK;
 }
 
 def report_import_error(

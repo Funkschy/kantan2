@@ -44,6 +44,11 @@ def (t: *Type) init_int(signedness: primitive.Signedness, width: info.Size) {
     t.width = t.align = width;
 }
 
+def (t: *Type) init_float(width: info.Size) {
+    t.kind = TypeKind.Float;
+    t.width = t.align = width;
+}
+
 def (t: *Type) init_ptr(inner: *Type) {
     t.kind = TypeKind.Ptr;
     t.data.ptr_to = inner;
@@ -142,6 +147,16 @@ def (t: *Type) to_string(): str.String {
 
         let prefix = 'u' - 12 * (t.data.int.is_signed() as i8);
         s.push(str.view(&prefix, 1));
+
+        let width = str.i64_to_string(t.width.bits() as i64);
+        defer width.free();
+        s.push(width.view());
+
+        return s;
+    }
+
+    if t.kind == TypeKind.Float {
+        let s = str.from("f");
 
         let width = str.i64_to_string(t.width.bits() as i64);
         defer width.free();

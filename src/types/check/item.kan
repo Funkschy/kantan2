@@ -9,6 +9,9 @@ import "stmt" as tychk;
 
 def check(ctx: *TyCtx, item: *Item): Result {
     if item.kind == ItemKind.FuncDef {
+        ctx.open_scope();
+        defer ctx.close_scope();
+
         // TODO: ctx.bind_public(item.name, func_ty)
         return tychk.check(ctx, &item.data.func_def.block_stmt);
     }
