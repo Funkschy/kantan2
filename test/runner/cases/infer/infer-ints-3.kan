@@ -3,43 +3,10 @@ def main() {
     let i = 0;
     let u: u32 = 0;
     let p = null;
-    // arena: {
-    //  "i32": i32,
-    //  "u32": u32,
-    //  "t1": anyInt,
-    //  "t2": any
-    // }
-    // scope: {
-    //  "i": t1,
-    //  "u": u32,
-    //  "p": *t2
-    // }
 
     *p = u;
-    // arena: {
-    //  "i32": i32,
-    //  "u32": u32,
-    //  "t1": anyInt,
-    //  "t2": any
-    // }
-    // scope: {
-    //  "i": t1,
-    //  "u": u32,
-    //  "p": *u32
-    // }
 
     *p = i;
-    // arena: {
-    //  "i32": i32,
-    //  "u32": u32,
-    //  "t1": anyInt,
-    //  "t2": any
-    // }
-    // scope: {
-    //  "i": u32,
-    //  "u": u32,
-    //  "p": *u32
-    // }
 
     p;
     i;

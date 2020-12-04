@@ -1,12 +1,11 @@
-from pathlib import Path
 from typing import Optional
 
 from runner.output import Output
-from runner.testcase import SuccessTestCase, TestError, expected_but_got
+from runner.testcase import SuccessTestCase, TestError, expected_but_got, kantan_filename
 
 expected_modules = [{
     'kind': 'module',
-    'path': str(Path(__file__).parent) + '/infer-ints-4.kan',
+    'path': kantan_filename(__file__),
     'items': [
         {
             "kind": "func_def",

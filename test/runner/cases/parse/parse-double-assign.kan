@@ -1,0 +1,5 @@
+def main() {
+    let test = 1;
+    let other = 2;
+    test = other = 3;
+}

@@ -11,6 +11,14 @@ class TestError(object):
         self.msg = msg
 
 
+def base_filename(file) -> str:
+    return splitext(file)[0]
+
+
+def kantan_filename(file) -> str:
+    return base_filename(file) + '.kan'
+
+
 class TestCase(object):
     def __init__(self, executor: CompilerExecutor, options=None):
         if options is None:
@@ -19,7 +27,7 @@ class TestCase(object):
         self.executor = executor
 
     def base_filename(self) -> str:
-        return splitext(sys.modules[self.__module__].__file__)[0]
+        return base_filename(sys.modules[self.__module__].__file__)
 
     def kantan_filename(self) -> str:
         return self.base_filename() + '.kan'
