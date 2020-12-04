@@ -1,1 +1,1 @@
-import "../circular-import";
+import "../import/circular-import";
