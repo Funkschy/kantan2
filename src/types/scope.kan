@@ -53,7 +53,7 @@ def (s: *Scope) bind(name: str.View, item: BoundItem) {
 }
 
 type ScopeStack struct {
-    // to safe memory, scopes are not freed on close(). Instead they are put in the queue
+    // to save memory, scopes are not freed on close(). Instead they are put in the queue
     // and may be recycled later.
     // since we always use pop_last, this is technically a stack, but because all recycled scopes
     // are identical, this does not really matter. The name Queue makes more sense in describing
