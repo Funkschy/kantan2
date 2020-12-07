@@ -10,9 +10,8 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
         return ok(ctx.any_var_int());
     }
 
-    // TODO: floats should have the same type inference as ints
     if expr.data.lit.kind == LiteralKind.Float {
-        return lookup_builtin(ctx, str.view("f32", 3));
+        return ok(ctx.any_var_float());
     }
 
     if expr.data.lit.kind == LiteralKind.Null {

@@ -1,0 +1,4 @@
+def main() {
+    let f: f64 = 0.0;
+    f;
+}

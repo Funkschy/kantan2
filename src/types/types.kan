@@ -11,7 +11,7 @@ type TypeKind enum {
     // the type that this points to may be changed (just the pointer, not the real type)
     Variable,
     // constraint types, only used to infer types during typechecking and illegal afterwards
-    Any, AnyInt,
+    Any, AnyInt, AnyFloat,
     // builtin primitives
     Int, Float, Ptr, Bool,
     // a type parameter. E.g 'T' in type Vec[T] struct {...}
@@ -59,6 +59,7 @@ def (t: *Type) init_ptr(inner: *Type) {
 def (t: *Type) is_number(): bool {
     return t.kind == TypeKind.AnyInt
         || t.kind == TypeKind.Int
+        || t.kind == TypeKind.AnyFloat
         || t.kind == TypeKind.Float
         || t.kind == TypeKind.Variable && t.data.inner.is_number();
 }
@@ -77,7 +78,8 @@ def (t: *Type) is_concrete_version_of(other: *Type): bool {
     }
 
     return other.kind == TypeKind.Any
-        || t.kind == TypeKind.Int && other.kind == TypeKind.AnyInt;
+        || t.kind == TypeKind.Int && other.kind == TypeKind.AnyInt
+        || t.kind == TypeKind.Float && other.kind == TypeKind.AnyFloat;
 }
 
 def (t: *Type) is_less_concrete_version_of(other: *Type): bool {
@@ -89,7 +91,8 @@ def (t: *Type) is_less_concrete_version_of(other: *Type): bool {
     }
 
     return t.kind == TypeKind.Any
-        || t.kind == TypeKind.AnyInt && other.kind == TypeKind.Int;
+        || t.kind == TypeKind.AnyInt && other.kind == TypeKind.Int
+        || t.kind == TypeKind.AnyFloat && other.kind == TypeKind.Float;
 }
 
 def (t: *Type) is_variable(): bool {
@@ -126,7 +129,12 @@ def (t: *Type) equals(other: *Type): bool {
         return t.data.int.signedness == other.data.int.signedness && t.width.equals(other.width);
     }
 
-    if t.kind == TypeKind.Any || t.kind == TypeKind.AnyInt || t.kind == TypeKind.Bool {
+    if t.kind == TypeKind.Float {
+        return t.width.equals(other.width);
+    }
+
+    if t.kind == TypeKind.Any || t.kind == TypeKind.AnyInt
+        || t.kind == TypeKind.AnyFloat || t.kind == TypeKind.Bool {
         return true;
     }
 
@@ -152,6 +160,10 @@ def (t: *Type) to_string(): str.String {
 
     if t.kind == TypeKind.AnyInt {
         return str.from("integer");
+    }
+
+    if t.kind == TypeKind.AnyFloat {
+        return str.from("float");
     }
 
     if t.kind == TypeKind.Any {

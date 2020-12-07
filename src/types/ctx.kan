@@ -71,6 +71,11 @@ def (ctx: *TyCtx) close_scope(): Result {
             ty.init_int(primitive.Signedness.Signed, size_bytes(4));
         }
 
+        if ty.kind == TypeKind.AnyFloat {
+            // convert anyFloat to f32
+            ty.init_float(size_bytes(4));
+        }
+
         // a type that could not be inferred is considered an error
         if ty.kind == TypeKind.Any {
             if bound.declared_at == null {
@@ -113,6 +118,16 @@ def (ctx: *TyCtx) any_var_int(): *Type {
     let var = ctx.alloc();
     var.kind = TypeKind.Variable;
     var.data.inner = anyIntTy;
+    return var;
+}
+
+def (ctx: *TyCtx) any_var_float(): *Type {
+    let anyFloatTy = ctx.alloc();
+    anyFloatTy.kind = TypeKind.AnyFloat;
+
+    let var = ctx.alloc();
+    var.kind = TypeKind.Variable;
+    var.data.inner = anyFloatTy;
     return var;
 }
 

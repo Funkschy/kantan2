@@ -91,6 +91,10 @@ def main(argc: i32, argv: *string): ReturnCode {
         f32_ty.init_float(info.size_bytes(4));
         ctx.bind_type_public(str.view_from("f32"), f32_ty, null);
 
+        let f64_ty = arena.alloc() as *types.Type;
+        f64_ty.init_float(info.size_bytes(8));
+        ctx.bind_type_public(str.view_from("f64"), f64_ty, null);
+
         let had_errors = false;
         for let i: usize = 0; i < compiler.modmap.len(); i += 1 {
             let mod = compiler.modmap.at(i);
