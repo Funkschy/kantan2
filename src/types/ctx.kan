@@ -57,6 +57,7 @@ def (ctx: *TyCtx) close_scope(): Result {
         while true {
             if ty.kind == TypeKind.Variable {
                 // TODO: this could maybe cause issues with types that own memory
+                // TODO: is there any way to produce cycles here?
                 *ty = *ty.data.inner;
             } else if ty.kind == TypeKind.Ptr {
                 ty = ty.data.ptr_to;
@@ -172,8 +173,11 @@ def (ctx: *TyCtx) unify(a: *Type, previous: *Type): *Type {
 
         if previous.kind == TypeKind.Variable {
             if a.kind == TypeKind.Variable  {
-                // point to a instead
-                previous.data.inner = a;
+                // otherwise we could have cycles
+                if a != previous {
+                    // point to a instead
+                    previous.data.inner = a;
+                }
             } else {
                 // "overwrite" the old value
                 previous.data.inner.kind = TypeKind.Variable;
@@ -188,7 +192,10 @@ def (ctx: *TyCtx) unify(a: *Type, previous: *Type): *Type {
 
         if a.kind == TypeKind.Variable {
             if previous.kind == TypeKind.Variable {
-                a.data.inner = previous;
+                // otherwise we could have cycles
+                if a != previous {
+                    a.data.inner = previous;
+                }
             } else {
                 a.data.inner.kind = TypeKind.Variable;
                 a.data.inner.data.inner = previous;

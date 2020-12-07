@@ -10,12 +10,32 @@ import "../util" as _;
 import "expr" as super;
 
 def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
-    if expr.data.unary.kind == UnaryKind.Deref {
-        let right = super.infer(ctx, expr.data.unary.right);
-        if right.is_error() {
-            return right;
+    // TODO: this needs more tests
+    if expr.data.unary.kind == UnaryKind.BoolNegate {
+        let bool_ty = lookup_builtin(ctx, str.view("bool", 4));
+        if bool_ty.is_error() {
+            // this should never happen ever, but it's probably better to
+            // handle it anyway
+            return error();
         }
 
+        // in this case we can actually check against the bool type, since
+        // there is just one option
+        let right = super.check(ctx, expr.data.unary.right, bool_ty.ty);
+        if right.is_error() {
+            return error();
+        }
+
+        return ok(right.ty);
+    }
+
+    // all other unary expressions need to infer the rhs first
+    let right = super.infer(ctx, expr.data.unary.right);
+    if right.is_error() {
+        return right;
+    }
+
+    if expr.data.unary.kind == UnaryKind.Deref {
         if right.ty.kind != TypeKind.Ptr {
             let actual = right.ty.to_string();
             defer actual.free();
@@ -24,6 +44,27 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
         }
 
         return ok(right.ty.data.ptr_to);
+    }
+
+    if expr.data.unary.kind == UnaryKind.AddrOf {
+        let ty = ctx.alloc();
+        ty.kind = TypeKind.Ptr;
+        ty.data.ptr_to = right.ty;
+        return ok(ty);
+    }
+
+    if expr.data.unary.kind == UnaryKind.NumNegate {
+        // any type is still allowed here
+        // we can unfortunately not check against anyInt, since right may
+        // also be a float
+        if !right.ty.is_number() && !right.ty.is_any() {
+            let actual = right.ty.to_string();
+            defer actual.free();
+            report_str(e.ErrorKind.NegateNonNumber, expr, actual.view());
+            return error();
+        }
+
+        return ok(right.ty);
     }
 
     report_internal_error(str.view_from("unhandled unary kind"));

@@ -13,7 +13,7 @@ type TypeKind enum {
     // constraint types, only used to infer types during typechecking and illegal afterwards
     Any, AnyInt,
     // builtin primitives
-    Int, Float, Ptr,
+    Int, Float, Ptr, Bool,
     // a type parameter. E.g 'T' in type Vec[T] struct {...}
     Param,
     // Functions are anonymous, while Signatures also have a name
@@ -54,6 +54,18 @@ def (t: *Type) init_ptr(inner: *Type) {
     t.data.ptr_to = inner;
     // TODO: make this platform dependent
     t.width = t.align = info.size_bytes(8);
+}
+
+def (t: *Type) is_number(): bool {
+    return t.kind == TypeKind.AnyInt
+        || t.kind == TypeKind.Int
+        || t.kind == TypeKind.Float
+        || t.kind == TypeKind.Variable && t.data.inner.is_number();
+}
+
+def (t: *Type) is_any(): bool {
+    return t.kind == TypeKind.Any
+        || t.kind == TypeKind.Variable && t.data.inner.is_any();
 }
 
 def (t: *Type) is_concrete_version_of(other: *Type): bool {
@@ -114,7 +126,7 @@ def (t: *Type) equals(other: *Type): bool {
         return t.data.int.signedness == other.data.int.signedness && t.width.equals(other.width);
     }
 
-    if t.kind == TypeKind.Any || t.kind == TypeKind.AnyInt {
+    if t.kind == TypeKind.Any || t.kind == TypeKind.AnyInt || t.kind == TypeKind.Bool {
         return true;
     }
 
@@ -132,6 +144,10 @@ def (t: *Type) to_string(): str.String {
         s.push(inner.view());
         inner.free();
         return s;
+    }
+
+    if t.kind == TypeKind.Bool {
+        return str.from("bool");
     }
 
     if t.kind == TypeKind.AnyInt {

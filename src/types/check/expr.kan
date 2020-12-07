@@ -59,6 +59,7 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
         if right.is_error() {
             return right;
         }
+
         return ok(right.ty);
     }
 

@@ -90,7 +90,7 @@ type IdentExpr struct {
 }
 
 type UnaryKind enum {
-    Deref
+    Deref, AddrOf, NumNegate, BoolNegate
 }
 
 type UnaryExpr struct {
@@ -158,13 +158,16 @@ def (k: BinaryKind) as_view(): str.View {
     return _binary_kind_strings[k as i32];
 }
 
-let _unary_kind_strings: [1]str.View = undefined;
+let _unary_kind_strings: [4]str.View = undefined;
 // TODO: change this to 'false' when global variables work correctly
 let  _unary_kind_strings_initialized: bool = undefined;
 
 def (k: UnaryKind) as_view(): str.View {
     if !_unary_kind_strings_initialized {
         _unary_kind_strings[UnaryKind.Deref as i32] = str.view("*", 1);
+        _unary_kind_strings[UnaryKind.AddrOf as i32] = str.view("&", 1);
+        _unary_kind_strings[UnaryKind.NumNegate as i32] = str.view("-", 1);
+        _unary_kind_strings[UnaryKind.BoolNegate as i32] = str.view("!", 1);
     }
 
     return _unary_kind_strings[k as i32];

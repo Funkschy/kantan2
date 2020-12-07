@@ -557,6 +557,30 @@ def (p: *Parser) next_higher_or_eq_precedence(current: tok.Precedence): bool {
     return p.peek().ty.precedence() >= current;
 }
 
+// get the unary kind of a token type
+// if ty is not in {'-', '*', '&', '!'} then this will return false
+// otherwise kind will be filled with the matching unary type
+def is_unary_token(ty: tok.TokenType, kind: *UnaryKind): bool {
+    if ty == tok.TokenType.Minus {
+        *kind = UnaryKind.NumNegate;
+        return true;
+    }
+    if ty == tok.TokenType.Star {
+        *kind = UnaryKind.Deref;
+        return true;
+    }
+    if ty == tok.TokenType.Ampersand {
+        *kind = UnaryKind.AddrOf;
+        return true;
+    }
+    if ty == tok.TokenType.Bang {
+        *kind = UnaryKind.BoolNegate;
+        return true;
+    }
+
+    return false;
+}
+
 // parse a prefix expression. e.g. a literal or a unary expression
 // the parsed expression will be initialized into 'memory'
 def (p: *Parser) parse_prefix(memory: *Expr): Result {
@@ -585,14 +609,15 @@ def (p: *Parser) parse_prefix(memory: *Expr): Result {
         return Result.OK;
     }
 
-    // unary deref
-    if token.ty == tok.TokenType.Star {
+    let unary_kind: UnaryKind = undefined;
+    if is_unary_token(token.ty, &unary_kind) {
+        // TODO: for UnaryKind.AddrOf, check if right is an lvalue
         let right = p.alloc_expr();
         if p.parse_precedence(right, tok.Precedence.Unary).is_error() {
             return Result.Error;
         }
 
-        memory.init_unary(UnaryKind.Deref, token, right);
+        memory.init_unary(unary_kind, token, right);
         return Result.OK;
     }
 

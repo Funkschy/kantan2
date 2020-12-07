@@ -71,6 +71,10 @@ def main(argc: i32, argv: *string): ReturnCode {
         ctx.open_scope();
         defer ctx.close_scope();
 
+        let b_ty = arena.alloc() as *types.Type;
+        b_ty.kind = types.TypeKind.Bool;
+        ctx.bind_type_public(str.view_from("bool"), b_ty, null);
+
         let c_ty = arena.alloc() as *types.Type;
         c_ty.init_int(primitive.Signedness.Signed, info.size_bytes(1));
         ctx.bind_type_public(str.view_from("i8"), c_ty, null);

@@ -3,7 +3,7 @@ import "cdeps";
 
 import "source/span";
 
-let error_strings: [11]string = undefined;
+let error_strings: [13]string = undefined;
 
 type ErrorKind enum {
     // import errors
@@ -20,6 +20,7 @@ type ErrorKind enum {
     CouldNotInfer,
     WrongType,
     DerefNonPtr,
+    NegateNonNumber,
     UndeclaredType
 }
 
@@ -138,6 +139,7 @@ def init() {
     error_strings[ErrorKind.CouldNotInfer as i32]  = "Could not infer type";
     error_strings[ErrorKind.WrongType as i32]  = "Expected '%.*s', but got '%.*s'";
     error_strings[ErrorKind.DerefNonPtr as i32]  = "Trying to deref '%.*s', which is not a pointer";
+    error_strings[ErrorKind.NegateNonNumber as i32]  = "Trying to negate '%.*s', which is not a number";
     error_strings[ErrorKind.UndeclaredType as i32]  = "No type '%.*s' in scope";
 }
 
