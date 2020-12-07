@@ -1,3 +1,4 @@
+import ":std/str";
 import ":error" as e;
 import ":ast/expr" as _;
 
@@ -6,6 +7,7 @@ import "../util" as _;
 import "../types" as _;
 
 import "unary";
+import "binary";
 import "literal";
 
 // An example of how the type checking/infering works:
@@ -35,6 +37,7 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
         return literal.infer(ctx, expr);
     }
 
+    // TODO: find some way to propagate context upwards. e.g. a span inside TyResult
     if expr.kind == ExprKind.Ident {
         let name = expr.data.ident.name.as_view();
         let ty = ctx.lookup_value(name);
@@ -67,6 +70,11 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
         return unary.infer(ctx, expr);
     }
 
+    if expr.kind == ExprKind.Binary {
+        return binary.infer(ctx, expr);
+    }
+
+    report_internal_error_span(str.view_from("unhandled expr kind"), expr.span);
     return error();
 }
 
@@ -87,7 +95,7 @@ def try_unify(ctx: *ctx.TyCtx, expr: *Expr, inferred: *Type, expected: *Type): T
         defer expected.free();
         let actual = inferred.to_string();
         defer actual.free();
-        report_str_str(e.ErrorKind.WrongType, expr, expected.view(), actual.view());
+        report_str2(e.ErrorKind.WrongType, expr, expected.view(), actual.view());
         return error();
     }
 

@@ -1,4 +1,0 @@
-def main() {
-    let t = undefined;
-    t = -t; // this cannot be inferred, it is however still a useful test case, because this produced an endless loop
-}

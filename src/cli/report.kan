@@ -229,6 +229,10 @@ def print_simple(msg: str.View) {
     }
 }
 
+def print_simple_span(msg: str.View, span: span.Span) {
+    report_error(msg, span, null).print();
+}
+
 def print_simple_with_note(msg: str.View, note: *e.ErrorNote) {
     report_nopos_error(msg, note).print();
 }

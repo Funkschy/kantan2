@@ -56,6 +56,12 @@ def (t: *Type) init_ptr(inner: *Type) {
     t.width = t.align = info.size_bytes(8);
 }
 
+def (t: *Type) is_integer(): bool {
+    return t.kind == TypeKind.AnyInt
+        || t.kind == TypeKind.Int
+        || t.kind == TypeKind.Variable && t.data.inner.is_integer();
+}
+
 def (t: *Type) is_number(): bool {
     return t.kind == TypeKind.AnyInt
         || t.kind == TypeKind.Int
@@ -67,6 +73,11 @@ def (t: *Type) is_number(): bool {
 def (t: *Type) is_any(): bool {
     return t.kind == TypeKind.Any
         || t.kind == TypeKind.Variable && t.data.inner.is_any();
+}
+
+def (t: *Type) is_pointer(): bool {
+    return t.kind == TypeKind.Ptr
+        || t.kind == TypeKind.Variable && t.data.inner.is_pointer();
 }
 
 def (t: *Type) is_concrete_version_of(other: *Type): bool {
@@ -170,6 +181,7 @@ def (t: *Type) to_string(): str.String {
         return str.from("$T");
     }
 
+    // TODO: we probably want a special case here for usize/isize
     if t.kind == TypeKind.Int {
         let s = str.from("");
 

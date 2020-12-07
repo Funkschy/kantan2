@@ -36,6 +36,7 @@ K_FILES = src/ast/expr.kan \
 		  src/std/str.kan \
 		  src/std/vec.kan \
 		  src/std/vmap.kan \
+		  src/types/check/binary.kan \
 		  src/types/check/expr.kan \
 		  src/types/check/item.kan \
 		  src/types/check/literal.kan \

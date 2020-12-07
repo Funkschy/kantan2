@@ -1,0 +1,85 @@
+import ":std/str";
+import ":error" as e;
+import ":ast/expr" as _;
+
+import "../ctx";
+import "../types" as _;
+import "../util" as _;
+
+// this kinda works like a super class, so i think this name is intuitive
+import "expr" as super;
+
+// TODO: this needs a lot of tests
+def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
+    let left = super.infer(ctx, expr.data.binary.left);
+    if left.is_error() {
+        return left;
+    }
+
+    let kind = expr.data.binary.kind;
+    // those cases need the types to be the same, so we can just check one against the other
+    if kind >= BinaryKind.Mul && kind <= BinaryKind.Mod {
+        let right = super.check(ctx, expr.data.binary.right, left.ty);
+        if right.is_error() {
+            return right;
+        }
+
+        // the types need to be the same after check, so it's sufficient to check just the left one
+        if !left.ty.is_number() {
+            let left_s = left.ty.to_string();
+            defer left_s.free();
+            let right_s = right.ty.to_string();
+            defer right_s.free();
+
+            let op = expr.data.binary.op_span.as_view();
+            report_str3(e.ErrorKind.InvalidBinaryOperator, expr, op, left_s.view(), right_s.view());
+            return error();
+        }
+
+        return ok(left.ty);
+    }
+
+    // addition and subtraction are more complicated since they are 'overloaded' for pointers
+    // subtracting 2 pointers yields an isize. Adding a pointer and an integer yields a pointer
+    let right = super.infer(ctx, expr.data.binary.right);
+    if right.is_error() {
+        return right;
+    }
+
+    // depending on the number of type variables, those method calls might be expensive
+    let left_is_ptr = left.ty.is_pointer();
+    let right_is_ptr = right.ty.is_pointer();
+
+    if left.ty.is_number() && right.ty.is_number() {
+        return super.check(ctx, expr.data.binary.right, left.ty);
+    }
+
+    if kind == BinaryKind.Sub && left_is_ptr && right_is_ptr {
+        // we check this again, so we can be sure we have the correct inner type
+        let right = super.check(ctx, expr.data.binary.right, left.ty);
+        if right.is_error() {
+            return right;
+        }
+
+        return lookup_builtin(ctx, str.view("isize", 5));
+    }
+
+    if left.ty.is_integer() && right_is_ptr {
+        return right;
+    }
+
+    if left_is_ptr && right.ty.is_integer() {
+        return left;
+    }
+
+    // every over case results in an error
+    let left_s = left.ty.to_string();
+    defer left_s.free();
+    let right_s = right.ty.to_string();
+    defer right_s.free();
+
+    let op = expr.data.binary.op_span.as_view();
+    report_str3(e.ErrorKind.InvalidBinaryOperator, expr, op, left_s.view(), right_s.view());
+    return error();
+
+}

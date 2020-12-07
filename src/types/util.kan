@@ -56,8 +56,13 @@ def report_str(kind: e.ErrorKind, expr: *ast.Expr, s: str.View) {
     report.print_error(&error);
 }
 
-def report_str_str(kind: e.ErrorKind, expr: *ast.Expr, first: str.View, second: str.View) {
+def report_str2(kind: e.ErrorKind, expr: *ast.Expr, first: str.View, second: str.View) {
     let error = e.string_tuple(kind, expr.span, first, second);
+    report.print_error(&error);
+}
+
+def report_str3(kind: e.ErrorKind, expr: *ast.Expr, first: str.View, second: str.View, third: str.View) {
+    let error = e.string_triple(kind, expr.span, first, second, third);
     report.print_error(&error);
 }
 
@@ -65,6 +70,13 @@ def report_internal_error(text: str.View) {
     let msg = str.from("Internal compiler error: ");
     msg.push(text);
     report.print_simple(msg.view());
+    msg.free();
+}
+
+def report_internal_error_span(text: str.View, span: span.Span) {
+    let msg = str.from("Internal compiler error: ");
+    msg.push(text);
+    report.print_simple_span(msg.view(), span);
     msg.free();
 }
 

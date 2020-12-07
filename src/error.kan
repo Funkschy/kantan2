@@ -3,7 +3,7 @@ import "cdeps";
 
 import "source/span";
 
-let error_strings: [13]string = undefined;
+let error_strings: [14]string = undefined;
 
 type ErrorKind enum {
     // import errors
@@ -21,13 +21,15 @@ type ErrorKind enum {
     WrongType,
     DerefNonPtr,
     NegateNonNumber,
-    UndeclaredType
+    UndeclaredType,
+    InvalidBinaryOperator
 }
 
 type ErrorDataKind enum {
     NoAdditionalData,
     StringSingle,
-    StringTuple
+    StringTuple,
+    StringTriple
 }
 
 type Error struct {
@@ -58,13 +60,24 @@ def (e: *Error) to_string(): str.String {
             str.len, str.data
         );
     } else if e.data_kind == ErrorDataKind.StringTuple {
-        let first = e.data.string_tuple.first;
-        let second = e.data.string_tuple.second;
+        let first = e.data.string_tuple[0];
+        let second = e.data.string_tuple[1];
         value = cdeps.l_format_str(
             &len,
             e.fmt_string(),
             first.len, first.data,
             second.len, second.data
+        );
+    } else if e.data_kind == ErrorDataKind.StringTriple {
+        let first = e.data.string_triple[0];
+        let second = e.data.string_triple[1];
+        let third = e.data.string_triple[2];
+        value = cdeps.l_format_str(
+            &len,
+            e.fmt_string(),
+            first.len, first.data,
+            second.len, second.data,
+            third.len, third.data
         );
     }
 
@@ -106,18 +119,38 @@ def string_single(kind: ErrorKind, span: span.Span, str: str.View): Error {
 }
 
 def string_tuple(kind: ErrorKind, span: span.Span, first: str.View, second: str.View): Error {
+    let data: ErrorData = undefined;
+    data.string_tuple[0] = first;
+    data.string_tuple[1] = second;
+
     return Error {
         kind: kind,
         data_kind: ErrorDataKind.StringTuple,
         note: null,
         span: span,
-        data: ErrorData { string_tuple: StringTuple { first: first, second: second } }
+        data: data
+    };
+}
+
+def string_triple(kind: ErrorKind, span: span.Span, first: str.View, second: str.View, third: str.View): Error {
+    let data: ErrorData = undefined;
+    data.string_triple[0] = first;
+    data.string_triple[1] = second;
+    data.string_triple[2] = third;
+
+    return Error {
+        kind: kind,
+        data_kind: ErrorDataKind.StringTriple,
+        note: null,
+        span: span,
+        data: data
     };
 }
 
 type ErrorData union {
     string_single: str.View,
-    string_tuple: StringTuple
+    string_tuple: [2]str.View,
+    string_triple: [3]str.View
 }
 
 type StringTuple struct {
@@ -141,6 +174,7 @@ def init() {
     error_strings[ErrorKind.DerefNonPtr as i32]  = "Trying to deref '%.*s', which is not a pointer";
     error_strings[ErrorKind.NegateNonNumber as i32]  = "Trying to negate '%.*s', which is not a number";
     error_strings[ErrorKind.UndeclaredType as i32]  = "No type '%.*s' in scope";
+    error_strings[ErrorKind.InvalidBinaryOperator as i32]  = "Invalid operator '%.*s' for types '%.*s' and '%.*s'";
 }
 
 // A Linked List of additional information regarding an error, e.g. the location of usage

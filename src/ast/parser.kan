@@ -641,7 +641,7 @@ def (p: *Parser) parse_infix(memory: *Expr, left: *Expr): Result {
         }
 
         let offset = token.ty as i32 - tok.TokenType.Plus as i32;
-        memory.init_binary(BinaryKind.Add.with_offset(offset), left, right);
+        memory.init_binary(BinaryKind.Add.with_offset(offset), left, right, token.span);
         return Result.OK;
     }
 

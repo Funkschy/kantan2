@@ -221,7 +221,13 @@ def (ctx: *TyCtx) unify(a: *Type, previous: *Type): *Type {
     }
 
     if a.kind == TypeKind.Ptr && previous.kind == TypeKind.Ptr {
-        return ctx.unify(a.data.ptr_to, previous.data.ptr_to);
+        let inner = ctx.unify(a.data.ptr_to, previous.data.ptr_to);
+        if inner == null {
+            return null;
+        }
+
+        a.data.ptr_to = inner;
+        return a;
     }
 
     if a.equals(previous) {

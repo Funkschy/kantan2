@@ -21,12 +21,7 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
 
         // in this case we can actually check against the bool type, since
         // there is just one option
-        let right = super.check(ctx, expr.data.unary.right, bool_ty.ty);
-        if right.is_error() {
-            return error();
-        }
-
-        return ok(right.ty);
+        return super.check(ctx, expr.data.unary.right, bool_ty.ty);
     }
 
     // all other unary expressions need to infer the rhs first
@@ -54,10 +49,9 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
     }
 
     if expr.data.unary.kind == UnaryKind.NumNegate {
-        // any type is still allowed here
         // we can unfortunately not check against anyInt, since right may
         // also be a float
-        if !right.ty.is_number() && !right.ty.is_any() {
+        if !right.ty.is_number() {
             let actual = right.ty.to_string();
             defer actual.free();
             report_str(e.ErrorKind.NegateNonNumber, expr, actual.view());
