@@ -30,9 +30,10 @@ type Compiler struct {
     modmap: mods.Map,
 
     mod_arena: arena.TypedArena,
-    ast_arena: arena.TypedArena,
+    item_arena: arena.TypedArena,
     ty_arena: arena.TypedArena,
-    expr_arena: arena.TypedArena
+    expr_arena: arena.TypedArena,
+    node_arena: arena.TypedArena
 }
 
 def compiler(config: *config.Config): Compiler {
@@ -42,9 +43,10 @@ def compiler(config: *config.Config): Compiler {
         config: config,
         modmap: mods.filemap(),
         mod_arena: arena.typed(sizeof mod.Module),
-        ast_arena: arena.typed(sizeof item.Item),
+        item_arena: arena.typed(sizeof item.Item),
         ty_arena: arena.typed(sizeof tyid.Type),
-        expr_arena: arena.typed(sizeof expr.Expr)
+        expr_arena: arena.typed(sizeof expr.Expr),
+        node_arena: arena.typed(sizeof expr.ExprNode)
     };
 }
 
@@ -100,9 +102,10 @@ def (c: *Compiler) resolve_imports() {
 
         let parser = parse.create(
             lex.create(mod.file.code()),
-             &c.ast_arena,
+             &c.item_arena,
              &c.ty_arena,
-             &c.expr_arena
+             &c.expr_arena,
+             &c.node_arena
          );
 
         // we iterate over all the imports first, since they need to be at the top of the file
@@ -191,7 +194,7 @@ def (c: *Compiler) parse(): Result {
         let info = c.modmap.info_at(i);
         let mod = info.module;
 
-        let parser = parse.create(info.lexer, &c.ast_arena, &c.ty_arena, &c.expr_arena);
+        let parser = parse.create(info.lexer, &c.item_arena, &c.ty_arena, &c.expr_arena, &c.node_arena);
         while !parser.is_at_end() {
             let parsed_item = parser.parse_item();
             if parsed_item != null {
@@ -243,7 +246,8 @@ def (c: *Compiler) free() {
 
     c.mod_arena.free();
     c.expr_arena.free();
-    c.ast_arena.free_destructor(&item.Item.free as arena.Destructor);
+    c.node_arena.free();
+    c.item_arena.free_destructor(&item.Item.free as arena.Destructor);
     c.ty_arena.free_destructor(&tyid.Type.free as arena.Destructor);
 }
 

@@ -13,7 +13,8 @@ type ExprKind enum {
     Binary,
     Unary,
     Ident,
-    Assign
+    Assign,
+    Call
 }
 
 type Expr struct {
@@ -27,7 +28,8 @@ type ExprData union {
     binary: BinaryExpr,
     unary: UnaryExpr,
     ident: IdentExpr,
-    assign: AssignExpr
+    assign: AssignExpr,
+    call: CallExpr
 }
 
 def (e: *Expr) init_basic(kind: ExprKind) {
@@ -72,6 +74,21 @@ def (e: *Expr) init_assign(kind: AssignKind, left: *Expr, right: *Expr) {
     e.init_basic(ExprKind.Assign);
     e.span = left.span.merge(right.span);
     e.data = ExprData { assign: AssignExpr { kind: kind, left: left, right: right } };
+}
+
+def (e: *Expr) init_call(callee: *Expr) {
+    e.init_basic(ExprKind.Call);
+    e.span = callee.span;
+    e.data = ExprData { call: CallExpr { callee: callee, num_args: 0, head: null } };
+}
+
+// the ExprNode is a Node in a singly linked list. This is needed since each Expr gets allocated
+// inside an arena, which would make freeing a vector inside an expression tedious.
+// Linked Lists are way easier to handle and don't really have any overhead here, since
+// the expressions will most likely be sequential in memory anyway due to the arena
+type ExprNode struct {
+    value: Expr,
+    next: *ExprNode // may be null
 }
 
 // note: these have to be aligned with ast/token/TokenType
@@ -145,6 +162,12 @@ type AssignExpr struct {
     kind: AssignKind,
     left: *Expr,
     right: *Expr
+}
+
+type CallExpr struct {
+    callee: *Expr,
+    num_args: usize,
+    head: *ExprNode
 }
 
 // ------------ to string/json stuff ------------
@@ -282,6 +305,30 @@ def (e: *Expr) to_json(): str.String {
         json.push(str.view_from("\"right\": "));
         json.push(right.view());
         json.push(str.view_from("}"));
+        return json;
+    }
+
+    if e.kind == ExprKind.Call {
+        let json = str.from("{\"kind\": \"call\", ");
+        let callee = e.data.call.callee.to_json();
+        defer callee.free();
+        json.push(str.view_from("\"callee\": "));
+        json.push(callee.view());
+
+        json.push(str.view_from(",\"args\": ["));
+        let current = e.data.call.head;
+        let first = true;
+        while current != null {
+            if !first {
+                json.push(str.view_from(","));
+            }
+            first = false;
+            let arg = current.value.to_json();
+            defer arg.free();
+            json.push(arg.view());
+            current = current.next;
+        }
+        json.push(str.view_from("]}"));
         return json;
     }
 

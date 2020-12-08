@@ -23,33 +23,37 @@ type Parser struct {
     panic_mode: bool,
     error_count: usize,
     lexer: l.Lexer,
-    ast_arena: *arena.TypedArena,
+    item_arena: *arena.TypedArena,
     ty_arena: *arena.TypedArena,
-    expr_arena: *arena.TypedArena
+    expr_arena: *arena.TypedArena,
+    node_arena: *arena.TypedArena
 }
 
 def create(
     lexer: l.Lexer,
-    ast_arena: *arena.TypedArena,
+    item_arena: *arena.TypedArena,
     ty_arena: *arena.TypedArena,
-    expr_arena: *arena.TypedArena
+    expr_arena: *arena.TypedArena,
+    node_arena: *arena.TypedArena
 ): Parser {
-    dbg.assert(ast_arena.elem_size == sizeof item.Item, "wrong ast arena size");
+    dbg.assert(item_arena.elem_size == sizeof item.Item, "wrong ast arena size");
     dbg.assert(expr_arena.elem_size == sizeof Expr, "wrong expr arena size");
+    dbg.assert(node_arena.elem_size == sizeof ExprNode, "wrong expr node arena size");
     dbg.assert(ty_arena.elem_size == sizeof tyid.Type, "wrong ty arena size");
 
     return Parser {
         panic_mode: false,
         error_count: 0,
         lexer: lexer,
-        ast_arena: ast_arena,
+        item_arena: item_arena,
         ty_arena: ty_arena,
-        expr_arena: expr_arena
+        expr_arena: expr_arena,
+        node_arena: node_arena
     };
 }
 
 def (p: *Parser) alloc_item(): *item.Item {
-    return p.ast_arena.alloc() as *item.Item;
+    return p.item_arena.alloc() as *item.Item;
 }
 
 def (p: *Parser) alloc_tyid(): *tyid.Type {
@@ -58,6 +62,10 @@ def (p: *Parser) alloc_tyid(): *tyid.Type {
 
 def (p: *Parser) alloc_expr(): *Expr {
     return p.expr_arena.alloc() as *Expr;
+}
+
+def (p: *Parser) alloc_expr_node(): *ExprNode {
+    return p.node_arena.alloc() as *ExprNode;
 }
 
 def (p: *Parser) peek(): tok.Token {
@@ -661,6 +669,66 @@ def (p: *Parser) parse_infix(memory: *Expr, left: *Expr): Result {
         return Result.OK;
     }
 
+    // call expression
+    if token.ty == tok.TokenType.LParen {
+        memory.init_call(left);
+        if p.parse_arg_list(memory).is_error() {
+            return Result.Error;
+        }
+
+        return Result.OK;
+    }
+
     p.report_simple(e.ErrorKind.ExpectedOperator, token.span);
     return Result.Error;
 }
+
+def (p: *Parser) parse_arg_list(memory: *Expr): Result {
+    let call = &memory.data.call;
+
+    let first = true;
+    let previous: *ExprNode = null;
+    let current = &call.head;
+
+    // since we allow for trailing ',', we have to check for the closing ')'
+    while !p.check(tok.TokenType.RParen) {
+        // there should be no comma infront of the first parameter, so we can just skip this
+        if !first {
+            // every other parameter should be preceeded by a ','
+            if p.consume(tok.TokenType.Comma).is_error() {
+                return Result.Error;
+            }
+
+            // this allows for a trailing comma after the last parameter
+            if p.check(tok.TokenType.RParen) {
+                break;
+            }
+        }
+        first = false;
+
+        let node = p.alloc_expr_node();
+        node.next = null;
+
+        *current = node;
+        if p.expression(&node.value).is_error() {
+            return Result.Error;
+        }
+
+        if previous != null {
+            previous.next = *current;
+        }
+
+        previous = *current;
+        current = &(*current).next;
+        call.num_args += 1;
+    }
+
+    let closing_rparen: tok.Token = undefined;
+    if p.consume_tok(tok.TokenType.RParen, &closing_rparen).is_error() {
+        return Result.Error;
+    }
+
+    memory.span = memory.span.merge(closing_rparen.span);
+    return Result.OK;
+}
+
