@@ -54,6 +54,7 @@ K_FILES = src/ast/expr.kan \
 
 START_FOLDER := $(shell pwd)
 
+LLVM_PATH ?= $(HOME)/Downloads/llvm/llvm-10.0.0.src/build
 STDLIB_DIR ?= $(START_FOLDER)/src/std
 KANTAN_STABLE ?= $(START_FOLDER)/../kantan -g
 
@@ -61,9 +62,7 @@ C_DEFINES := -DSTDLIB_DIR=\"$(STDLIB_DIR)\"
 C_FILES := lib.c
 C_OBJ_FILES := $(patsubst %.c,%.o,$(C_FILES))
 
-LLVM_PATH := $(HOME)/Downloads/llvm/llvm-10.0.0.src/build
 LLVM_CONFIG := $(LLVM_PATH)/bin/llvm-config
-
 LLVM_LIB_NAMES := x86codegen webassemblycodegen passes
 
 LLVM_C_FLAGS := $(shell $(LLVM_CONFIG) --cflags)
