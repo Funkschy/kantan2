@@ -27,6 +27,7 @@ type ErrorOutputFormat enum {
 type Config struct {
     emit_debug_info: bool,
     invoke_linker: bool,
+    quit_after_parsing: bool,
     output_kind: OutputKind,
     error_output_format: ErrorOutputFormat,
     opt_level: i8,
@@ -154,6 +155,7 @@ def from_options(options: *opt.Options): Config {
     return Config {
         emit_debug_info: options.debug_info,
         invoke_linker: invoke_linker,
+        quit_after_parsing: options.parse_only,
         output_kind: kind,
         error_output_format: error_output_format,
         opt_level: options.opt_level,

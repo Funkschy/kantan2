@@ -75,6 +75,8 @@ class Test(SuccessTestCase):
     def __init__(self, executor):
         super().__init__(executor)
         self.options.append('--dump-ast')
+        # otherwise we'll get some annoying type errors
+        self.options.append('--parse-only')
 
     def test_output(self, output: Output) -> Optional[TestError]:
         super_error = super().test_output(output)

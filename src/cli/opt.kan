@@ -13,6 +13,8 @@ type Options struct {
     // output all errors and warnings in json
     output_json: bool,
     dump_ast: bool,
+    // quit after parsing
+    parse_only: bool,
     files: ptrvec.Vec,
     opt_level: i8,
     output_filename: string,
@@ -27,6 +29,7 @@ def parse(argc: i32, argv: *string): Options {
         debug_info: false,
         output_json: false,
         dump_ast: false,
+        parse_only: false,
         files: ptrvec.with_cap(argc as usize),
         opt_level: 0,
         output_filename: null,
@@ -147,6 +150,11 @@ def parse_long(options: *Options, arg: string, set_to_next: **string): bool {
 
     if libc.strcmp(arg, "dump-ast") == 0 {
         options.dump_ast = true;
+        return false;
+    }
+
+    if libc.strcmp(arg, "parse-only") == 0 {
+        options.parse_only = true;
         return false;
     }
 

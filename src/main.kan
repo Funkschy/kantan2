@@ -53,6 +53,13 @@ def main(argc: i32, argv: *string): ReturnCode {
         return ReturnCode.InvalidInput;
     }
 
+    if config.quit_after_parsing {
+        if opts.dump_ast {
+            dump_ast(&compiler);
+        }
+        return ReturnCode.OK;
+    }
+
     // TODO: this is debug code
     import "types/types";
     import "memory/arena";
@@ -116,25 +123,29 @@ def main(argc: i32, argv: *string): ReturnCode {
         }
     }
 
-    // TODO: remove this temporary code
     if opts.dump_ast {
-        import "io";
-        io.printf("\"modules\": [");
-        defer io.printf("],\n");
-
-        for let i: usize = 0; i < compiler.modmap.len(); i += 1 {
-            if i > 0 {
-                io.printf(", ");
-            }
-
-            let mod = compiler.modmap.at(i);
-            let json = mod.to_json();
-            io.printf("%s\n", json.cstring());
-            json.free();
-        }
+        dump_ast(&compiler);
     }
 
     return ReturnCode.OK;
+}
+
+def dump_ast(compiler: *Compiler) {
+    // TODO: integrate this into the program in more appropriate manner
+    import "io";
+    io.printf("\"modules\": [");
+    defer io.printf("],\n");
+
+    for let i: usize = 0; i < compiler.modmap.len(); i += 1 {
+        if i > 0 {
+            io.printf(", ");
+        }
+
+        let mod = compiler.modmap.at(i);
+        let json = mod.to_json();
+        io.printf("%s\n", json.cstring());
+        json.free();
+    }
 }
 
 // Initialize global arrays
