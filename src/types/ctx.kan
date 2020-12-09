@@ -18,17 +18,25 @@ import "primitive";
 
 // the context used while type checking
 type TyCtx struct {
-    arena: *arena.TypedArena,
+    ty_arena: *arena.TypedArena,
+
+    temp_name_arena: *arena.TypedArena,
+    temp_count: usize,
+
     // this holds the types of lvalues, for later lookup by name
     values: scope.ScopeStack,
     // this holds declared types, e.g. structs
     types: scope.ScopeStack
 }
 
-def create(arena: *arena.TypedArena): TyCtx {
-    dbg.assert(arena.elem_size == sizeof Type, "invalid memory arena");
+def create(ty_arena: *arena.TypedArena, temp_name_arena: *arena.TypedArena): TyCtx {
+    dbg.assert(ty_arena.elem_size == sizeof Type, "invalid memory ty_arena");
+    dbg.assert(temp_name_arena.elem_size == sizeof str.String, "invalid memory temp_name_arena");
+
     return TyCtx {
-        arena: arena,
+        ty_arena: ty_arena,
+        temp_name_arena: temp_name_arena,
+        temp_count: 0,
         values: scope.scope_stack(),
         types: scope.scope_stack()
     };
@@ -45,6 +53,8 @@ def (ctx: *TyCtx) open_scope() {
 }
 
 def (ctx: *TyCtx) close_scope(): Result {
+    let result = Result.OK;
+
     // this 'collapses' undecided types
     // If we encounter anyInt types, they will be converted to i32
     // TODO: 'any' types should be reported as errors
@@ -85,18 +95,18 @@ def (ctx: *TyCtx) close_scope(): Result {
             }
 
             util.report_span(e.ErrorKind.CouldNotInfer, *bound.declared_at);
-            return Result.Error;
+            result = Result.Error;
         }
     }
 
     ctx.values.close();
     ctx.types.close();
 
-    return Result.OK;
+    return result;
 }
 
 def (ctx: *TyCtx) alloc(): *Type {
-    return ctx.arena.alloc() as *Type;
+    return ctx.ty_arena.alloc() as *Type;
 }
 
 // a type variable to any
@@ -173,6 +183,17 @@ def bind_in(name: str.View, ty: *Type, vis: Visibility, stack: *scope.ScopeStack
         declared_at: declared_at
     };
     stack.bind(name, item);
+}
+
+def (ctx: *TyCtx) bind_temp(ty: *Type, span: *span.Span) {
+    let count_s = str.i64_to_string(ctx.temp_count as i64);
+    ctx.temp_count += 1;
+
+    let name = ctx.temp_name_arena.alloc() as *str.String;
+    *name = count_s;
+
+    // this is safe, since the String will never be moved
+    bind_in(name.view(), ty, Visibility.Public, &ctx.values, span);
 }
 
 def (ctx: *TyCtx) bind_value_public(name: str.View, ty: *Type, declared_at: *span.Span) {

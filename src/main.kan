@@ -64,45 +64,48 @@ def main(argc: i32, argv: *string): ReturnCode {
     import "types/types";
     import "memory/arena";
 
-    let arena = arena.typed(sizeof types.Type);
-    defer arena.free_destructor(&types.Type.free as arena.Destructor);
+    let ty_arena = arena.typed(sizeof types.Type);
+    defer ty_arena.free_destructor(&types.Type.free as arena.Destructor);
+
+    let temp_arena = arena.typed(sizeof str.String);
+    defer temp_arena.free_destructor(&str.String.free as arena.Destructor);
     {
         import "types/ctx";
         import "types/check/item" as i_check;
         import "types/info";
         import "types/primitive";
 
-        let ctx = ctx.create(&arena);
+        let ctx = ctx.create(&ty_arena, &temp_arena);
         defer ctx.free();
 
         ctx.open_scope();
         defer ctx.close_scope();
 
-        let b_ty = arena.alloc() as *types.Type;
+        let b_ty = ty_arena.alloc() as *types.Type;
         b_ty.kind = types.TypeKind.Bool;
         ctx.bind_type_public(str.view_from("bool"), b_ty, null);
 
-        let c_ty = arena.alloc() as *types.Type;
+        let c_ty = ty_arena.alloc() as *types.Type;
         c_ty.init_int(primitive.Signedness.Signed, info.size_bytes(1));
         ctx.bind_type_public(str.view_from("i8"), c_ty, null);
 
-        let isize_ty = arena.alloc() as *types.Type;
+        let isize_ty = ty_arena.alloc() as *types.Type;
         isize_ty.init_int(primitive.Signedness.Signed, info.size_bytes(8));
         ctx.bind_type_public(str.view_from("isize"), isize_ty, null);
 
-        let s_ty = arena.alloc() as *types.Type;
+        let s_ty = ty_arena.alloc() as *types.Type;
         s_ty.init_ptr(c_ty);
         ctx.bind_type_public(str.view_from("string"), s_ty, null);
 
-        let u32_ty = arena.alloc() as *types.Type;
+        let u32_ty = ty_arena.alloc() as *types.Type;
         u32_ty.init_int(primitive.Signedness.Unsigned, info.size_bytes(4));
         ctx.bind_type_public(str.view_from("u32"), u32_ty, null);
 
-        let f32_ty = arena.alloc() as *types.Type;
+        let f32_ty = ty_arena.alloc() as *types.Type;
         f32_ty.init_float(info.size_bytes(4));
         ctx.bind_type_public(str.view_from("f32"), f32_ty, null);
 
-        let f64_ty = arena.alloc() as *types.Type;
+        let f64_ty = ty_arena.alloc() as *types.Type;
         f64_ty.init_float(info.size_bytes(8));
         ctx.bind_type_public(str.view_from("f64"), f64_ty, null);
 

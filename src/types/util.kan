@@ -51,6 +51,12 @@ def report_span(kind: e.ErrorKind, span: span.Span) {
     report.print_error(&error);
 }
 
+def report_span_note(kind: e.ErrorKind, span: span.Span, note: *e.ErrorNote) {
+    let error = e.simple_error(kind, span);
+    error.add_note(note);
+    report.print_error(&error);
+}
+
 def report_str(kind: e.ErrorKind, expr: *ast.Expr, s: str.View) {
     let error = e.string_single(kind, expr.span, s);
     report.print_error(&error);
