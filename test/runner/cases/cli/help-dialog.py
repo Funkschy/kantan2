@@ -11,12 +11,14 @@ USAGE:
     kantan [OPTIONS] <source-file>...
 
 OPTIONS:
-    -o <file>	the output file (end with .s for assembly output)
-    -O<level>	the optimization level		[possible values 0, 1, 2, 3]
-    -h / --help	print this message
-    --sys	set the target OS		[possible values 'linux', 'darwin', 'win32']
-    --arch	set the target Architecture	[possible values 'x86_64', 'wasm32']
-    --mi	output all errors/warnings as json
+    -o <file>    the output file (end with .s for assembly output)
+    -O<level>    the optimization level      [possible values 0, 1, 2, 3]
+    -h / --help  print this message
+    --sys        set the target OS           [possible values 'linux', 'darwin', 'win32']
+    --arch       set the target Architecture [possible values 'x86_64', 'wasm32']
+    --mi         output all errors/warnings as json
+    --dump-ast   dump the ast as json
+    --parse-only quit after parsing
 
 ARGS:
     <source-file>...
