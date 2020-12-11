@@ -1,9 +1,10 @@
 import "../std/str";
 import "../source/ident";
 
-import "data";
-import "primitive";
 import "info";
+import "data";
+import "function";
+import "primitive";
 
 type TypeKind enum {
     // only used to infer types during typechecking and illegal afterwards
@@ -34,8 +35,7 @@ type TypeData union {
     int: primitive.Integer,
     float: primitive.Float,
     ptr_to: *Type, // the inner type
-    param: TypeParam,
-    data_type: data.UserDefined
+    function: function.Function
 }
 
 def (t: *Type) init_int(signedness: primitive.Signedness, width: info.Size) {
@@ -78,6 +78,19 @@ def (t: *Type) is_any(): bool {
 def (t: *Type) is_pointer(): bool {
     return t.kind == TypeKind.Ptr
         || t.kind == TypeKind.Variable && t.data.inner.is_pointer();
+}
+
+// this will get the actual function type for a callable type or null, if the types was not callable
+def (t: *Type) get_function(): *Type {
+    if t.kind == TypeKind.Function {
+        return t;
+    }
+
+    if t.kind == TypeKind.Variable {
+        return t.data.inner.get_function();
+    }
+
+    return null;
 }
 
 def (t: *Type) is_concrete_version_of(other: *Type): bool {
@@ -220,6 +233,49 @@ def (t: *Type) to_string(): str.String {
     return s;
 }
 
+type NameKind enum {
+    Ident, View
+}
+
+type Name struct {
+    kind: NameKind,
+    data: NameData
+}
+
+type NameData union {
+    ident: ident.Ident,
+    view: str.View
+}
+
+// equivalent to ExprNode, but with an additional name. Look at ExprNode for more info
+type TypeNode struct {
+    name: Name,
+    value: *Type,
+    next: *TypeNode // may be null
+}
+
+def (n: *TypeNode) init_ident(ident: ident.Ident): *TypeNode {
+    n.name = Name {
+        kind: NameKind.Ident,
+        data: NameData { ident: ident }
+    };
+
+    n.value = null;
+    n.next = null;
+    return n;
+}
+
+def (t: *Type) init_func(): *Type {
+    t.kind = TypeKind.Function;
+    t.width = t.align = info.unsized();
+    t.data.function.num_params = 0;
+    t.data.function.abi = function.ABI.Kantan;
+    t.data.function.c_variadic = false;
+    t.data.function.params_head = null;
+    t.data.function.ret = null;
+    return t;
+}
+
 // this is the declared type parameter
 // e.g. for
 //   type Struct[T] struct {}
@@ -227,23 +283,4 @@ def (t: *Type) to_string(): str.String {
 type TypeParam struct {
     index: u32,
     name: ident.Ident
-}
-
-def (t: *Type) init_userdefined(kind: data.UserDefinedKind, original_name: ident.Ident) {
-    t.kind = TypeKind.DataType;
-    t.width = t.align = info.initial_size();
-    t.data.data_type.init(kind, original_name);
-}
-
-def (t: *Type) free() {
-    if t.kind < TypeKind.Function {
-        return;
-    }
-
-    if t.kind == TypeKind.Function {
-    }
-
-    if t.kind == TypeKind.DataType {
-        t.data.data_type.free();
-    }
 }

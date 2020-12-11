@@ -10,17 +10,9 @@ type ABI enum {
 }
 
 type Function struct {
-    abi: ABI,
     c_variadic: bool,
-    params: vec.Vec, // vec.Vec[Param]
+    abi: ABI,
+    num_params: usize,
+    params_head: *TypeNode,
     ret: *Type
-}
-
-def (f: *Function) free() {
-    f.params.free();
-}
-
-type Param struct {
-    name: ident.Ident,
-    ty: *Type
 }

@@ -7,6 +7,7 @@ import "../../ast/expr";
 import "../../util" as _;
 import "../../ast/stmt" as _;
 
+import "../util";
 import "../ctx" as _;
 import "../types" as _;
 
@@ -25,7 +26,7 @@ def check(ctx: *TyCtx, stmt: *Stmt): Result {
         //  but tbf if you disallow implicit value discarding like this:
         //     _ = f();
         //  it doesn't really change anything, since we still need to track temporary variables
-        if stmt.data.expr.kind != expr.ExprKind.Assign {
+        if stmt.data.expr.kind != expr.ExprKind.Assign && stmt.data.expr.kind != expr.ExprKind.Ident {
             // convert this into an implicit assignment (at least in the eyes of the TyCtx)
             ctx.bind_temp(result.ty, &stmt.data.expr.span);
         }
@@ -66,10 +67,7 @@ def check(ctx: *TyCtx, stmt: *Stmt): Result {
         if decl.ty != null {
             let expected = ctx.lookup_tyid(decl.ty);
             if expected == null {
-                let error = e.string_single(
-                    e.ErrorKind.UndeclaredType, decl.ty.span, decl.ty.span.as_view()
-                );
-                report.print_error(&error);
+                util.report_str(e.ErrorKind.UndeclaredType, decl.ty.span, decl.ty.span.as_view());
                 return Result.Error;
             }
 

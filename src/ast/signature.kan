@@ -54,3 +54,7 @@ def (s: *Signature) init() {
 def (s: *Signature) free() {
     s.params.free();
 }
+
+def (s: *Signature) param_at(idx: usize): *Param {
+    return s.params.get_ptr(idx) as *Param;
+}

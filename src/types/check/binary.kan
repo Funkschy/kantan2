@@ -32,7 +32,13 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
             defer right_s.free();
 
             let op = expr.data.binary.op_span.as_view();
-            report_str3(e.ErrorKind.InvalidBinaryOperator, expr, op, left_s.view(), right_s.view());
+            report_str3(
+                e.ErrorKind.InvalidBinaryOperator,
+                expr.span,
+                op,
+                left_s.view(),
+                right_s.view()
+            );
             return error();
         }
 
@@ -79,7 +85,7 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
     defer right_s.free();
 
     let op = expr.data.binary.op_span.as_view();
-    report_str3(e.ErrorKind.InvalidBinaryOperator, expr, op, left_s.view(), right_s.view());
+    report_str3(e.ErrorKind.InvalidBinaryOperator, expr.span, op, left_s.view(), right_s.view());
     return error();
 
 }

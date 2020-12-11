@@ -41,34 +41,29 @@ def lookup_builtin(ctx: *ctx.TyCtx, name: str.View): TyResult {
     return ok(ty);
 }
 
-def report_simple(kind: e.ErrorKind, expr: *ast.Expr) {
-    let error = e.simple_error(kind, expr.span);
-    report.print_error(&error);
-}
-
-def report_span(kind: e.ErrorKind, span: span.Span) {
+def report_simple(kind: e.ErrorKind, span: span.Span) {
     let error = e.simple_error(kind, span);
     report.print_error(&error);
 }
 
-def report_span_note(kind: e.ErrorKind, span: span.Span, note: *e.ErrorNote) {
+def report_note(kind: e.ErrorKind, span: span.Span, note: *e.ErrorNote) {
     let error = e.simple_error(kind, span);
     error.add_note(note);
     report.print_error(&error);
 }
 
-def report_str(kind: e.ErrorKind, expr: *ast.Expr, s: str.View) {
-    let error = e.string_single(kind, expr.span, s);
+def report_str(kind: e.ErrorKind, span: span.Span, s: str.View) {
+    let error = e.string_single(kind, span, s);
     report.print_error(&error);
 }
 
-def report_str2(kind: e.ErrorKind, expr: *ast.Expr, first: str.View, second: str.View) {
-    let error = e.string_tuple(kind, expr.span, first, second);
+def report_str2(kind: e.ErrorKind, span: span.Span, first: str.View, second: str.View) {
+    let error = e.string_tuple(kind, span, first, second);
     report.print_error(&error);
 }
 
-def report_str3(kind: e.ErrorKind, expr: *ast.Expr, first: str.View, second: str.View, third: str.View) {
-    let error = e.string_triple(kind, expr.span, first, second, third);
+def report_str3(kind: e.ErrorKind, span: span.Span, first: str.View, second: str.View, third: str.View) {
+    let error = e.string_triple(kind, span, first, second, third);
     report.print_error(&error);
 }
 

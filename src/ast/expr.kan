@@ -79,7 +79,7 @@ def (e: *Expr) init_assign(kind: AssignKind, left: *Expr, right: *Expr) {
 def (e: *Expr) init_call(callee: *Expr) {
     e.init_basic(ExprKind.Call);
     e.span = callee.span;
-    e.data = ExprData { call: CallExpr { callee: callee, num_args: 0, head: null } };
+    e.data = ExprData { call: CallExpr { callee: callee, num_args: 0, args_head: null } };
 }
 
 // the ExprNode is a Node in a singly linked list. This is needed since each Expr gets allocated
@@ -167,7 +167,7 @@ type AssignExpr struct {
 type CallExpr struct {
     callee: *Expr,
     num_args: usize,
-    head: *ExprNode
+    args_head: *ExprNode
 }
 
 // ------------ to string/json stuff ------------
@@ -316,7 +316,7 @@ def (e: *Expr) to_json(): str.String {
         json.push(callee.view());
 
         json.push(str.view_from(",\"args\": ["));
-        let current = e.data.call.head;
+        let current = e.data.call.args_head;
         let first = true;
         while current != null {
             if !first {

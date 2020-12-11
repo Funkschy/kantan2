@@ -34,7 +34,7 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
         if right.ty.kind != TypeKind.Ptr {
             let actual = right.ty.to_string();
             defer actual.free();
-            report_str(e.ErrorKind.DerefNonPtr, expr, actual.view());
+            report_str(e.ErrorKind.DerefNonPtr, expr.span, actual.view());
             return error();
         }
 
@@ -42,7 +42,7 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
     }
 
     if expr.data.unary.kind == UnaryKind.AddrOf {
-        let ty = ctx.alloc();
+        let ty = ctx.alloc_ty();
         ty.kind = TypeKind.Ptr;
         ty.data.ptr_to = right.ty;
         return ok(ty);
@@ -54,7 +54,7 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
         if !right.ty.is_number() {
             let actual = right.ty.to_string();
             defer actual.free();
-            report_str(e.ErrorKind.NegateNonNumber, expr, actual.view());
+            report_str(e.ErrorKind.NegateNonNumber, expr.span, actual.view());
             return error();
         }
 

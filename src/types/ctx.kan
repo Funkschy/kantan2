@@ -19,9 +19,7 @@ import "primitive";
 // the context used while type checking
 type TyCtx struct {
     ty_arena: *arena.TypedArena,
-
-    temp_name_arena: *arena.TypedArena,
-    temp_count: usize,
+    node_arena: *arena.TypedArena,
 
     // this holds the types of lvalues, for later lookup by name
     values: scope.ScopeStack,
@@ -29,14 +27,13 @@ type TyCtx struct {
     types: scope.ScopeStack
 }
 
-def create(ty_arena: *arena.TypedArena, temp_name_arena: *arena.TypedArena): TyCtx {
+def create(ty_arena: *arena.TypedArena, node_arena: *arena.TypedArena): TyCtx {
     dbg.assert(ty_arena.elem_size == sizeof Type, "invalid memory ty_arena");
-    dbg.assert(temp_name_arena.elem_size == sizeof str.String, "invalid memory temp_name_arena");
+    dbg.assert(node_arena.elem_size == sizeof TypeNode, "wrong type node arena size");
 
     return TyCtx {
         ty_arena: ty_arena,
-        temp_name_arena: temp_name_arena,
-        temp_count: 0,
+        node_arena: node_arena,
         values: scope.scope_stack(),
         types: scope.scope_stack()
     };
@@ -52,6 +49,47 @@ def (ctx: *TyCtx) open_scope() {
     ctx.types.open();
 }
 
+def (ctx: *TyCtx) perform_item_close(bound: *scope.BoundItem): Result {
+    let ty = bound.ty;
+
+    // deref the type to the most basic level
+    while true {
+        if ty.kind == TypeKind.Variable {
+            // TODO: this could maybe cause issues with types that own memory
+            // TODO: is there any way to produce cycles here?
+            *ty = *ty.data.inner;
+        } else if ty.kind == TypeKind.Ptr {
+            ty = ty.data.ptr_to;
+        } else {
+            break;
+        }
+    }
+
+    if ty.kind == TypeKind.AnyInt {
+        // convert anyInt to i32
+        ty.init_int(primitive.Signedness.Signed, size_bytes(4));
+    }
+
+    if ty.kind == TypeKind.AnyFloat {
+        // convert anyFloat to f32
+        ty.init_float(size_bytes(4));
+    }
+
+    // a type that could not be inferred is considered an error
+    if ty.kind == TypeKind.Any {
+        if bound.declared_at == null {
+            let msg = str.view_from("could not infer type for an item without a source position");
+            util.report_internal_error(msg);
+            return Result.Error;
+        }
+
+        util.report_simple(e.ErrorKind.CouldNotInfer, *bound.declared_at);
+        return Result.Error;
+    }
+
+    return Result.OK;
+}
+
 def (ctx: *TyCtx) close_scope(): Result {
     let result = Result.OK;
 
@@ -61,42 +99,12 @@ def (ctx: *TyCtx) close_scope(): Result {
     let current = ctx.values.top();
     for let i: usize = 0; i < current.bindings.len(); i += 1 {
         let bound = current.bindings.get_ptr_idx(i) as *scope.BoundItem;
-        let ty = bound.ty;
+        result = result.or(ctx.perform_item_close(bound));
+    }
 
-        // deref the type to the most basic level
-        while true {
-            if ty.kind == TypeKind.Variable {
-                // TODO: this could maybe cause issues with types that own memory
-                // TODO: is there any way to produce cycles here?
-                *ty = *ty.data.inner;
-            } else if ty.kind == TypeKind.Ptr {
-                ty = ty.data.ptr_to;
-            } else {
-                break;
-            }
-        }
-
-        if ty.kind == TypeKind.AnyInt {
-            // convert anyInt to i32
-            ty.init_int(primitive.Signedness.Signed, size_bytes(4));
-        }
-
-        if ty.kind == TypeKind.AnyFloat {
-            // convert anyFloat to f32
-            ty.init_float(size_bytes(4));
-        }
-
-        // a type that could not be inferred is considered an error
-        if ty.kind == TypeKind.Any {
-            if bound.declared_at == null {
-                let msg = str.view_from("could not infer type for an item without a source position");
-                util.report_internal_error(msg);
-                return Result.Error;
-            }
-
-            util.report_span(e.ErrorKind.CouldNotInfer, *bound.declared_at);
-            result = Result.Error;
-        }
+    for let i: usize = 0; i < current.temp_vars.len; i += 1 {
+        let bound = current.temp_vars.get_ptr(i) as *scope.BoundItem;
+        result = result.or(ctx.perform_item_close(bound));
     }
 
     ctx.values.close();
@@ -105,16 +113,20 @@ def (ctx: *TyCtx) close_scope(): Result {
     return result;
 }
 
-def (ctx: *TyCtx) alloc(): *Type {
+def (ctx: *TyCtx) alloc_ty(): *Type {
     return ctx.ty_arena.alloc() as *Type;
+}
+
+def (ctx: *TyCtx) alloc_node(): *TypeNode {
+    return ctx.node_arena.alloc() as *TypeNode;
 }
 
 // a type variable to any
 def (ctx: *TyCtx) any_var(): *Type {
-    let anyTy = ctx.alloc();
+    let anyTy = ctx.alloc_ty();
     anyTy.kind = TypeKind.Any;
 
-    let var = ctx.alloc();
+    let var = ctx.alloc_ty();
     var.kind = TypeKind.Variable;
     var.data.inner = anyTy;
     return var;
@@ -122,20 +134,20 @@ def (ctx: *TyCtx) any_var(): *Type {
 
 // a type variable to anyInt
 def (ctx: *TyCtx) any_var_int(): *Type {
-    let anyIntTy = ctx.alloc();
+    let anyIntTy = ctx.alloc_ty();
     anyIntTy.kind = TypeKind.AnyInt;
 
-    let var = ctx.alloc();
+    let var = ctx.alloc_ty();
     var.kind = TypeKind.Variable;
     var.data.inner = anyIntTy;
     return var;
 }
 
 def (ctx: *TyCtx) any_var_float(): *Type {
-    let anyFloatTy = ctx.alloc();
+    let anyFloatTy = ctx.alloc_ty();
     anyFloatTy.kind = TypeKind.AnyFloat;
 
-    let var = ctx.alloc();
+    let var = ctx.alloc_ty();
     var.kind = TypeKind.Variable;
     var.data.inner = anyFloatTy;
     return var;
@@ -160,7 +172,7 @@ def (ctx: *TyCtx) lookup_value(name: str.View): *Type {
 
 def (ctx: *TyCtx) lookup_tyid(ty: *tyid.Type): *Type {
     if ty.kind == tyid.TypeKind.Ptr {
-        let ptr = ctx.alloc();
+        let ptr = ctx.alloc_ty();
         ptr.kind = TypeKind.Ptr;
 
         let inner = ctx.lookup_tyid(ty.inner());
@@ -168,6 +180,7 @@ def (ctx: *TyCtx) lookup_tyid(ty: *tyid.Type): *Type {
             return null;
         }
         ptr.data.ptr_to = inner;
+        return ptr;
     }
 
     let p = &ty.data.path;
@@ -186,14 +199,12 @@ def bind_in(name: str.View, ty: *Type, vis: Visibility, stack: *scope.ScopeStack
 }
 
 def (ctx: *TyCtx) bind_temp(ty: *Type, span: *span.Span) {
-    let count_s = str.i64_to_string(ctx.temp_count as i64);
-    ctx.temp_count += 1;
-
-    let name = ctx.temp_name_arena.alloc() as *str.String;
-    *name = count_s;
-
-    // this is safe, since the String will never be moved
-    bind_in(name.view(), ty, Visibility.Public, &ctx.values, span);
+    let item = scope.BoundItem {
+        ty: ty,
+        vis: Visibility.Public,
+        declared_at: span
+    };
+    ctx.values.top().temp_vars.push(&item as *void);
 }
 
 def (ctx: *TyCtx) bind_value_public(name: str.View, ty: *Type, declared_at: *span.Span) {

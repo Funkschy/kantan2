@@ -6,6 +6,7 @@ import "../ctx";
 import "../util" as _;
 import "../types" as _;
 
+import "call";
 import "unary";
 import "binary";
 import "literal";
@@ -46,7 +47,7 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
             return ok(ty);
         }
 
-        report_str(e.ErrorKind.UndeclaredIdentifier, expr, name);
+        report_str(e.ErrorKind.UndeclaredIdentifier, expr.span, name);
         return error();
     }
 
@@ -74,6 +75,10 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
         return binary.infer(ctx, expr);
     }
 
+    if expr.kind == ExprKind.Call {
+        return call.infer(ctx, expr);
+    }
+
     report_internal_error_span(str.view_from("unhandled expr kind"), expr.span);
     return error();
 }
@@ -81,7 +86,7 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
 def check(ctx: *ctx.TyCtx, expr: *Expr, expected: *Type): TyResult {
     let inferred = infer(ctx, expr);
     if inferred.is_error() {
-        report_simple(e.ErrorKind.CouldNotInfer, expr);
+        report_simple(e.ErrorKind.CouldNotInfer, expr.span);
         return error();
     }
 
@@ -95,7 +100,7 @@ def try_unify(ctx: *ctx.TyCtx, expr: *Expr, inferred: *Type, expected: *Type): T
         defer expected.free();
         let actual = inferred.to_string();
         defer actual.free();
-        report_str2(e.ErrorKind.WrongType, expr, expected.view(), actual.view());
+        report_str2(e.ErrorKind.WrongType, expr.span, expected.view(), actual.view());
         return error();
     }
 

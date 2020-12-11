@@ -65,21 +65,25 @@ def main(argc: i32, argv: *string): ReturnCode {
     import "memory/arena";
 
     let ty_arena = arena.typed(sizeof types.Type);
-    defer ty_arena.free_destructor(&types.Type.free as arena.Destructor);
+    defer ty_arena.free();
+    let node_arena = arena.typed(sizeof types.TypeNode);
+    defer node_arena.free();
 
-    let temp_arena = arena.typed(sizeof str.String);
-    defer temp_arena.free_destructor(&str.String.free as arena.Destructor);
     {
         import "types/ctx";
         import "types/check/item" as i_check;
         import "types/info";
         import "types/primitive";
 
-        let ctx = ctx.create(&ty_arena, &temp_arena);
+        let ctx = ctx.create(&ty_arena, &node_arena);
         defer ctx.free();
 
         ctx.open_scope();
         defer ctx.close_scope();
+
+        let void_ty = ty_arena.alloc() as *types.Type;
+        void_ty.init_int(primitive.Signedness.Signed, info.unsized());
+        ctx.bind_type_public(str.view_from("void"), void_ty, null);
 
         let b_ty = ty_arena.alloc() as *types.Type;
         b_ty.kind = types.TypeKind.Bool;
@@ -96,6 +100,10 @@ def main(argc: i32, argv: *string): ReturnCode {
         let s_ty = ty_arena.alloc() as *types.Type;
         s_ty.init_ptr(c_ty);
         ctx.bind_type_public(str.view_from("string"), s_ty, null);
+
+        let i32_ty = ty_arena.alloc() as *types.Type;
+        i32_ty.init_int(primitive.Signedness.Signed, info.size_bytes(4));
+        ctx.bind_type_public(str.view_from("i32"), i32_ty, null);
 
         let u32_ty = ty_arena.alloc() as *types.Type;
         u32_ty.init_int(primitive.Signedness.Unsigned, info.size_bytes(4));

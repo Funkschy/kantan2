@@ -4,7 +4,7 @@ type Size struct {
     bit_size: i32
 }
 
-def initial_size(): Size {
+def unsized(): Size {
     return Size { bit_size: -1 };
 }
 

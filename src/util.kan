@@ -20,6 +20,14 @@ def (r: Result) is_error(): bool {
     return r == Result.Error;
 }
 
+def (r: Result) or(other: Result): Result {
+    if r.is_error() || other.is_error() {
+        return Result.Error;
+    }
+
+    return Result.OK;
+}
+
 def key_from_ident(i: ident.Ident): map.Key {
     return map.create_key(i.len(), i.start());
 }

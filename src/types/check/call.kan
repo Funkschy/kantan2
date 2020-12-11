@@ -1,0 +1,47 @@
+import ":std/str";
+import ":error" as e;
+import ":ast/expr" as _;
+
+import "../ctx";
+import "../types" as _;
+import "../util" as _;
+
+// this kinda works like a super class, so i think this name is intuitive
+import "expr" as super;
+
+// TODO: write some tests already
+def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
+    let call = &expr.data.call;
+
+    let callee = super.infer(ctx, call.callee);
+    if callee.is_error() {
+        return callee;
+    }
+
+    let func_ty = callee.ty.get_function();
+    if func_ty == null {
+        // TODO: report proper error
+        let msg = str.view_from("'trying to call non function' needs a real error");
+        report_internal_error(msg);
+        return error();
+    }
+
+    let function = &func_ty.data.function;
+    if function.num_params != call.num_args {
+        // TODO: report proper error
+        let msg = str.view_from("'invalid number of args' needs a real error");
+        report_internal_error(msg);
+        return error();
+    }
+
+    let param = function.params_head;
+    let arg = call.args_head;
+    while param != null {
+        super.check(ctx, &arg.value, param.value);
+
+        param = param.next;
+        arg = arg.next;
+    }
+
+    return ok(function.ret);
+}

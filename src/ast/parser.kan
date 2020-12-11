@@ -688,7 +688,7 @@ def (p: *Parser) parse_arg_list(memory: *Expr): Result {
 
     let first = true;
     let previous: *ExprNode = null;
-    let current = &call.head;
+    let current = &call.args_head;
 
     // since we allow for trailing ',', we have to check for the closing ')'
     while !p.check(tok.TokenType.RParen) {
