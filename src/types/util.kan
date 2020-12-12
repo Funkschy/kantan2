@@ -52,6 +52,11 @@ def report_note(kind: e.ErrorKind, span: span.Span, note: *e.ErrorNote) {
     report.print_error(&error);
 }
 
+def report_int2(kind: e.ErrorKind, span: span.Span, first: i64, second: i64) {
+    let error = e.int_tuple(kind, span, first, second);
+    report.print_error(&error);
+}
+
 def report_str(kind: e.ErrorKind, span: span.Span, s: str.View) {
     let error = e.string_single(kind, span, s);
     report.print_error(&error);

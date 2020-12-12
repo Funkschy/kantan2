@@ -3,7 +3,7 @@ import "cdeps";
 
 import "source/span";
 
-let error_strings: [14]string = undefined;
+let error_strings: [15]string = undefined;
 
 type ErrorKind enum {
     // import errors
@@ -22,11 +22,13 @@ type ErrorKind enum {
     DerefNonPtr,
     NegateNonNumber,
     UndeclaredType,
-    InvalidBinaryOperator
+    InvalidBinaryOperator,
+    WrongNumberOfArgs
 }
 
 type ErrorDataKind enum {
     NoAdditionalData,
+    IntTuple,
     StringSingle,
     StringTuple,
     StringTriple
@@ -38,6 +40,13 @@ type Error struct {
     note: *ErrorNote,
     span: span.Span,
     data: ErrorData
+}
+
+type ErrorData union {
+    int_tuple: [2]i64,
+    string_single: str.View,
+    string_tuple: [2]str.View,
+    string_triple: [3]str.View
 }
 
 def (e: *Error) fmt_string(): string {
@@ -68,6 +77,10 @@ def (e: *Error) to_string(): str.String {
             first.len, first.data,
             second.len, second.data
         );
+    } else if e.data_kind == ErrorDataKind.IntTuple {
+        let first = e.data.int_tuple[0];
+        let second = e.data.int_tuple[1];
+        value = cdeps.l_format_str(&len, e.fmt_string(), first, second);
     } else if e.data_kind == ErrorDataKind.StringTriple {
         let first = e.data.string_triple[0];
         let second = e.data.string_triple[1];
@@ -105,6 +118,20 @@ def simple_error(kind: ErrorKind, span: span.Span): Error {
         note: null,
         span: span,
         data: undefined
+    };
+}
+
+def int_tuple(kind: ErrorKind, span: span.Span, first: i64, second: i64): Error {
+    let data: ErrorData = undefined;
+    data.int_tuple[0] = first;
+    data.int_tuple[1] = second;
+
+    return Error {
+        kind: kind,
+        data_kind: ErrorDataKind.IntTuple,
+        note: null,
+        span: span,
+        data: data
     };
 }
 
@@ -147,12 +174,6 @@ def string_triple(kind: ErrorKind, span: span.Span, first: str.View, second: str
     };
 }
 
-type ErrorData union {
-    string_single: str.View,
-    string_tuple: [2]str.View,
-    string_triple: [3]str.View
-}
-
 type StringTuple struct {
     first: str.View,
     second: str.View
@@ -175,6 +196,7 @@ def init() {
     error_strings[ErrorKind.NegateNonNumber as i32]  = "Trying to negate '%.*s', which is not a number";
     error_strings[ErrorKind.UndeclaredType as i32]  = "No type '%.*s' in scope";
     error_strings[ErrorKind.InvalidBinaryOperator as i32]  = "Invalid operator '%.*s' for types '%.*s' and '%.*s'";
+    error_strings[ErrorKind.WrongNumberOfArgs as i32]  = "Expected %lld arguments, but got %lld";
 }
 
 // A Linked List of additional information regarding an error, e.g. the location of usage

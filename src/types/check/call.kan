@@ -28,9 +28,12 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
 
     let function = &func_ty.data.function;
     if function.num_params != call.num_args {
-        // TODO: report proper error
-        let msg = str.view_from("'invalid number of args' needs a real error");
-        report_internal_error(msg);
+        report_int2(
+            e.ErrorKind.WrongNumberOfArgs,
+            expr.span,
+            function.num_params as i64,
+            call.num_args as i64
+        );
         return error();
     }
 
