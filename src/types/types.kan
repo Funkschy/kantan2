@@ -201,6 +201,11 @@ def (t: *Type) to_string(): str.String {
         let prefix = 'u' - 12 * (t.data.int.is_signed() as i8);
         s.push(str.view(&prefix, 1));
 
+        if t.width.is_platform_dependent() {
+            s.push(str.view("size", 4));
+            return s;
+        }
+
         let width = str.i64_to_string(t.width.bits() as i64);
         defer width.free();
         s.push(width.view());
@@ -223,6 +228,30 @@ def (t: *Type) to_string(): str.String {
         let inner = t.data.ptr_to.to_string();
         defer inner.free();
         s.push(inner.view());
+        return s;
+    }
+
+    if t.kind == TypeKind.Function {
+        let s = str.from("(");
+
+        let param = t.data.function.params_head;
+        while param != null {
+            defer param = param.next;
+            if param != t.data.function.params_head {
+                s.push(str.view(", ", 2));
+            }
+
+            let param_s = param.value.to_string();
+            s.push(param_s.view());
+            param_s.free();
+        }
+        s.push(str.view(")", 1));
+
+        s.push(str.view(" -> ", 4));
+        let ret_s = t.data.function.ret.to_string();
+        s.push(ret_s.view());
+        ret_s.free();
+
         return s;
     }
 

@@ -1,29 +1,39 @@
 import "../std/dbg";
 
 type Size struct {
-    bit_size: i32
+    // the first bit marks an invalid size
+    // the second bit marks a platform dependent size
+    _bit_size: i32
 }
 
 def unsized(): Size {
-    return Size { bit_size: -1 };
+    return Size { _bit_size: -1 };
+}
+
+def size_bytes_platform_dependent(bytes: i32): Size {
+    return Size { _bit_size: (bytes * 8) | (1 << 30) };
 }
 
 def size_bytes(bytes: i32): Size {
-    return Size { bit_size: bytes * 8 };
+    return Size { _bit_size: bytes * 8 };
+}
+
+def (s: Size) is_platform_dependent(): bool {
+    return s._bit_size & (1 << 30) > 0;
 }
 
 def (s: Size) bits(): u32 {
-    dbg.assert(s.bit_size> 0, "trying to query size of unsized type");
-    return s.bit_size as u32;
+    dbg.assert(s._bit_size> 0, "trying to query size of unsized type");
+    return (s._bit_size as u32) & ~(1 << 30);
 }
 
 def (s: Size) bytes(): u32 {
-    dbg.assert(s.bit_size > 0, "trying to query size of unsized type");
-    return (s.bit_size / 8) as u32;
+    dbg.assert(s._bit_size > 0, "trying to query size of unsized type");
+    return (s.bits() / 8) as u32;
 }
 
 def (s: Size) equals(other: Size): bool {
-    return s.bit_size == other.bit_size;
+    return s._bit_size == other._bit_size;
 }
 
 type Visibility enum {

@@ -1,0 +1,8 @@
+def f(s: *i8, len: isize) {
+}
+
+def main() {
+    let s = null;
+    let len = 0;
+    f(s, len);
+}
