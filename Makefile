@@ -48,6 +48,7 @@ K_FILES = src/ast/expr.kan \
 		  src/types/function.kan \
 		  src/types/info.kan \
 		  src/types/primitive.kan \
+		  src/types/resolve/functions.kan \
 		  src/types/scope.kan \
 		  src/types/types.kan \
 		  src/types/util.kan \

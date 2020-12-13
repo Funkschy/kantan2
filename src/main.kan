@@ -72,6 +72,7 @@ def main(argc: i32, argv: *string): ReturnCode {
     {
         import "types/ctx";
         import "types/check/item" as i_check;
+        import "types/resolve/functions" as resolve_functions;
         import "types/info";
         import "types/primitive";
 
@@ -120,6 +121,13 @@ def main(argc: i32, argv: *string): ReturnCode {
         let had_errors = false;
         for let i: usize = 0; i < compiler.modmap.len(); i += 1 {
             let mod = compiler.modmap.at(i);
+
+            for let j: usize = 0; j < mod.num_items(); j += 1 {
+                let item = mod.item_at(j);
+                if resolve_functions.resolve(&ctx, item).is_error() {
+                    had_errors = true;
+                }
+            }
 
             for let j: usize = 0; j < mod.num_items(); j += 1 {
                 let item = mod.item_at(j);

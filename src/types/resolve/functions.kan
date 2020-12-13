@@ -1,0 +1,70 @@
+import ":std/dbg";
+import ":std/str";
+import ":util" as _;
+import ":ast/item" as _;
+
+import ":error" as e;
+
+import "../util";
+import "../ctx" as _;
+import "../types" as _;
+
+def resolve(ctx: *TyCtx, item: *Item): Result {
+    // TODO: make a dispatcher function similar to check in check/expr.kan and remove the if here
+    if item.kind == ItemKind.FuncDef {
+        let func_ty = ctx.alloc_ty().init_func();
+
+        let function = &func_ty.data.function;
+        let signature = &item.data.func_def.sig;
+
+        function.num_params = signature.params.len;
+
+        let last_param = &function.params_head;
+        for let i: usize = 0; i < signature.params.len; i += 1 {
+            let ast_param = signature.param_at(i);
+            let ty_param = ctx.alloc_node().init_ident(ast_param.name);
+
+            let param_ty = ctx.lookup_tyid(ast_param.ty);
+            if param_ty == null {
+                util.report_str(
+                    e.ErrorKind.UndeclaredType,
+                    ast_param.ty.span,
+                    ast_param.ty.span.as_view()
+                );
+                return Result.Error;
+            }
+
+            ty_param.value = param_ty;
+
+            *last_param = ty_param;
+            last_param = &(*last_param).next;
+        }
+
+        let ret_ty: *Type = null;
+        if signature.ret.ty != null {
+            ret_ty = ctx.lookup_tyid(signature.ret.ty);
+            if ret_ty == null {
+                util.report_str(
+                    e.ErrorKind.UndeclaredType,
+                    signature.ret.span,
+                    signature.ret.ty.span.as_view()
+                );
+                return Result.Error;
+            }
+        } else {
+            let void_ty = util.lookup_builtin(ctx, str.view("void", 4));
+            if void_ty.is_error() {
+                return Result.Error;
+            }
+            ret_ty = void_ty.ty;
+        }
+
+        function.ret = ret_ty;
+
+        ctx.bind_value_public(item.name.as_view(), func_ty, &item.span);
+        return Result.OK;
+    }
+
+    dbg.assert(false, "Unhandled ItemKind");
+    return Result.Error;
+}
