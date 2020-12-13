@@ -1,5 +1,6 @@
 import sys
 from os.path import splitext
+from pathlib import Path
 from typing import Optional, List, Union
 
 from runner.execute import CompilerExecutor
@@ -13,6 +14,10 @@ class TestError(object):
 
 def base_filename(file) -> str:
     return splitext(file)[0]
+
+
+def relative_to_base(file, relative) -> str:
+    return str(Path(base_filename(file)).parent.joinpath(Path(relative)).resolve())
 
 
 def kantan_filename(file) -> str:

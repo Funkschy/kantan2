@@ -7,6 +7,7 @@ from runner.testcase import SuccessTestCase, TestError, expected_but_got
 expected_modules = [{
     'kind': 'module',
     'path': str(Path(__file__).parent) + '/parse-simple-expr.kan',
+    'imports': [],
     'items': [
         {
             'kind': 'func_def',

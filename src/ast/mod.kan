@@ -1,31 +1,57 @@
-import "../std/str";
-import "../std/ptrvec";
+import ":std/dbg";
+import ":std/str";
+import ":std/vec";
+import ":std/ptrvec";
 
-import "../ast/item";
-import "../source/file" as sf;
+import ":ast/item";
+import ":source/ident";
+import ":source/file" as sf;
 
 type Module struct {
     // the stdlib may sometimes behave differently
     is_std_lib: bool,
     file: sf.SourceFile,
-    items: ptrvec.Vec // ptrvec.Vec[*item.Item]
+    items: ptrvec.Vec, // ptrvec.Vec[*item.Item]
+    imports: vec.Vec   // vec.Vec[ImportedModule]
 }
 
 def (memory: *Module) init(is_std_lib: bool) {
     memory.is_std_lib = false;
     memory.items = ptrvec.create();
+    memory.imports = vec.create(sizeof ImportedModule);
     // file is added later
 }
 
 def (m: *Module) free() {
     m.file.free();
     m.items.free();
+    m.imports.free();
 }
 
 def (m: *Module) to_json(): str.String {
     let json = str.from("{\"kind\": \"module\", \"path\": \"");
     json.push(m.file.absolute_path().as_view());
-    json.push(str.view_from("\", \"items\": ["));
+    json.push(str.view_from("\", \"imports\": ["));
+    for let i: usize = 0; i < m.imports.len; i += 1 {
+        if i > 0 {
+            json.push(str.view(", ", 2));
+        }
+
+        let imported = m.import_at(i);
+        json.push(str.view_from("{\"path\": \""));
+        json.push(imported.mod.file.absolute_path().as_view());
+        json.push(str.view_from("\", \"alias\": "));
+        if imported.alias.is_empty() {
+            json.push(str.view("null", 4));
+        } else {
+            json.push(str.view_from("\""));
+            json.push(imported.alias.as_view());
+            json.push(str.view_from("\""));
+        }
+        json.push(str.view("}", 1));
+    }
+
+    json.push(str.view_from("], \"items\": ["));
 
     for let i: usize = 0; i < m.items.len; i += 1 {
         if i > 0 {
@@ -48,4 +74,20 @@ def (m: *Module) num_items(): usize {
 
 def (m: *Module) item_at(idx: usize): *item.Item {
     return m.items.get(idx) as *item.Item;
+}
+
+def (m: *Module) import_at(idx: usize): ImportedModule {
+    let imported: ImportedModule = undefined;
+    dbg.assert(m.imports.get(idx, &imported as *void), "could not get import");
+    return imported;
+}
+
+def (m: *Module) add_import(mod: *Module, alias: ident.Ident) {
+    let imported = ImportedModule { mod: mod, alias: alias };
+    m.imports.push(&imported as *void);
+}
+
+type ImportedModule struct {
+    mod: *Module,
+    alias: ident.Ident
 }

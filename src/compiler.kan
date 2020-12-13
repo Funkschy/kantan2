@@ -173,6 +173,8 @@ def (c: *Compiler) resolve_imports() {
                 report.print_error(&error);
                 continue;
             }
+
+            mod.add_import(imported_module, decl.alias);
         }
 
         // since the parser is more or less stateless, it's sufficient to save the lexer

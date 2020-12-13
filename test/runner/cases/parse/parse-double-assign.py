@@ -6,6 +6,7 @@ from runner.testcase import SuccessTestCase, TestError, expected_but_got, kantan
 expected_modules = [{
     'kind': 'module',
     'path': kantan_filename(__file__),
+    'imports': [],
     'items': [
         {
             'kind': 'func_def',
