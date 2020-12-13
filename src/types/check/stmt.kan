@@ -38,6 +38,7 @@ def check(ctx: *TyCtx, stmt: *Stmt): Result {
         let block = &stmt.data.block;
         let len = block.len();
 
+        ctx.open_scope();
         let had_errors = false;
         for let i: usize = 0; i < len; i += 1 {
             let s = block.at(i);
@@ -45,6 +46,7 @@ def check(ctx: *TyCtx, stmt: *Stmt): Result {
                 had_errors = true;
             }
         }
+        ctx.close_scope();
 
         if had_errors {
             return Result.Error;
