@@ -83,7 +83,7 @@ def main(argc: i32, argv: *string): ReturnCode {
         defer ctx.close_scope();
 
         let void_ty = ty_arena.alloc() as *types.Type;
-        void_ty.init_int(primitive.Signedness.Signed, info.unsized());
+        void_ty.kind = types.TypeKind.Void;
         ctx.bind_type_public(str.view_from("void"), void_ty, null);
 
         let b_ty = ty_arena.alloc() as *types.Type;

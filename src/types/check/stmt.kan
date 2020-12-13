@@ -84,6 +84,38 @@ def check(ctx: *TyCtx, stmt: *Stmt): Result {
         return Result.OK;
     }
 
-    dbg.assert(false, "Unhandled StmtKind");
+    // TODO: write test cases for return statements
+    if stmt.kind == StmtKind.Return {
+        if ctx.current_function == null {
+            let msg = "a return statement outside a fuction should be a parse error";
+            util.report_internal_error(str.view_from(msg));
+            return Result.Error;
+        }
+
+        if stmt.data.ret == null {
+            if ctx.get_current_function().ret.kind != TypeKind.Void {
+                let expected = ctx.get_current_function().ret.to_string();
+                defer expected.free();
+                util.report_str2(
+                    e.ErrorKind.WrongType,
+                    stmt.span,
+                    expected.view(),
+                    str.view("no return value", 15)
+                );
+                return Result.Error;
+            } else {
+                return Result.OK;
+            }
+        }
+
+        let value = tychk.check(ctx, stmt.data.ret, ctx.get_current_function().ret);
+        if value.is_error() {
+            return Result.Error;
+        }
+
+        return Result.OK;
+    }
+
+    util.report_internal_error(str.view_from("unhandled stmt kind"));
     return Result.Error;
 }

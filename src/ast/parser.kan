@@ -351,12 +351,28 @@ def (p: *Parser) parse_stmt(memory: *Stmt): Result {
         if p.parse_let_binding(memory).is_error() {
             return Result.Error;
         }
+    } else if p.check(tok.TokenType.Return){
+        let ret_token: tok.Token = undefined;
+        if p.consume_tok(tok.TokenType.Return, &ret_token).is_error() {
+            return Result.Error;
+        }
+
+        memory.init_return();
+        if !p.check(tok.TokenType.Semi) {
+            memory.data.ret = p.alloc_expr();
+            if p.expression(memory.data.ret).is_error() {
+                return Result.Error;
+            }
+            memory.span = ret_token.span.merge(memory.data.ret.span);
+        } else {
+            memory.span = ret_token.span;
+        }
     } else {
         memory.init_expr();
         if p.expression(&memory.data.expr).is_error() {
             return Result.Error;
         }
-        // Parser.expression cannot initialize the span, since it only get the expr memory
+        // Parser.expression cannot initialize the stmt span, since it only gets the expr memory
         memory.span = memory.data.expr.span;
     }
 

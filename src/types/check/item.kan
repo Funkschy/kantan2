@@ -20,6 +20,7 @@ def check(ctx: *TyCtx, item: *Item): Result {
         }
 
         ctx.open_scope();
+        ctx.current_function = func_ty;
         let result = tychk.check(ctx, &item.data.func_def.block_stmt);
         ctx.close_scope();
 

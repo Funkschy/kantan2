@@ -11,7 +11,8 @@ import "expr" as expr;
 type StmtKind enum {
     Expr,
     Block,
-    LocalVarDecl
+    LocalVarDecl,
+    Return
 }
 
 type Stmt struct {
@@ -23,7 +24,8 @@ type Stmt struct {
 type StmtData union {
     expr: expr.Expr,
     block: Block,
-    local: LocalVarDecl
+    local: LocalVarDecl,
+    ret: *expr.Expr
 }
 
 def (s: *Stmt) init_expr() {
@@ -39,6 +41,11 @@ def (s: *Stmt) init_var_decl() {
     s.kind = StmtKind.LocalVarDecl;
     s.data.local.ty = null;
     s.data.local.value = null;
+}
+
+def (s: *Stmt) init_return() {
+    s.kind = StmtKind.Return;
+    s.data.ret = null;
 }
 
 def (s: *Stmt) free() {
@@ -137,6 +144,19 @@ def (s: *Stmt) to_json(): str.String {
         let value = local.value.to_json();
         defer value.free();
         json.push(value.view());
+        json.push(str.view_from("}"));
+        return json;
+    }
+
+    if s.kind == StmtKind.Return {
+        let json = str.from("{\"kind\": \"return\", \"value\": ");
+        if s.data.ret != null {
+            let value = s.data.ret.to_json();
+            json.push(value.view());
+            value.free();
+        } else {
+            json.push(str.view("null", 4));
+        }
         json.push(str.view_from("}"));
         return json;
     }

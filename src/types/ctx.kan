@@ -14,6 +14,8 @@ import "scope";
 
 import "info" as _;
 import "types" as _;
+
+import "function";
 import "primitive";
 
 // the context used while type checking
@@ -24,7 +26,10 @@ type TyCtx struct {
     // this holds the types of lvalues, for later lookup by name
     values: scope.ScopeStack,
     // this holds declared types, e.g. structs
-    types: scope.ScopeStack
+    types: scope.ScopeStack,
+
+    // the current function or null, if in global scope
+    current_function: *Type
 }
 
 def create(ty_arena: *arena.TypedArena, node_arena: *arena.TypedArena): TyCtx {
@@ -35,7 +40,8 @@ def create(ty_arena: *arena.TypedArena, node_arena: *arena.TypedArena): TyCtx {
         ty_arena: ty_arena,
         node_arena: node_arena,
         values: scope.scope_stack(),
-        types: scope.scope_stack()
+        types: scope.scope_stack(),
+        current_function: null
     };
 }
 
@@ -86,6 +92,8 @@ def (ctx: *TyCtx) perform_item_close(bound: *scope.BoundItem): Result {
         util.report_simple(e.ErrorKind.CouldNotInfer, *bound.declared_at);
         return Result.Error;
     }
+
+    // TODO: handle void here, since it needs to be illegal
 
     return Result.OK;
 }
@@ -151,6 +159,13 @@ def (ctx: *TyCtx) any_var_float(): *Type {
     var.kind = TypeKind.Variable;
     var.data.inner = anyFloatTy;
     return var;
+}
+
+def (ctx: *TyCtx) get_current_function(): *function.Function {
+    if ctx.current_function == null {
+        return null;
+    }
+    return &ctx.current_function.data.function;
 }
 
 def lookup_in(name: str.View, stack: *scope.ScopeStack): *Type {

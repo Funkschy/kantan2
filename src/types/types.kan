@@ -14,7 +14,7 @@ type TypeKind enum {
     // constraint types, only used to infer types during typechecking and illegal afterwards
     Any, AnyInt, AnyFloat,
     // builtin primitives
-    Int, Float, Ptr, Bool,
+    Int, Float, Ptr, Bool, Void,
     // a type parameter. E.g 'T' in type Vec[T] struct {...}
     Param,
     // Functions are anonymous, while Signatures also have a name
@@ -180,6 +180,10 @@ def (t: *Type) to_string(): str.String {
 
     if t.kind == TypeKind.Bool {
         return str.from("bool");
+    }
+
+    if t.kind == TypeKind.Void {
+        return str.from("void");
     }
 
     if t.kind == TypeKind.AnyInt {

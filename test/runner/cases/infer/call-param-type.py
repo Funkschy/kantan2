@@ -49,7 +49,7 @@ expected_modules = [{
                             "callee": {
                                 "kind": "identifier",
                                 "value": "f",
-                                "ty": "(*i8, isize) -> isize"
+                                "ty": "(*i8, isize) -> void"
                             },
                             "args": [
                                 {
