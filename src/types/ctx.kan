@@ -103,7 +103,6 @@ def (ctx: *TyCtx) close_scope(): Result {
 
     // this 'collapses' undecided types
     // If we encounter anyInt types, they will be converted to i32
-    // TODO(#25): 'any' types should be reported as errors
     let current = ctx.values.top();
     for let i: usize = 0; i < current.bindings.len(); i += 1 {
         let bound = current.bindings.get_ptr_idx(i) as *scope.BoundItem;
