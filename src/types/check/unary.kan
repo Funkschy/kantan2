@@ -10,7 +10,6 @@ import "../util" as _;
 import "expr" as super;
 
 def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
-    // TODO(#13): this needs more tests
     if expr.data.unary.kind == UnaryKind.BoolNegate {
         let bool_ty = lookup_builtin(ctx, str.view("bool", 4));
         if bool_ty.is_error() {
