@@ -36,7 +36,7 @@ def resolve(ctx: *TyCtx, item: *Item): Result {
             }
 
             if param_ty.is_unsized() {
-                // TODO: implement proper errors for unsized types
+                // TODO(#29): implement proper errors for unsized types
                 util.report_internal_error_span(str.view_from("unsized param"), param_span);
             }
 

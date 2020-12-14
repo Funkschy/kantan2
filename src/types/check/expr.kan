@@ -94,7 +94,7 @@ def check(ctx: *ctx.TyCtx, expr: *Expr, expected: *Type): TyResult {
 }
 
 def try_unify(ctx: *ctx.TyCtx, expr: *Expr, inferred: *Type, expected: *Type): TyResult {
-    // TODO: implement proper errors for unsized types
+    // TODO(#27): implement proper errors for unsized types
     if inferred.is_unsized() {
         report_internal_error_span(str.view_from("unsized inferred"), expr.span);
         return error();

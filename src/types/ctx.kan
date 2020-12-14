@@ -109,7 +109,7 @@ def (ctx: *TyCtx) close_scope(): Result {
         // e.g. a call to some f(): void. And arguments will have been checked against the function
         // type already
         // TODO(#24): handle void here, since it needs to be illegal
-        // TODO: implement proper errors for unsized types
+        // TODO(#28): implement proper errors for unsized types
         if bound.ty.is_unsized() {
             util.report_internal_error_span(str.view_from("unsized bound"), *bound.declared_at);
             result = Result.Error;
