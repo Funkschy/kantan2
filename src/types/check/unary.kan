@@ -9,6 +9,7 @@ import "../util" as _;
 // this kinda works like a super class, so i think this name is intuitive
 import "expr" as super;
 
+// TODO(#13): this needs more tests
 def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
     if expr.data.unary.kind == UnaryKind.BoolNegate {
         let bool_ty = lookup_builtin(ctx, str.view("bool", 4));
