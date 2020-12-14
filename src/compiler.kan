@@ -162,7 +162,7 @@ def (c: *Compiler) resolve_imports() {
             // so we can mark it as imported
             // all modules, that were never imported (apart from the main module) are removed before
             // type checking
-            // TODO: actually remove unused imports
+            // TODO(#5): actually remove unused imports
             c.modmap.mark_imported(full_imported_path);
 
             // check for self import

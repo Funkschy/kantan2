@@ -52,7 +52,7 @@ def (t: *Type) init_float(width: info.Size) {
 def (t: *Type) init_ptr(inner: *Type) {
     t.kind = TypeKind.Ptr;
     t.data.ptr_to = inner;
-    // TODO: make this platform dependent
+    // TODO(#18): make this platform dependent
     t.width = t.align = info.size_bytes(8);
 }
 
@@ -198,7 +198,7 @@ def (t: *Type) to_string(): str.String {
         return str.from("$T");
     }
 
-    // TODO: we probably want a special case here for usize/isize
+    // TODO(#22): we probably want a special case here for usize/isize
     if t.kind == TypeKind.Int {
         let s = str.from("");
 

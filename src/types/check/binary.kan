@@ -9,7 +9,7 @@ import "../util" as _;
 // this kinda works like a super class, so i think this name is intuitive
 import "expr" as super;
 
-// TODO: this needs a lot of tests
+// TODO(#7): this needs a lot of tests
 def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
     let left = super.infer(ctx, expr.data.binary.left);
     if left.is_error() {

@@ -635,7 +635,7 @@ def (p: *Parser) parse_prefix(memory: *Expr): Result {
 
     let unary_kind: UnaryKind = undefined;
     if is_unary_token(token.ty, &unary_kind) {
-        // TODO: for UnaryKind.AddrOf, check if right is an lvalue
+        // TODO(#6): for UnaryKind.AddrOf, check if right is an lvalue
         let right = p.alloc_expr();
         if p.parse_precedence(right, tok.Precedence.Unary).is_error() {
             return Result.Error;
@@ -669,8 +669,8 @@ def (p: *Parser) parse_infix(memory: *Expr, left: *Expr): Result {
         return Result.OK;
     }
 
-    // TODO: assignment parsing needs tests
-    // TODO: check if left is an lvalue
+    // TODO(#14): assignment parsing needs tests
+    // TODO(#20): check if left is an lvalue
     // assignments
     if token.ty.is_between(tok.TokenType.Eq, tok.TokenType.CaretEq) {
         let right = p.alloc_expr();

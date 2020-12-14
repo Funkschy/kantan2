@@ -20,7 +20,7 @@ def check(ctx: *TyCtx, stmt: *Stmt): Result {
             return Result.Error;
         }
 
-        // TODO: we need to report stupid rvalues that cannot be inferred.
+        // TODO(#11): we need to report stupid rvalues that cannot be inferred.
         //  maybe bind a fake temporary variable like this?
         //  maybe disallow ignoring expression values entirely?
         //  but tbf if you disallow implicit value discarding like this:
@@ -59,7 +59,7 @@ def check(ctx: *TyCtx, stmt: *Stmt): Result {
         let decl = &stmt.data.local;
 
         let inferred = tychk.infer(ctx, decl.value);
-        // TODO: bind special error type to avoid repeating error messages
+        // TODO(#19): bind special error type to avoid repeating error messages
         if inferred.is_error() {
             return Result.Error;
         }
@@ -84,7 +84,7 @@ def check(ctx: *TyCtx, stmt: *Stmt): Result {
         return Result.OK;
     }
 
-    // TODO: write test cases for return statements
+    // TODO(#23): write test cases for return statements
     if stmt.kind == StmtKind.Return {
         if ctx.current_function == null {
             let msg = "a return statement outside a fuction should be a parse error";

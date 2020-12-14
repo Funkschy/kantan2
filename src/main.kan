@@ -60,7 +60,7 @@ def main(argc: i32, argv: *string): ReturnCode {
         return ReturnCode.OK;
     }
 
-    // TODO: this is debug code
+    // TODO(#4): this is debug code
     import "types/types";
     import "memory/arena";
 
@@ -150,7 +150,7 @@ def main(argc: i32, argv: *string): ReturnCode {
 }
 
 def dump_ast(compiler: *Compiler) {
-    // TODO: integrate this into the program in more appropriate manner
+    // TODO(#12): integrate this into the program in more appropriate manner
     import "io";
     io.printf("\"modules\": [");
     defer io.printf("],\n");

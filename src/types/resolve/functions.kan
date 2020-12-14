@@ -10,7 +10,7 @@ import "../ctx" as _;
 import "../types" as _;
 
 def resolve(ctx: *TyCtx, item: *Item): Result {
-    // TODO: make a dispatcher function similar to check in check/expr.kan and remove the if here
+    // TODO(#17): make a dispatcher function similar to check in check/expr.kan and remove the if here
     if item.kind == ItemKind.FuncDef {
         let func_ty = ctx.alloc_ty().init_func();
 

@@ -61,8 +61,8 @@ def (ctx: *TyCtx) perform_item_close(bound: *scope.BoundItem): Result {
     // deref the type to the most basic level
     while true {
         if ty.kind == TypeKind.Variable {
-            // TODO: this could maybe cause issues with types that own memory
-            // TODO: is there any way to produce cycles here?
+            // TODO(#15): this could maybe cause issues with types that own memory
+            // TODO(#21): is there any way to produce cycles here?
             *ty = *ty.data.inner;
         } else if ty.kind == TypeKind.Ptr {
             ty = ty.data.ptr_to;
@@ -93,7 +93,7 @@ def (ctx: *TyCtx) perform_item_close(bound: *scope.BoundItem): Result {
         return Result.Error;
     }
 
-    // TODO: handle void here, since it needs to be illegal
+    // TODO(#24): handle void here, since it needs to be illegal
 
     return Result.OK;
 }
@@ -103,7 +103,7 @@ def (ctx: *TyCtx) close_scope(): Result {
 
     // this 'collapses' undecided types
     // If we encounter anyInt types, they will be converted to i32
-    // TODO: 'any' types should be reported as errors
+    // TODO(#25): 'any' types should be reported as errors
     let current = ctx.values.top();
     for let i: usize = 0; i < current.bindings.len(); i += 1 {
         let bound = current.bindings.get_ptr_idx(i) as *scope.BoundItem;
@@ -199,7 +199,7 @@ def (ctx: *TyCtx) lookup_tyid(ty: *tyid.Type): *Type {
     }
 
     let p = &ty.data.path;
-    dbg.assert(p.segments.len == 1, "TODO: handle arbitrary tyid segments");
+    dbg.assert(p.segments.len == 1, "TODO(#26): handle arbitrary tyid segments");
 
     return ctx.lookup_type(p.segment_at(0).as_view());
 }

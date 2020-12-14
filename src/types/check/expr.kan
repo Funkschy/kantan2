@@ -38,7 +38,7 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
         return literal.infer(ctx, expr);
     }
 
-    // TODO: find some way to propagate context upwards. e.g. a span inside TyResult
+    // TODO(#9): find some way to propagate context upwards. e.g. a span inside TyResult
     if expr.kind == ExprKind.Ident {
         let name = expr.data.ident.name.as_view();
         let ty = ctx.lookup_value(name);

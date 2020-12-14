@@ -173,7 +173,7 @@ type CallExpr struct {
 // ------------ to string/json stuff ------------
 
 let _binary_kind_strings: [5]str.View = undefined;
-// TODO: change this to 'false' when global variables work correctly
+// TODO(#1): change this to 'false' when global variables work correctly
 let  _binary_kind_strings_initialized: bool = undefined;
 
 def (k: BinaryKind) as_view(): str.View {
@@ -190,7 +190,7 @@ def (k: BinaryKind) as_view(): str.View {
 }
 
 let _unary_kind_strings: [4]str.View = undefined;
-// TODO: change this to 'false' when global variables work correctly
+// TODO(#2): change this to 'false' when global variables work correctly
 let  _unary_kind_strings_initialized: bool = undefined;
 
 def (k: UnaryKind) as_view(): str.View {
@@ -205,7 +205,7 @@ def (k: UnaryKind) as_view(): str.View {
 }
 
 let _assign_kind_strings: [9]str.View = undefined;
-// TODO: change this to 'false' when global variables work correctly
+// TODO(#10): change this to 'false' when global variables work correctly
 let  _assign_kind_strings_initialized: bool = undefined;
 
 def (k: AssignKind) as_view(): str.View {
