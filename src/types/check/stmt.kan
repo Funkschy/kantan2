@@ -20,12 +20,6 @@ def check(ctx: *TyCtx, stmt: *Stmt): Result {
             return Result.Error;
         }
 
-        // TODO(#11): we need to report stupid rvalues that cannot be inferred.
-        //  maybe bind a fake temporary variable like this?
-        //  maybe disallow ignoring expression values entirely?
-        //  but tbf if you disallow implicit value discarding like this:
-        //     _ = f();
-        //  it doesn't really change anything, since we still need to track temporary variables
         if stmt.data.expr.kind != expr.ExprKind.Assign && stmt.data.expr.kind != expr.ExprKind.Ident {
             // convert this into an implicit assignment (at least in the eyes of the TyCtx)
             ctx.bind_temp(result.ty, &stmt.data.expr.span);
