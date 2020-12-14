@@ -61,7 +61,6 @@ def (ctx: *TyCtx) perform_item_close(bound: *scope.BoundItem): Result {
     // deref the type to the most basic level
     while true {
         if ty.kind == TypeKind.Variable {
-            // TODO(#15): this could maybe cause issues with types that own memory
             // TODO(#21): is there any way to produce cycles here?
             *ty = *ty.data.inner;
         } else if ty.kind == TypeKind.Ptr {
