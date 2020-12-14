@@ -70,6 +70,11 @@ def (t: *Type) is_number(): bool {
         || t.kind == TypeKind.Variable && t.data.inner.is_number();
 }
 
+def (t: *Type) is_unsized(): bool {
+    return t.kind == TypeKind.Void
+        || t.kind == TypeKind.Variable && t.data.inner.is_unsized();
+}
+
 def (t: *Type) is_any(): bool {
     return t.kind == TypeKind.Any
         || t.kind == TypeKind.Variable && t.data.inner.is_any();

@@ -24,14 +24,20 @@ def resolve(ctx: *TyCtx, item: *Item): Result {
             let ast_param = signature.param_at(i);
             let ty_param = ctx.alloc_node().init_ident(ast_param.name);
 
+            let param_span = ast_param.ty.span;
             let param_ty = ctx.lookup_tyid(ast_param.ty);
             if param_ty == null {
                 util.report_str(
                     e.ErrorKind.UndeclaredType,
-                    ast_param.ty.span,
-                    ast_param.ty.span.as_view()
+                    param_span,
+                    param_span.as_view()
                 );
                 return Result.Error;
+            }
+
+            if param_ty.is_unsized() {
+                // TODO: implement proper errors for unsized types
+                util.report_internal_error_span(str.view_from("unsized param"), param_span);
             }
 
             ty_param.value = param_ty;

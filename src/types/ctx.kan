@@ -92,8 +92,6 @@ def (ctx: *TyCtx) perform_item_close(bound: *scope.BoundItem): Result {
         return Result.Error;
     }
 
-    // TODO(#24): handle void here, since it needs to be illegal
-
     return Result.OK;
 }
 
@@ -106,6 +104,16 @@ def (ctx: *TyCtx) close_scope(): Result {
     for let i: usize = 0; i < current.bindings.len(); i += 1 {
         let bound = current.bindings.get_ptr_idx(i) as *scope.BoundItem;
         result = result.or(ctx.perform_item_close(bound));
+
+        // this check is only needed for real identifiers. Expression statements may be unsized
+        // e.g. a call to some f(): void. And arguments will have been checked against the function
+        // type already
+        // TODO(#24): handle void here, since it needs to be illegal
+        // TODO: implement proper errors for unsized types
+        if bound.ty.is_unsized() {
+            util.report_internal_error_span(str.view_from("unsized bound"), *bound.declared_at);
+            result = Result.Error;
+        }
     }
 
     for let i: usize = 0; i < current.temp_vars.len; i += 1 {
