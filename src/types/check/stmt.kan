@@ -78,7 +78,6 @@ def check(ctx: *TyCtx, stmt: *Stmt): Result {
         return Result.OK;
     }
 
-    // TODO(#23): write test cases for return statements
     if stmt.kind == StmtKind.Return {
         if ctx.current_function == null {
             let msg = "a return statement outside a fuction should be a parse error";
@@ -100,6 +99,16 @@ def check(ctx: *TyCtx, stmt: *Stmt): Result {
             } else {
                 return Result.OK;
             }
+        }
+
+        if ctx.get_current_function().ret.kind == TypeKind.Void {
+            util.report_str2(
+                e.ErrorKind.WrongType,
+                stmt.data.ret.span,
+                str.view("no return value", 15),
+                stmt.data.ret.span.as_view()
+            );
+            return Result.Error;
         }
 
         let value = tychk.check(ctx, stmt.data.ret, ctx.get_current_function().ret);
