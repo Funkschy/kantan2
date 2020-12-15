@@ -1,0 +1,6 @@
+def main() {
+    let t = undefined;
+    let p = &t;
+
+    t = 1;
+}
