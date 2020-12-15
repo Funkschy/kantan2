@@ -43,6 +43,11 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
         let name = expr.data.ident.name.as_view();
         let ty = ctx.lookup_value(name);
         if ty != null {
+            if ty.kind == TypeKind.Error {
+                // swallow the error without reporting
+                return error();
+            }
+
             expr.data.ident.ty = ty;
             return ok(ty);
         }

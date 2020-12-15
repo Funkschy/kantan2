@@ -190,7 +190,7 @@ def init() {
     error_strings[ErrorKind.ExpectedOperator as i32]  = "Expected an operator";
     error_strings[ErrorKind.CouldNotParseStmt as i32]  = "Could not parse statement";
     // type errors
-    error_strings[ErrorKind.UndeclaredIdentifier as i32]  = "No identifer '%.*s' in scope";
+    error_strings[ErrorKind.UndeclaredIdentifier as i32]  = "No identifier '%.*s' in scope";
     error_strings[ErrorKind.CouldNotInfer as i32]  = "Could not infer type";
     error_strings[ErrorKind.WrongType as i32]  = "Expected '%.*s', but got '%.*s'";
     error_strings[ErrorKind.DerefNonPtr as i32]  = "Trying to deref '%.*s', which is not a pointer";

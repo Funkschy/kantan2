@@ -113,11 +113,19 @@ def (ctx: *TyCtx) close_scope(): Result {
             util.report_internal_error_span(str.view_from("unsized bound"), *bound.declared_at);
             result = Result.Error;
         }
+
+        if bound.ty.kind == TypeKind.Error {
+            result = Result.Error;
+        }
     }
 
     for let i: usize = 0; i < current.temp_vars.len; i += 1 {
         let bound = current.temp_vars.get_ptr(i) as *scope.BoundItem;
         result = result.or(ctx.perform_item_close(bound));
+
+        if bound.ty.kind == TypeKind.Error {
+            result = Result.Error;
+        }
     }
 
     ctx.values.close();
@@ -164,6 +172,12 @@ def (ctx: *TyCtx) any_var_float(): *Type {
     var.kind = TypeKind.Variable;
     var.data.inner = anyFloatTy;
     return var;
+}
+
+def (ctx: *TyCtx) error_type(): *Type {
+    let error = ctx.alloc_ty();
+    error.kind = TypeKind.Error;
+    return error;
 }
 
 def (ctx: *TyCtx) get_current_function(): *function.Function {

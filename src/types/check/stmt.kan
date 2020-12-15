@@ -1,11 +1,11 @@
-import "../../std/dbg";
-import "../../std/str";
-import "../../cli/report";
-import "../../error" as e;
+import ":std/dbg";
+import ":std/str";
+import ":cli/report";
+import ":error" as e;
 
-import "../../ast/expr";
-import "../../util" as _;
-import "../../ast/stmt" as _;
+import ":ast/expr";
+import ":util" as _;
+import ":ast/stmt" as _;
 
 import "../util";
 import "../ctx" as _;
@@ -55,6 +55,7 @@ def check(ctx: *TyCtx, stmt: *Stmt): Result {
         let inferred = tychk.infer(ctx, decl.value);
         // TODO(#19): bind special error type to avoid repeating error messages
         if inferred.is_error() {
+            ctx.bind_value_public(decl.name.as_view(), ctx.error_type(), &decl.name.span);
             return Result.Error;
         }
 

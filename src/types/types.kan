@@ -7,6 +7,9 @@ import "function";
 import "primitive";
 
 type TypeKind enum {
+    // the error type is bound to variables, whose initializers could not be inferred
+    // this is used to swallow follow up errors (for undefined variables)
+    Error,
     // only used to infer types during typechecking and illegal afterwards
     // this is basically just a wrapper around another type. When checking agains a variable type,
     // the type that this points to may be changed (just the pointer, not the real type)
