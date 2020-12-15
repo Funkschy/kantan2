@@ -9,7 +9,6 @@ import "../util" as _;
 // this kinda works like a super class, so i think this name is intuitive
 import "expr" as super;
 
-// TODO(#8): write some tests already
 def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
     let call = &expr.data.call;
 

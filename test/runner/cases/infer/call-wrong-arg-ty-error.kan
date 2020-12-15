@@ -1,0 +1,7 @@
+def f(i: i32) {
+}
+
+def main() {
+    let i: i32 = 0;
+    f(&i);
+}
