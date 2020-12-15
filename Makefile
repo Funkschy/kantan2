@@ -1,4 +1,5 @@
-SHELL := /bin/bash
+# needed for pushd
+SHELL := /usr/bin/env bash
 
 BIN_NAME = kantan
 K_FILES = src/ast/expr.kan \
