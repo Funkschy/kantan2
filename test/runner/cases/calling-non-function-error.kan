@@ -1,0 +1,4 @@
+def main() {
+    let test: u32 = 1;
+    test();
+}

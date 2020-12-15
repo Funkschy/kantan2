@@ -3,7 +3,7 @@ import "cdeps";
 
 import "source/span";
 
-let error_strings: [15]string = undefined;
+let error_strings: [16]string = undefined;
 
 type ErrorKind enum {
     // import errors
@@ -23,7 +23,8 @@ type ErrorKind enum {
     NegateNonNumber,
     UndeclaredType,
     InvalidBinaryOperator,
-    WrongNumberOfArgs
+    WrongNumberOfArgs,
+    CallingNonFunction
 }
 
 type ErrorDataKind enum {
@@ -197,6 +198,7 @@ def init() {
     error_strings[ErrorKind.UndeclaredType as i32]  = "No type '%.*s' in scope";
     error_strings[ErrorKind.InvalidBinaryOperator as i32]  = "Invalid operator '%.*s' for types '%.*s' and '%.*s'";
     error_strings[ErrorKind.WrongNumberOfArgs as i32]  = "Expected %lld arguments, but got %lld";
+    error_strings[ErrorKind.CallingNonFunction as i32]  = "The type '%.*s' is not callable";
 }
 
 // A Linked List of additional information regarding an error, e.g. the location of usage

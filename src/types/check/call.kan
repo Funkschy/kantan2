@@ -21,8 +21,9 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
     let func_ty = callee.ty.get_function();
     if func_ty == null {
         // TODO(#16): 'trying to call non function' needs a real error
-        let msg = str.view_from("'trying to call non function' needs a real error");
-        report_internal_error(msg);
+        let ty_s = callee.ty.to_string();
+        defer ty_s.free();
+        report_str(e.ErrorKind.CallingNonFunction, call.callee.span, ty_s.view());
         return error();
     }
 
