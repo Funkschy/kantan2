@@ -1,10 +1,14 @@
-import "../std/str";
-import "../source/ident";
+import ":std/str";
+import ":std/map";
+import ":std/alloc";
+import ":source/ident";
 
 import "info";
 import "data";
 import "function";
+import "template";
 import "primitive";
+import "instances" as _;
 
 type TypeKind enum {
     // the error type is bound to variables, whose initializers could not be inferred
@@ -18,8 +22,7 @@ type TypeKind enum {
     Any, AnyInt, AnyFloat,
     // builtin primitives
     Int, Float, Ptr, Bool, Void,
-    // a type parameter. E.g 'T' in type Vec[T] struct {...}
-    Param,
+    Template, TemplateParam,
     // Functions are anonymous, while Signatures also have a name
     Function, Signature,
     // Structs and Unions
@@ -38,6 +41,8 @@ type TypeData union {
     int: primitive.Integer,
     float: primitive.Float,
     ptr_to: *Type, // the inner type
+    template: template.Template,
+    template_param: template.Param,
     function: function.Function
 }
 
@@ -88,47 +93,30 @@ def (t: *Type) is_pointer(): bool {
         || t.kind == TypeKind.Variable && t.data.inner.is_pointer();
 }
 
-// this will get the actual function type for a callable type or null, if the types was not callable
-def (t: *Type) get_function(): *Type {
-    if t.kind == TypeKind.Function {
-        return t;
-    }
-
-    if t.kind == TypeKind.Variable {
-        return t.data.inner.get_function();
-    }
-
-    return null;
-}
-
-def (t: *Type) is_concrete_version_of(other: *Type): bool {
-    while t.is_variable() {
-        t = t.data.inner;
-    }
-    while other.is_variable() {
-        other = other.data.inner;
-    }
-
-    return other.kind == TypeKind.Any
-        || t.kind == TypeKind.Int && other.kind == TypeKind.AnyInt
-        || t.kind == TypeKind.Float && other.kind == TypeKind.AnyFloat;
-}
-
-def (t: *Type) is_less_concrete_version_of(other: *Type): bool {
-    while t.is_variable() {
-        t = t.data.inner;
-    }
-    while other.is_variable() {
-        other = other.data.inner;
-    }
-
-    return t.kind == TypeKind.Any
-        || t.kind == TypeKind.AnyInt && other.kind == TypeKind.Int
-        || t.kind == TypeKind.AnyFloat && other.kind == TypeKind.Float;
-}
-
 def (t: *Type) is_variable(): bool {
     return t.kind == TypeKind.Variable;
+}
+
+def (t: *Type) is_template(): bool {
+    return t.kind == TypeKind.Template
+        || t.kind == TypeKind.Variable && t.data.inner.is_template();
+}
+
+// this assumes that t is in fact a Variable. Otherwise this is undefined behaviour
+def (t: *Type) var_innermost(): **Type {
+    let inner = &t.data.inner;
+    while (*inner).kind == TypeKind.Variable {
+        inner = &(*inner).data.inner;
+    }
+    return inner;
+}
+
+// this does not assume anything
+def (t: *Type) checked_var_innermost(): *Type {
+    if t.kind == TypeKind.Variable {
+        return *t.var_innermost();
+    }
+    return t;
 }
 
 def (t: *Type) equals(other: *Type): bool {
@@ -259,9 +247,13 @@ def (t: *Type) to_string(): str.String {
         s.push(str.view(")", 1));
 
         s.push(str.view(" -> ", 4));
-        let ret_s = t.data.function.ret.to_string();
-        s.push(ret_s.view());
-        ret_s.free();
+        if t.data.function.ret != null {
+            let ret_s = t.data.function.ret.to_string();
+            s.push(ret_s.view());
+            ret_s.free();
+        } else {
+            s.push(str.view("void", 4));
+        }
 
         return s;
     }
@@ -294,18 +286,18 @@ type TypeNode struct {
     next: *TypeNode // may be null
 }
 
-def (n: *TypeNode) init_ident(ident: ident.Ident): *TypeNode {
+def (n: *TypeNode) init_ident(ident: ident.Ident, value: *Type): *TypeNode {
     n.name = Name {
         kind: NameKind.Ident,
         data: NameData { ident: ident }
     };
 
-    n.value = null;
+    n.value = value;
     n.next = null;
     return n;
 }
 
-def (t: *Type) init_func(): *Type {
+def (t: *Type) init_func(instances: *InstanceSet): *Type {
     t.kind = TypeKind.Function;
     t.width = t.align = info.unsized();
     t.data.function.num_params = 0;
@@ -313,14 +305,28 @@ def (t: *Type) init_func(): *Type {
     t.data.function.c_variadic = false;
     t.data.function.params_head = null;
     t.data.function.ret = null;
+    t.data.function.instances = instances;
     return t;
 }
 
-// this is the declared type parameter
-// e.g. for
-//   type Struct[T] struct {}
-// T would be this parameter with the index 0 and name 'T'
-type TypeParam struct {
-    index: u32,
-    name: ident.Ident
+def (t: *Type) init_template(
+    inner: *Type,
+    num_params: usize,
+    generics_head: *TypeNode,
+    instances: *InstanceSet
+): *Type {
+    t.kind = TypeKind.Template;
+    t.width = t.align = info.unsized();
+    t.data.template.num_params = num_params;
+    t.data.template.inner = inner;
+    t.data.template.generics_head = generics_head;
+    t.data.template.instances = instances;
+    return t;
+}
+
+def (t: *Type) init_template_param(name: ident.Ident): *Type {
+    t.kind = TypeKind.TemplateParam;
+    t.width = t.align = info.unsized();
+    t.data.template_param.name = name;
+    return t;
 }

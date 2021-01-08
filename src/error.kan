@@ -3,7 +3,7 @@ import "cdeps";
 
 import "source/span";
 
-let error_strings: [16]string = undefined;
+let error_strings: [17]string = undefined;
 
 type ErrorKind enum {
     // import errors
@@ -14,6 +14,7 @@ type ErrorKind enum {
     CouldNotScanToken,
     ExpectedExpression,
     ExpectedOperator,
+    EmptyGenericsList,
     CouldNotParseStmt, // this is the most generic error msg by design
     // type errors
     UndeclaredIdentifier,
@@ -188,6 +189,7 @@ def init() {
     error_strings[ErrorKind.CouldNotScanToken as i32]   = "Could not scan token";
     error_strings[ErrorKind.ExpectedExpression as i32]  = "Expected expression";
     error_strings[ErrorKind.ExpectedOperator as i32]  = "Expected an operator";
+    error_strings[ErrorKind.EmptyGenericsList as i32]  = "An empty list of generics is invalid";
     error_strings[ErrorKind.CouldNotParseStmt as i32]  = "Could not parse statement";
     // type errors
     error_strings[ErrorKind.UndeclaredIdentifier as i32]  = "No identifier '%.*s' in scope";

@@ -17,7 +17,7 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
         return callee;
     }
 
-    let func_ty = callee.ty.get_function();
+    let func_ty = ctx.get_function(callee.ty);
     if func_ty == null {
         let ty_s = callee.ty.to_string();
         defer ty_s.free();
@@ -39,10 +39,21 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
     let param = function.params_head;
     let arg = call.args_head;
     while param != null {
-        super.check(ctx, &arg.value, param.value);
+        if super.check(ctx, &arg.value, param.value).is_error() {
+            return error();
+        }
 
         param = param.next;
         arg = arg.next;
+    }
+
+    // this is a very important special case
+    // the lookup for identifiers includes a special case for templates. In the case of a template,
+    // we wrap the actual template type in another type variable, just so we are able to do this.
+    // Here we change the inferred callee type from the template type to the actual function type
+    if callee.ty.kind == TypeKind.Variable && callee.ty.data.inner.kind == TypeKind.Template {
+        callee.ty.data.inner = func_ty;
+        ctx.bind_temp(callee.ty, &call.callee.span);
     }
 
     return ok(function.ret);

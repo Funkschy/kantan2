@@ -1,7 +1,11 @@
-import "../std/str";
+import ":std/str";
+import ":std/ptrvec";
 
-import "../source/span";
-import "../source/ident";
+import ":source/span";
+import ":source/ident";
+
+import ":types/types" as ty;
+import ":types/instances" as _;
 
 import "stmt";
 import "signature" as sig;
@@ -36,6 +40,7 @@ type ItemData union {
 def (i: *Item) init_func_def() {
     i.kind = ItemKind.FuncDef;
     i.data.func_def.sig.init();
+    i.data.func_def.instances.init();
     i.data.func_def.block_stmt.init_block();
 }
 
@@ -47,6 +52,11 @@ def (i: *Item) free() {
 
 type FuncDef struct {
     sig: sig.Signature,
+    // the type instances of this function
+    // if this is a normal function (no generic parameters) this will only contain one type
+    // otherwise, the amount of instances will depend on the number of distinct types
+    // this template was invoked with
+    instances: InstanceSet,
     block_stmt: stmt.Stmt
 }
 
@@ -56,27 +66,34 @@ def (f: *FuncDef) block(): *stmt.Block {
 
 def (f: *FuncDef) free() {
     f.sig.free();
+    f.instances.free();
     f.block_stmt.free();
 }
 
 def (i: *Item) to_json(): str.String {
     if i.kind == ItemKind.FuncDef {
+        let f = &i.data.func_def;
+
         let json = str.from("{\"kind\": \"func_def\", \"name\": \"");
         json.push(i.name.as_view());
         json.push(str.view_from("\","));
 
-        json.push(str.view_from("\"ret\": \""));
-        if i.data.func_def.sig.ret.ty != null {
-            let ret = i.data.func_def.sig.ret.ty.to_string();
-            defer ret.free();
-            json.push(ret.view());
-        } else {
-            json.push(str.view("void", 4));
-        }
-        json.push(str.view_from("\""));
+        json.push(str.view_from("\"instances\": ["));
+        for let i: usize = 0; i < f.instances.len(); i += 1 {
+            if i > 0 {
+                json.push(str.view_from(","));
+            }
 
-        json.push(str.view_from(",\"body\": "));
-        let inner = i.data.func_def.block_stmt.to_json();
+            let instance = f.instances.get(i).to_string();
+            json.push(str.view_from("\""));
+            json.push(instance.view());
+            json.push(str.view_from("\""));
+            instance.free();
+        }
+        json.push(str.view_from("],"));
+
+        json.push(str.view_from("\"body\": "));
+        let inner = f.block_stmt.to_json();
         defer inner.free();
         json.push(inner.view());
 

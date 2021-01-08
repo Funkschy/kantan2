@@ -1,10 +1,12 @@
-import "../std/vec";
+import ":std/vec";
 
-import "../source/span";
-import "../source/ident";
+import ":source/span";
+import ":source/ident";
 
 import "tyid";
+import "generics" as g;
 
+// TODO: actually support extern/export functions
 type Modifier struct {
     // if the span is empty => not extern etc.
     // the span may be needed for error messages, so we use it instead of a bool
@@ -41,18 +43,29 @@ def return_from_tyid(ty: *tyid.Type): ReturnType {
 
 type Signature struct {
     modifier: Modifier,
-    params: vec.Vec, // ptrvec.Vec[Param]
+    generic_params: vec.Vec, // vec.Vec[g.GenericParam]
+    params: vec.Vec,         // vec.Vec[Param]
     ret: ReturnType
 }
 
 def (s: *Signature) init() {
-    // the vector needs to be initialized in order to be freed
+    // these vectors need to be initialized in order to be freed
     s.params = vec.create(sizeof Param);
+    s.generic_params = vec.create(sizeof g.GenericParam);
     s.ret.ty = null;
 }
 
 def (s: *Signature) free() {
     s.params.free();
+    s.generic_params.free();
+}
+
+def (s: *Signature) is_generic(): bool {
+    return s.generic_params.len > 0;
+}
+
+def (s: *Signature) generic_param_at(idx: usize): *g.GenericParam {
+    return s.generic_params.get_ptr(idx) as *g.GenericParam;
 }
 
 def (s: *Signature) param_at(idx: usize): *Param {

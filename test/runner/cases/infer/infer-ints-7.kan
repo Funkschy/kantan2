@@ -1,0 +1,29 @@
+def first() {
+    let i = undefined;
+    let j = undefined;
+    let k = undefined;
+
+    i = j = k;
+
+    i = 1;
+}
+
+def second() {
+    let i = undefined;
+    let j = undefined;
+    let k = undefined;
+
+    i = j = k;
+
+    j = 1;
+}
+
+def third() {
+    let i = undefined;
+    let j = undefined;
+    let k = undefined;
+
+    i = j = k;
+
+    k = 1;
+}

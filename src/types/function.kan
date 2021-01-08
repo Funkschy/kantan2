@@ -1,9 +1,10 @@
-import "../std/vec";
-import "../source/ident";
+import ":std/vec";
+import ":source/ident";
 
 import "scope";
 import "ctx" as _;
 import "types" as _;
+import "instances" as _;
 
 type ABI enum {
     C, Kantan
@@ -12,6 +13,7 @@ type ABI enum {
 type Function struct {
     c_variadic: bool,
     abi: ABI,
+    instances: *InstanceSet,
     num_params: usize,
     params_head: *TypeNode,
     ret: *Type

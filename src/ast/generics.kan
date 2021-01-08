@@ -1,0 +1,11 @@
+import ":source/ident";
+
+type GenericParam struct {
+    name: ident.Ident
+}
+
+def generic_param(name: ident.Ident): GenericParam {
+    return GenericParam {
+        name: name
+    };
+}

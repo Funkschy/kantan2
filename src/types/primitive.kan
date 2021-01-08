@@ -11,4 +11,8 @@ def (i: Integer) is_signed(): bool {
     return i.signedness == Signedness.Signed;
 }
 
+def (i: Integer) equals(other: Integer): bool {
+    return i.signedness == other.signedness;
+}
+
 type Float struct {}

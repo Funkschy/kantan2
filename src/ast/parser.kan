@@ -1,19 +1,20 @@
-import "../std/dbg";
-import "../std/str";
-import "../std/vec";
+import ":std/dbg";
+import ":std/str";
+import ":std/vec";
 
-import "../cli/report" as _report; // rename this, so I don't use it instead of Parser.report()
-import "../error" as e;
-import "../memory/arena";
-import "../util" as _;
+import ":cli/report" as _report; // rename this, so I don't use it instead of Parser.report()
+import ":error" as e;
+import ":memory/arena";
+import ":util" as _;
 
-import "../source/span";
-import "../source/ident";
+import ":source/span";
+import ":source/ident";
 
 import "tyid";
 import "item";
 import "stmt" as _;
 import "expr" as _;
+import "generics" as g;
 import "signature" as sig;
 
 import "lexer" as l;
@@ -237,7 +238,14 @@ def (p: *Parser) sync(): span.Span {
         }
 
         let current = p.peek();
-        if current.ty == tok.TokenType.Import {
+        // a synchronization point has been reached
+        // this is either a new statement or a new item
+        let is_at_new_beginning = current.ty == tok.TokenType.Import
+             || current.ty == tok.TokenType.Def
+             || current.ty == tok.TokenType.Return
+             || current.ty == tok.TokenType.Let;
+
+        if is_at_new_beginning {
             return previous.span;
         }
 
@@ -305,6 +313,7 @@ def (p: *Parser) parse_item(): *item.Item {
             return item;
         }
 
+        p.sync();
         return null;
     }
 
@@ -392,18 +401,26 @@ def (p: *Parser) parse_func_def(memory: *item.Item): Result {
         return Result.Error;
     }
 
+    let signature = &memory.data.func_def.sig;
+
+    // the generics (type parameters)
+    let generics = &signature.generic_params;
+    if p.parse_generics_list(generics).is_error() {
+        return Result.Error;
+    }
+
     let name: ident.Ident = undefined;
     if p.consume_ident(&name).is_error() {
         return Result.Error;
     }
-
     memory.name = name;
-    let signature = &memory.data.func_def.sig;
 
     // the parameters
     let params = &signature.params;
     let end_span = span.empty();
-    p.parse_param_list(params, &end_span);
+    if p.parse_param_list(params, &end_span).is_error() {
+        return Result.Error;
+    }
 
     // the return type must be initialized even if there was no return type, since we might need
     // the span for error messages. In the case of a missing return type declaration, we just
@@ -423,6 +440,56 @@ def (p: *Parser) parse_func_def(memory: *item.Item): Result {
 
     let block = &memory.data.func_def.block_stmt;
     if p.parse_block(block).is_error() {
+        return Result.Error;
+    }
+
+    return Result.OK;
+}
+
+// parses the generic parameter list for a function declaration
+// the parsed parameters are pushed into the 'params' vec
+// it does allow for a comma after the last parameter, but not in front of the first
+def (p: *Parser) parse_generics_list(params: *vec.Vec): Result {
+    // generics are optional, so not having [ is legal
+    if !p.consume_optional(tok.TokenType.LBracket) {
+        return Result.OK;
+    }
+
+    let first = true;
+
+    // since we allow for trailing ',', we have to check for the closing ']'
+    while !p.check(tok.TokenType.RBracket) {
+        // there should be no comma infront of the first parameter, so we can just skip this
+        if !first {
+            // every other parameter should be preceeded by a ','
+            if p.consume(tok.TokenType.Comma).is_error() {
+                return Result.Error;
+            }
+
+            // this allows for a trailing comma after the last parameter
+            if p.check(tok.TokenType.RBracket) {
+                break;
+            }
+        }
+        first = false;
+
+        // a parameter has the form 'name: ty'
+        let name: ident.Ident = undefined;
+        if p.consume_ident(&name).is_error() {
+            return Result.Error;
+        }
+
+        let param = g.generic_param(name);
+        params.push(&param as *void);
+    }
+
+    let closing_rbrace: tok.Token = undefined;
+    if p.consume_tok(tok.TokenType.RBracket, &closing_rbrace).is_error() {
+        return Result.Error;
+    }
+
+    if params.len == 0 {
+        p.report_simple(e.ErrorKind.EmptyGenericsList, closing_rbrace.span);
         return Result.Error;
     }
 

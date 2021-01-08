@@ -12,60 +12,90 @@ import "../types" as _;
 def resolve(ctx: *TyCtx, item: *Item): Result {
     // TODO(#17): make a dispatcher function similar to check in check/expr.kan and remove the if here
     if item.kind == ItemKind.FuncDef {
-        let func_ty = ctx.alloc_ty().init_func();
-
-        let function = &func_ty.data.function;
         let signature = &item.data.func_def.sig;
+        let instances = &item.data.func_def.instances;
+
+        let func_ty = ctx.alloc_ty().init_func(instances);
+        let function = &func_ty.data.function;
 
         function.num_params = signature.params.len;
 
-        let last_param = &function.params_head;
-        for let i: usize = 0; i < signature.params.len; i += 1 {
-            let ast_param = signature.param_at(i);
-            let ty_param = ctx.alloc_node().init_ident(ast_param.name);
+        // head of generics linked list (TypeNode)
+        let generics_head: *TypeNode = null;
+        let num_generics: usize = 0;
 
-            let param_span = ast_param.ty.span;
-            let param_ty = ctx.lookup_tyid(ast_param.ty);
-            if param_ty == null {
-                util.report_str(
-                    e.ErrorKind.UndeclaredType,
-                    param_span,
-                    param_span.as_view()
-                );
-                return Result.Error;
+        // this block is needed for defer ctx.close_scope()
+        {
+            ctx.open_scope();
+            defer ctx.close_scope();
+
+            // TODO: check for duplicated template param names
+            let current_generic_node = &generics_head;
+            for let i: usize = 0; i < signature.generic_params.len; i += 1 {
+                let ast_param = signature.generic_param_at(i);
+                let ty_param = ctx.alloc_ty().init_template_param(ast_param.name);
+
+                num_generics += 1;
+                *current_generic_node = ctx.alloc_node().init_ident(ast_param.name, ty_param);
+                ctx.bind_type_public(ast_param.name.as_view(), ty_param, &ast_param.name.span);
+
+                current_generic_node = &(*current_generic_node).next;
             }
 
-            if param_ty.is_unsized() {
-                // TODO(#29): implement proper errors for unsized types
-                util.report_internal_error_span(str.view_from("unsized param"), param_span);
+            let last_param = &function.params_head;
+            for let i: usize = 0; i < signature.params.len; i += 1 {
+                let ast_param = signature.param_at(i);
+                let ty_param = ctx.alloc_node().init_ident(ast_param.name, null);
+
+                let param_span = ast_param.ty.span;
+                let param_ty = ctx.lookup_tyid(ast_param.ty);
+                if param_ty == null {
+                    util.report_str(
+                        e.ErrorKind.UndeclaredType,
+                        param_span,
+                        param_span.as_view()
+                    );
+                    return Result.Error;
+                }
+
+                if param_ty.is_unsized() {
+                    // TODO(#29): implement proper errors for unsized parameter types
+                    util.report_internal_error_span(str.view_from("unsized param"), param_span);
+                }
+
+                ty_param.value = param_ty;
+
+                *last_param = ty_param;
+                last_param = &(*last_param).next;
             }
 
-            ty_param.value = param_ty;
+            let ret_ty: *Type = null;
+            if signature.ret.ty != null {
+                ret_ty = ctx.lookup_tyid(signature.ret.ty);
+                if ret_ty == null {
+                    util.report_str(
+                        e.ErrorKind.UndeclaredType,
+                        signature.ret.span,
+                        signature.ret.ty.span.as_view()
+                    );
+                    return Result.Error;
+                }
+            } else {
+                let void_ty = util.lookup_builtin(ctx, str.view("void", 4));
+                if void_ty.is_error() {
+                    return Result.Error;
+                }
+                ret_ty = void_ty.ty;
+            }
 
-            *last_param = ty_param;
-            last_param = &(*last_param).next;
+            function.ret = ret_ty;
         }
 
-        let ret_ty: *Type = null;
-        if signature.ret.ty != null {
-            ret_ty = ctx.lookup_tyid(signature.ret.ty);
-            if ret_ty == null {
-                util.report_str(
-                    e.ErrorKind.UndeclaredType,
-                    signature.ret.span,
-                    signature.ret.ty.span.as_view()
-                );
-                return Result.Error;
-            }
+        if signature.is_generic() {
+            func_ty = ctx.alloc_ty().init_template(func_ty, num_generics, generics_head, instances);
         } else {
-            let void_ty = util.lookup_builtin(ctx, str.view("void", 4));
-            if void_ty.is_error() {
-                return Result.Error;
-            }
-            ret_ty = void_ty.ty;
+            instances.push(func_ty);
         }
-
-        function.ret = ret_ty;
 
         ctx.bind_value_public(item.name.as_view(), func_ty, &item.span);
         return Result.OK;

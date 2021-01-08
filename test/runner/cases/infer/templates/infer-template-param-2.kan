@@ -1,0 +1,15 @@
+def [T] f(t: *T) {
+}
+
+def main() {
+    let p = null;
+    f(p);
+    let p2 = undefined;
+    f(p2);
+    let x = undefined;
+    *p = x;
+    x = 1;
+    let s: *i8 = null;
+    f(s);
+    *p2 = *s;
+}

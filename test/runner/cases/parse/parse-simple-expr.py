@@ -12,7 +12,7 @@ expected_modules = [{
         {
             'kind': 'func_def',
             "name": "main",
-            "ret": "void",
+            "instances": ["(i32, **i8) -> void"],
             'body': {
                 'kind': 'block',
                 'stmts': [

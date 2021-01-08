@@ -48,6 +48,17 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
                 return error();
             }
 
+            // the lookup for identifiers includes a special case for templates.
+            // In the case of a template, we wrap the actual template type in another type variable,
+            // so that we can later easily change the template type to a concrete instance of that
+            // template (look into call and init resolution for more info)
+            if ty.kind == TypeKind.Template {
+                let var = ctx.alloc_ty();
+                var.kind = TypeKind.Variable;
+                var.data.inner = ty;
+                ty = var;
+            }
+
             expr.data.ident.ty = ty;
             return ok(ty);
         }

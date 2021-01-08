@@ -1,13 +1,14 @@
-import "../std/dbg";
-import "../std/str";
+import ":std/dbg";
+import ":std/map";
+import ":std/str";
 
-import "../ast/tyid";
-import "../util" as _;
-import "../source/span";
-import "../memory/arena";
+import ":ast/tyid";
+import ":util" as _;
+import ":source/span";
+import ":memory/arena";
 
-import "../error" as e;
-import "../cli/report" as report;
+import ":error" as e;
+import ":cli/report" as report;
 
 import "util";
 import "scope";
@@ -16,6 +17,7 @@ import "info" as _;
 import "types" as _;
 
 import "function";
+import "template";
 import "primitive";
 
 // the context used while type checking
@@ -55,9 +57,7 @@ def (ctx: *TyCtx) open_scope() {
     ctx.types.open();
 }
 
-def (ctx: *TyCtx) perform_item_close(bound: *scope.BoundItem): Result {
-    let ty = bound.ty;
-
+def (ctx: *TyCtx) perform_item_close(ty: *Type, declared_at: *span.Span): Result {
     // deref the type to the most basic level
     while true {
         if ty.kind == TypeKind.Variable {
@@ -82,13 +82,13 @@ def (ctx: *TyCtx) perform_item_close(bound: *scope.BoundItem): Result {
 
     // a type that could not be inferred is considered an error
     if ty.kind == TypeKind.Any {
-        if bound.declared_at == null {
+        if declared_at == null {
             let msg = str.view_from("could not infer type for an item without a source position");
             util.report_internal_error(msg);
             return Result.Error;
         }
 
-        util.report_simple(e.ErrorKind.CouldNotInfer, *bound.declared_at);
+        util.report_simple(e.ErrorKind.CouldNotInfer, *declared_at);
         return Result.Error;
     }
 
@@ -103,7 +103,7 @@ def (ctx: *TyCtx) close_scope(): Result {
     let current = ctx.values.top();
     for let i: usize = 0; i < current.bindings.len(); i += 1 {
         let bound = current.bindings.get_ptr_idx(i) as *scope.BoundItem;
-        result = result.or(ctx.perform_item_close(bound));
+        result = result.or(ctx.perform_item_close(bound.ty, bound.declared_at));
 
         // this check is only needed for real identifiers. Expression statements may be unsized
         // e.g. a call to some f(): void. And arguments will have been checked against the function
@@ -121,10 +121,28 @@ def (ctx: *TyCtx) close_scope(): Result {
 
     for let i: usize = 0; i < current.temp_vars.len; i += 1 {
         let bound = current.temp_vars.get_ptr(i) as *scope.BoundItem;
-        result = result.or(ctx.perform_item_close(bound));
+        result = result.or(ctx.perform_item_close(bound.ty, bound.declared_at));
 
         if bound.ty.kind == TypeKind.Error {
             result = Result.Error;
+        }
+
+        if bound.ty.kind == TypeKind.Function {
+            let f = &bound.ty.data.function;
+            let current = f.params_head;
+            while current != null {
+                // TODO: get the source position for params/return
+                result = result.or(ctx.perform_item_close(current.value, null));
+                current = current.next;
+            }
+
+            result = result.or(ctx.perform_item_close(f.ret, null));
+            // push the initialized function type into the original instance list
+            // this might look confusing at first, but each function definition has a list of
+            // instances. For normal functions, this list will only contain a single entry, but
+            // for templated functions (generic function) this list might have an arbitrary
+            // amount of different instances. The instance list internally works like a set
+            f.instances.push(bound.ty);
         }
     }
 
@@ -250,14 +268,14 @@ def (ctx: *TyCtx) bind_type_public(name: str.View, ty: *Type, declared_at: *span
 }
 
 def (ctx: *TyCtx) unify(a: *Type, previous: *Type): *Type {
-    if a.is_concrete_version_of(previous) {
+    if ctx.is_concrete_version_of(a, previous) {
 
         if previous.kind == TypeKind.Variable {
             if a.kind == TypeKind.Variable  {
                 // otherwise we could have cycles
                 if a != previous {
-                    // point to a instead
-                    previous.data.inner = a;
+                    // point the innermost variable to a instead
+                    *previous.var_innermost() = a;
                 }
             } else {
                 // "overwrite" the old value
@@ -269,15 +287,16 @@ def (ctx: *TyCtx) unify(a: *Type, previous: *Type): *Type {
         return a;
     }
 
-    if a.is_less_concrete_version_of(previous) {
+    if ctx.is_less_concrete_version_of(a, previous) {
 
         if a.kind == TypeKind.Variable {
             if previous.kind == TypeKind.Variable {
                 // otherwise we could have cycles
                 if a != previous {
-                    a.data.inner = previous;
+                    *a.var_innermost() = previous;
                 }
             } else {
+                // "overwrite" the old value
                 a.data.inner.kind = TypeKind.Variable;
                 a.data.inner.data.inner = previous;
             }
@@ -285,6 +304,9 @@ def (ctx: *TyCtx) unify(a: *Type, previous: *Type): *Type {
 
         return previous;
     }
+
+    let a = a.checked_var_innermost();
+    let previous = previous.checked_var_innermost();
 
     if a.kind == TypeKind.Ptr && previous.kind == TypeKind.Ptr {
         let inner = ctx.unify(a.data.ptr_to, previous.data.ptr_to);
@@ -302,3 +324,112 @@ def (ctx: *TyCtx) unify(a: *Type, previous: *Type): *Type {
 
     return null;
 }
+
+// checks if other is a less concrete version of t
+def (ctx: *TyCtx) is_concrete_version_of(t: *Type, other: *Type): bool {
+    while t.is_variable() {
+        t = t.data.inner;
+    }
+    while other.is_variable() {
+        other = other.data.inner;
+    }
+
+    return other.kind == TypeKind.Any
+        || t.kind == TypeKind.Int && other.kind == TypeKind.AnyInt
+        || t.kind == TypeKind.Float && other.kind == TypeKind.AnyFloat;
+}
+
+// checks if t is a less concrete version of other
+def (ctx: *TyCtx) is_less_concrete_version_of(t: *Type, other: *Type): bool {
+    while t.is_variable() {
+        t = t.data.inner;
+    }
+    while other.is_variable() {
+        other = other.data.inner;
+    }
+
+    return t.kind == TypeKind.Any
+        || t.kind == TypeKind.AnyInt && other.kind == TypeKind.Int
+        || t.kind == TypeKind.AnyFloat && other.kind == TypeKind.Float;
+}
+
+// this will get the actual function type for a callable type or null, if the types was not callable
+// in the case of a template, it will initialize all generic parameters using the allocator
+def (ctx: *TyCtx) get_function(t: *Type): *Type {
+    if t.kind == TypeKind.Function {
+        return t;
+    }
+
+    if t.kind == TypeKind.Template {
+        let f = ctx.get_function(t.data.template.inner);
+        if f == null {
+            return null;
+        }
+
+        let map = ctx.monomorph_map(&t.data.template);
+        defer map.free();
+
+        let monomorphed = ctx.alloc_ty().init_func(t.data.template.instances);
+        monomorphed.data.function = f.data.function;
+        monomorphed.data.function.params_head = null;
+        let monomorphed_f = &monomorphed.data.function;
+
+        let current_read = f.data.function.params_head;
+        let current_write = &monomorphed_f.params_head;
+
+        while current_read != null {
+            let monomorphed_param = ctx.replace_param_type(&map, current_read.value);
+
+            let name = current_read.name.data.ident;
+            let new_node = ctx.alloc_node().init_ident(name, monomorphed_param);
+            *current_write = new_node;
+
+            current_write = &(*current_write).next;
+            current_read = current_read.next;
+        }
+
+        monomorphed_f.ret = ctx.replace_param_type(&map, monomorphed_f.ret);
+        return monomorphed;
+    }
+
+    if t.kind == TypeKind.Variable {
+        return ctx.get_function(t.data.inner);
+    }
+
+    return null;
+}
+
+def (ctx: *TyCtx) replace_param_type(monomorph_map: *map.Map, param: *Type): *Type {
+    if param.kind == TypeKind.TemplateParam {
+        let key = key_from_ident(param.data.template_param.name);
+        let monomorphed = monomorph_map.get(key) as *Type;
+        dbg.assert(monomorphed != null, "monomorphed is null");
+        return monomorphed;
+    }
+
+    if param.kind == TypeKind.Ptr {
+        let inner = ctx.replace_param_type(monomorph_map, param.data.ptr_to);
+        let ptr = ctx.alloc_ty();
+        ptr.kind = TypeKind.Ptr;
+        ptr.data.ptr_to = inner;
+        return ptr;
+    }
+
+    return param;
+}
+
+def (ctx: *TyCtx) monomorph_map(t: *template.Template): map.Map {
+    let map = map.with_cap(t.num_params);
+    let current = t.generics_head;
+    while current != null {
+        let param = current.value;
+        let monomorphed = ctx.any_var();
+
+        let key = key_from_ident(param.data.template_param.name);
+        map.insert(key, monomorphed as *void);
+
+        current = current.next;
+    }
+    return map;
+}
+

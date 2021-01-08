@@ -1,8 +1,6 @@
-# needed for pushd
-SHELL := /usr/bin/env bash
-
 BIN_NAME = kantan
-K_FILES = src/ast/expr.kan \
+K_FILES = src/ast/generics.kan \
+		  src/ast/expr.kan \
 		  src/ast/item.kan \
 		  src/ast/lexer.kan \
 		  src/ast/mod.kan \
@@ -48,9 +46,11 @@ K_FILES = src/ast/expr.kan \
 		  src/types/data.kan \
 		  src/types/function.kan \
 		  src/types/info.kan \
+		  src/types/instances.kan \
 		  src/types/primitive.kan \
 		  src/types/resolve/functions.kan \
 		  src/types/scope.kan \
+		  src/types/template.kan \
 		  src/types/types.kan \
 		  src/types/util.kan \
 		  src/util.kan
@@ -101,7 +101,7 @@ endif
 
 .PHONY: test
 test : $(BIN_NAME)
-	pushd test && \
+	cd test && \
 	python3 -m runner.main ../$(BIN_NAME) runner/cases $(TEST_ARGS)
 
 .PHONY: clean

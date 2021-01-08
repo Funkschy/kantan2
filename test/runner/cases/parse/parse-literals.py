@@ -12,7 +12,7 @@ expected_modules = [{
         {
             'kind': 'func_def',
             "name": "main",
-            "ret": "void",
+            "instances": [], # this file is only parsed, not type checked
             'body': {
                 'kind': 'block',
                 'stmts': [

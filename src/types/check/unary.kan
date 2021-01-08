@@ -30,14 +30,14 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
     }
 
     if expr.data.unary.kind == UnaryKind.Deref {
-        if right.ty.kind != TypeKind.Ptr {
+        if !right.ty.is_pointer() {
             let actual = right.ty.to_string();
             defer actual.free();
             report_str(e.ErrorKind.DerefNonPtr, expr.span, actual.view());
             return error();
         }
 
-        return ok(right.ty.data.ptr_to);
+        return ok(right.ty.checked_var_innermost().data.ptr_to);
     }
 
     if expr.data.unary.kind == UnaryKind.AddrOf {

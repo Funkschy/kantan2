@@ -11,7 +11,7 @@ expected_modules = [{
         {
             "kind": "func_def",
             "name": "f",
-            "ret": "void",
+            "instances": ["(*i8, isize) -> void"],
             "body": {
                 "kind": "block",
                 "stmts": []
@@ -20,7 +20,7 @@ expected_modules = [{
         {
             "kind": "func_def",
             "name": "main",
-            "ret": "void",
+            "instances": ["() -> void"],
             "body": {
                 "kind": "block",
                 "stmts": [

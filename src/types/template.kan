@@ -1,0 +1,15 @@
+import ":source/ident";
+
+import "types" as _;
+import "instances" as _;
+
+type Template struct {
+    inner: *Type,
+    num_params: usize,
+    generics_head: *TypeNode,
+    instances: *InstanceSet
+}
+
+type Param struct {
+    name: ident.Ident
+}

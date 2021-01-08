@@ -19,6 +19,11 @@ def check(ctx: *TyCtx, item: *Item): Result {
             return Result.Error;
         }
 
+        // templates are only checked on invocation
+        if func_ty.is_template() {
+            return Result.OK;
+        }
+
         ctx.open_scope();
         ctx.current_function = func_ty;
         let result = tychk.check(ctx, &item.data.func_def.block_stmt);

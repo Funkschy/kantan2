@@ -1,0 +1,99 @@
+import ":std/str";
+import ":std/ptrvec";
+
+import "util";
+import "types" as _;
+
+// This is a set of concrete type instances used for types that may
+// be generic (functions, structs and unions)
+// For a normal function/struct/union, this will only contain a single type after typechecking,
+// however templates may have an arbitrary amount of instances based on their invocations
+type InstanceSet struct {
+    _list: ptrvec.Vec // ptrvec.Vec[*Type]
+}
+
+def (l: *InstanceSet) init() {
+    l._list = ptrvec.create();
+}
+
+def (l: *InstanceSet) free() {
+    l._list.free();
+}
+
+def (l: *InstanceSet) push(t: *Type) {
+    for let i: usize = 0; i < l._list.len; i += 1 {
+        let instance = l.get(i);
+        // this instance already exists
+        if ty_equals(instance, t) {
+            return;
+        }
+    }
+
+    l._list.push_ptr(t as *void);
+}
+
+def (l: *InstanceSet) get(idx: usize): *Type {
+    return l._list.get(idx) as *Type;
+}
+
+def (l: *InstanceSet) len(): usize {
+    return l._list.len;
+}
+
+def ty_equals(a: *Type, b: *Type): bool {
+    // variables are ignored for equality
+    // TODO: should this be an internal error instead?
+    if a.kind == TypeKind.Variable {
+        return ty_equals(a.data.inner, b.data.inner);
+    }
+
+    if a.kind != b.kind {
+        return false;
+    }
+
+    if a.kind == TypeKind.Int {
+        return a.width.equals(b.width)
+            && a.data.int.equals(b.data.int);
+    }
+
+    if a.kind == TypeKind.Float {
+        return a.width.equals(b.width);
+    }
+
+    if a.kind == TypeKind.Bool || a.kind == TypeKind.Void {
+        return true;
+    }
+
+    if a.kind == TypeKind.Ptr {
+        return b.kind == TypeKind.Ptr && ty_equals(a.data.ptr_to, b.data.ptr_to);
+    }
+
+    if a.kind == TypeKind.Error || b.kind == TypeKind.Error {
+        return false;
+    }
+
+    if a.kind == TypeKind.Function {
+        let a_f = &a.data.function;
+        let b_f = &b.data.function;
+        if a_f.num_params != b_f.num_params {
+            return false;
+        }
+
+        // TODO: check args/ret
+        let a_p = a_f.params_head;
+        let b_p = b_f.params_head;
+        while a_p != null {
+            if !ty_equals(a_p.value, b_p.value) {
+                return false;
+            }
+
+            a_p = a_p.next;
+            b_p = b_p.next;
+        }
+
+        return ty_equals(a_f.ret, b_f.ret);
+    }
+
+    util.report_internal_error(str.view_from("unhandled or illegal TypeKind"));
+    return false;
+}

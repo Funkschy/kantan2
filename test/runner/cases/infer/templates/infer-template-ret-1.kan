@@ -1,0 +1,11 @@
+def [T] f(): T {
+}
+
+def [T] g(t: T): T {
+}
+
+def main() {
+    let x = f();
+    !x;
+    let u: u32 = g(f());
+}
