@@ -1,12 +1,19 @@
-#include <stdio.h>
-#include <stdint.h>
-#include <string.h>
-#include <stdlib.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <stdbool.h>
-#include <errno.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
+#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+#define IS_POSIX
+#endif
+
+#if defined(IS_POSIX)
 #include <sys/stat.h>
+#endif
 
 #define DEBUG_ASSERT 1
 
@@ -14,12 +21,21 @@
 #define STDLIB_DIR "~/.kantan/std"
 #endif
 
-char const *const get_stdlib_directory() {
+// forward decls
+char const *get_stdlib_directory(void);
+void assert_fmt(bool condition, char const *fmt, ...);
+char const *l_format_str(size_t *len, char const *fmt, ...);
+char const *format_str(char const *fmt, ...);
+int vformat_str(char **dest, char const *fmt, va_list args);
+bool is_file(char const *path);
+size_t ptr_to_int(void *ptr);
+void *int_to_ptr(size_t i);
+void get_sys(bool *is_linux, bool *is_darwin, bool *is_win32);
+int32_t get_errno(void);
+
+char const *get_stdlib_directory() {
     return STDLIB_DIR;
 }
-
-// forward decls
-ssize_t vformat_str(char **dest, char const *fmt, va_list args);
 
 void assert_fmt(bool condition, char const *fmt, ...) {
 #if DEBUG_ASSERT
@@ -30,7 +46,7 @@ void assert_fmt(bool condition, char const *fmt, ...) {
     char *s = NULL;
     va_list args;
     va_start(args, fmt);
-    ssize_t size = vformat_str(&s, fmt, args);
+    int size = vformat_str(&s, fmt, args);
     va_end(args);
 
     if (size < 0) {
@@ -44,26 +60,26 @@ void assert_fmt(bool condition, char const *fmt, ...) {
 #endif
 }
 
-char const *const l_format_str(size_t *len, char const *fmt, ...) {
+char const *l_format_str(size_t *len, char const *fmt, ...) {
     char *s = NULL;
     va_list args;
     va_start(args, fmt);
-    ssize_t size = vformat_str(&s, fmt, args);
+    int size = vformat_str(&s, fmt, args);
     va_end(args);
 
     if (size < 0) {
         return NULL;
     }
 
-    *len = size;
+    *len = (size_t)size;
     return s;
 }
 
-char const *const format_str(char const *fmt, ...) {
+char const *format_str(char const *fmt, ...) {
     char *s = NULL;
     va_list args;
     va_start(args, fmt);
-    ssize_t size = vformat_str(&s, fmt, args);
+    int size = vformat_str(&s, fmt, args);
     va_end(args);
 
     if (size < 0) {
@@ -73,15 +89,7 @@ char const *const format_str(char const *fmt, ...) {
     return s;
 }
 
-bool is_file(char const *path) {
-    struct stat s;
-    if (stat(path, &s) == 0) {
-        return s.st_mode & S_IFREG;
-    }
-    return false;
-}
-
-ssize_t vformat_str(char **dest, char const *fmt, va_list args){
+int vformat_str(char **dest, char const *fmt, va_list args) {
     int size = 0;
     va_list tmp_args;
 
@@ -97,9 +105,9 @@ ssize_t vformat_str(char **dest, char const *fmt, va_list args){
         return size;
     }
 
-    char *str = malloc(size + 1);
+    char *str = malloc((size_t)size + 1);
     if (str == NULL) {
-        return -1;
+        return 0;
     }
     size = vsprintf(str, fmt, args);
     *dest = str;
@@ -107,13 +115,18 @@ ssize_t vformat_str(char **dest, char const *fmt, va_list args){
     return size;
 }
 
-size_t int_num_digits(size_t i) {
-    // pass NULL as str, so that we just get the size
-    return snprintf(NULL, 0, "%lu", i);
+bool is_file(char const *path) {
+#if defined(IS_POSIX)
+    struct stat s;
+    if (stat(path, &s) == 0) {
+        return S_ISREG(s.st_mode);
+    }
+#endif
+    return false;
 }
 
-size_t ptr_to_int(void* ptr) {
-    return (size_t) ptr;
+size_t ptr_to_int(void *ptr) {
+    return (size_t)ptr;
 }
 
 void *int_to_ptr(size_t i) {
@@ -122,12 +135,19 @@ void *int_to_ptr(size_t i) {
 }
 
 void get_sys(bool *is_linux, bool *is_darwin, bool *is_win32) {
+    // don't report unused params for the other platforms
+    (void)is_linux;
+    (void)is_darwin;
+    (void)is_win32;
 #if defined(linux) || defined(__linux__)
-    if (is_linux) *is_linux = true;
+    if (is_linux)
+        *is_linux = true;
 #elif defined(darwin) || defined(__APPLE__)
-    if (is_darwin) *is_darwin = true;
+    if (is_darwin)
+        *is_darwin = true;
 #elif defined(WIN32) || defined(_WIN32)
-    if (is_win32) *is_win32 = true;
+    if (is_win32)
+        *is_win32 = true;
 #endif
 }
 

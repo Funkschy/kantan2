@@ -64,6 +64,7 @@ KANTAN_STABLE ?= $(START_FOLDER)/../kantan -g
 C_DEFINES := -DSTDLIB_DIR=\"$(STDLIB_DIR)\"
 C_FILES := lib.c
 C_OBJ_FILES := $(patsubst %.c,%.o,$(C_FILES))
+C_FLAGS := -O3 -Wall -Wextra -pedantic -std=c99 -Werror
 
 LLVM_CONFIG := $(LLVM_PATH)/bin/llvm-config
 LLVM_LIB_NAMES := x86codegen webassemblycodegen passes
@@ -86,7 +87,7 @@ $(BIN_NAME) : Makefile $(K_FILES) $(C_OBJ_FILES)
 
 $(C_OBJ_FILES) : $(C_FILES)
 	for file in $(C_FILES) ; do \
-		gcc -O3 -Wall -c $$file -o $(patsubst %.c,%.o,$(wildcard *.c)) $(C_DEFINES); \
+		gcc $(C_FLAGS) -c $$file -o $(patsubst %.c,%.o,$(wildcard *.c)) $(C_DEFINES); \
 	done
 
 # This makes it possible to do stuff like `make test -- --show-skipped`
