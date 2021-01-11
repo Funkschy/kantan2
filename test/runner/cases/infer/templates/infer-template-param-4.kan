@@ -1,0 +1,26 @@
+def [T] f(t: *T): T {
+
+}
+
+def main() {
+    // p: *i32
+    let p = undefined;
+    f(p);
+    *p = 1;
+
+    // p2: *i32
+    let p2 = undefined;
+    let i: i32 = f(p2);
+
+    // p3: **i32
+    let p3 = undefined;
+    let i: *i32 = f(p3);
+
+    // p4: *i32
+    let p4 = undefined;
+    let i: *i32 = f(&p4);
+
+    // i: u32
+    let i = undefined;
+    let u: u32 = f(&i);
+}
