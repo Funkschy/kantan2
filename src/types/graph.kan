@@ -1,0 +1,136 @@
+import ":std/str";
+import ":memory/arena";
+
+import "types" as ty;
+
+type Node struct {
+    ty: *ty.Type,
+    in_edges: *Edge,
+    out_edges: *Edge,
+
+    // Linked List
+    next: *Node
+}
+
+def (n: *Node) init(ty: *ty.Type, next: *Node): *Node {
+    n.ty = ty;
+    n.in_edges = null;
+    n.out_edges = null;
+    n.next = next;
+    return n;
+}
+
+type EdgeKind enum {
+    Hard, // a value dependency, e.g. MyStruct or [4]MyStruct
+    Soft  // a reference dependency, e.g *MyStruct or []MyStruct
+}
+
+type Edge struct {
+    kind: EdgeKind,
+    // either the 'from' or 'to' node, depending on the list it's in
+    node: *Node,
+
+    // Linked List
+    next: *Edge
+}
+
+def (e: *Edge) init(kind: EdgeKind, node: *Node, next: *Edge): *Edge {
+    e.kind = kind;
+    e.node = node;
+    e.next = next;
+    return e;
+}
+
+type TypeGraph struct {
+    nodes: *Node,
+
+    node_arena: arena.TypedArena,
+    edge_arena: arena.TypedArena
+}
+
+def type_graph(): TypeGraph {
+    return TypeGraph {
+        nodes: null,
+        node_arena: arena.typed(sizeof Node),
+        edge_arena: arena.typed(sizeof Edge)
+    };
+}
+
+def (g: *TypeGraph) free() {
+    g.node_arena.free();
+    g.edge_arena.free();
+}
+
+def (g: *TypeGraph) add_node(ty: *ty.Type): *Node {
+    // create a new node and make it the head of the node list
+    return g.nodes = (g.node_arena.alloc() as *Node).init(ty, g.nodes);
+}
+
+def (g: *TypeGraph) add_edge(kind: EdgeKind, from: *Node, to: *Node) {
+    from.out_edges = (g.edge_arena.alloc() as *Edge).init(kind, to, from.out_edges);
+    to.in_edges = (g.edge_arena.alloc() as *Edge).init(kind, from, to.in_edges);
+}
+
+def push_edges(json: *str.String, edges: *Edge) {
+    let kinds: [2]str.View = undefined;
+    kinds[EdgeKind.Hard as i32] = str.view("hard", 4);
+    kinds[EdgeKind.Soft as i32] = str.view("soft", 4);
+
+    let e = edges;
+    while e != null {
+        let e_s = e.node.ty.to_string();
+        defer e_s.free();
+
+        if e != edges {
+            json.push(str.view(",", 1));
+        }
+
+        json.push(str.view_from("{"));
+        json.push(str.view_from("\"kind\": \""));
+        json.push(kinds[e.kind as i32]);
+
+        json.push(str.view_from("\" ,\"ty\": \""));
+        json.push(e_s.view());
+        json.push(str.view_from("\"}"));
+
+        e = e.next;
+    }
+}
+
+def (g: *TypeGraph) to_json(name: str.View): str.String {
+    let json = str.from("{");
+    defer json.push(str.view("}", 1));
+
+    json.push(str.view_from("\"name\": \""));
+    json.push(name);
+    json.push(str.view_from("\""));
+
+    json.push(str.view_from(",\"nodes\": ["));
+    let current = g.nodes;
+    while current != null {
+        if current != g.nodes {
+            json.push(str.view(",", 1));
+        }
+
+        json.push(str.view_from("{\"ty\":\""));
+        let ty_s = current.ty.to_string();
+        json.push(ty_s.view());
+        ty_s.free();
+        json.push(str.view_from("\""));
+
+        json.push(str.view_from(", \"in\": ["));
+        push_edges(&json, current.in_edges);
+        json.push(str.view_from("]"));
+
+        json.push(str.view_from(", \"out\": ["));
+        push_edges(&json, current.out_edges);
+        json.push(str.view_from("]"));
+
+        json.push(str.view_from("}"));
+
+        current = current.next;
+    }
+    json.push(str.view_from("]"));
+
+    return json;
+}

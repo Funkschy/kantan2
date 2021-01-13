@@ -45,6 +45,7 @@ K_FILES = src/ast/generics.kan \
 		  src/types/ctx.kan \
 		  src/types/data.kan \
 		  src/types/function.kan \
+		  src/types/graph.kan \
 		  src/types/info.kan \
 		  src/types/instances.kan \
 		  src/types/primitive.kan \
@@ -99,6 +100,12 @@ ifeq (test,$(firstword $(MAKECMDGOALS)))
   # ...and turn them into do-nothing targets
   $(eval $(TEST_ARGS):;@:)
 endif
+
+type-graph.png : $(BIN_NAME) test.kan
+	( \
+		. tools/venv/bin/activate ;\
+		./$(BIN_NAME) test.kan --mi --dump-type-graph | tools/graphformat.py | dot -Tpng > type-graph.png \
+	)
 
 .PHONY: test
 test : $(BIN_NAME)

@@ -118,6 +118,29 @@ def main(argc: i32, argv: *string): ReturnCode {
         f64_ty.init_float(info.size_bytes(8));
         ctx.bind_type_public(str.view_from("f64"), f64_ty, null);
 
+        if opts.dump_type_graph {
+            // TODO: remove this test code
+            import "types/graph";
+            let g = graph.type_graph();
+            defer g.free();
+
+            let n_f64 = g.add_node(f64_ty);
+            let n_i32 = g.add_node(i32_ty);
+            let n_f32 = g.add_node(f32_ty);
+
+            g.add_edge(graph.EdgeKind.Hard, n_i32, n_f64);
+            g.add_edge(graph.EdgeKind.Soft, n_f64, n_i32);
+            g.add_edge(graph.EdgeKind.Hard, n_f64, n_f32);
+
+            import "io";
+            io.printf("\"type-graph\": ");
+            defer io.printf(",\n");
+
+            let json = g.to_json(str.view_from("stupid graph"));
+            io.printf("%s", json.cstring());
+            json.free();
+        }
+
         let had_errors = false;
         for let i: usize = 0; i < compiler.modmap.len(); i += 1 {
             let mod = compiler.modmap.at(i);

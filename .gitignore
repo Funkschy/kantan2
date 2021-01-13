@@ -3,4 +3,7 @@ test.kan
 *.o
 test/venv
 test/.idea
+tools/venv
+tools/.idea
+type-graph.png
 *__pycache__*
