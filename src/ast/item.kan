@@ -5,7 +5,7 @@ import ":source/span";
 import ":source/ident";
 
 import ":types/types" as ty;
-import ":types/instances" as _;
+import ":types/instances" as i;
 
 import "stmt";
 import "signature" as sig;
@@ -56,7 +56,7 @@ type FuncDef struct {
     // if this is a normal function (no generic parameters) this will only contain one type
     // otherwise, the amount of instances will depend on the number of distinct types
     // this template was invoked with
-    instances: InstanceSet,
+    instances: i.InstanceSet,
     block_stmt: stmt.Stmt
 }
 
