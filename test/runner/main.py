@@ -128,7 +128,7 @@ def read_ignored(test_path: str) -> Set[str]:
         return set()
 
     with open(ignore_file) as f:
-        return set(map(lambda n: n.strip(), f.readlines()))
+        return {line.strip() for line in f}
 
 
 if __name__ == '__main__':
