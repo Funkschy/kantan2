@@ -1,4 +1,3 @@
-BIN_NAME = kantan
 K_FILES = src/ast/generics.kan \
 		  src/ast/expr.kan \
 		  src/ast/item.kan \
@@ -58,38 +57,20 @@ K_FILES = src/ast/generics.kan \
 
 START_FOLDER := $(shell pwd)
 
-LLVM_PATH ?= $(HOME)/Downloads/llvm/llvm-10.0.0.src/build
+BIN_NAME ?= kantan
+
 STDLIB_DIR ?= $(START_FOLDER)/src/std
 KANTAN_STABLE ?= $(START_FOLDER)/../kantan -g
+CC ?= gcc
 
 C_DEFINES := -DSTDLIB_DIR=\"$(STDLIB_DIR)\"
 C_FILES := lib.c
-C_OBJ_FILES := $(patsubst %.c,%.o,$(C_FILES))
 C_FLAGS := -O3 -Wall -Wextra -pedantic -std=c99 -Werror
 
-LLVM_CONFIG := $(LLVM_PATH)/bin/llvm-config
-LLVM_LIB_NAMES := x86codegen webassemblycodegen passes
-
-LLVM_C_FLAGS := $(shell $(LLVM_CONFIG) --cflags)
-LLVM_LD_FLAGS := $(shell $(LLVM_CONFIG) --ldflags)
-LLVM_LIBS := $(shell $(LLVM_CONFIG) --libs $(LLVM_LIB_NAMES))
-LLVM_SYS_LIBS := $(shell $(LLVM_CONFIG) --system-libs)
-
-LD_FLAGS := $(LLVM_LD_FLAGS) -fdata-sections -ffunction-sections
-LIBS := $(LLVM_LIBS) $(LLVM_SYS_LIBS) -Wl,--gc-sections
-
-$(BIN_NAME) : Makefile $(K_FILES) $(C_OBJ_FILES)
-	if $(KANTAN_STABLE) $(K_FILES) -o out.o; then \
-		g++ $(LD_FLAGS) -o $(BIN_NAME) out.o $(C_OBJ_FILES) $(LIBS); \
-		rm out.o ; \
-	else \
-		exit 1; \
-	fi
-
-$(C_OBJ_FILES) : $(C_FILES)
-	for file in $(C_FILES) ; do \
-		gcc $(C_FLAGS) -c $$file -o $(patsubst %.c,%.o,$(wildcard *.c)) $(C_DEFINES); \
-	done
+$(BIN_NAME) : Makefile $(K_FILES) $(C_FILES)
+	$(KANTAN_STABLE) $(K_FILES) -o $(BIN_NAME).o
+	$(CC) $(C_FLAGS) $(C_FILES) $(BIN_NAME).o -o $(BIN_NAME)
+	rm $(BIN_NAME).o
 
 # This makes it possible to do stuff like `make test -- --show-skipped`
 # see https://stackoverflow.com/questions/2214575/passing-arguments-to-make-run
@@ -114,5 +95,4 @@ test : $(BIN_NAME)
 
 .PHONY: clean
 clean :
-	rm $(BIN_NAME) ; \
-	rm *.o
+	rm $(BIN_NAME)
