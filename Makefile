@@ -55,20 +55,18 @@ K_FILES = src/ast/generics.kan \
 		  src/types/util.kan \
 		  src/util.kan
 
-START_FOLDER := $(shell pwd)
-
-BIN_NAME ?= kantan
-
-STDLIB_DIR ?= $(START_FOLDER)/src/std
-KANTAN_STABLE ?= $(START_FOLDER)/../kantan -g
 CC ?= gcc
+BIN_NAME ?= kantan
+STDLIB_DIR ?= src/std
+KANTAN_STABLE ?= /usr/local/bin/kantan
 
+KANTAN_STABLE_FLAGS := -g
 C_DEFINES := -DSTDLIB_DIR=\"$(STDLIB_DIR)\"
 C_FILES := lib.c
 C_FLAGS := -O3 -Wall -Wextra -pedantic -std=c99 -Werror
 
 $(BIN_NAME) : Makefile $(K_FILES) $(C_FILES)
-	$(KANTAN_STABLE) $(K_FILES) -o $(BIN_NAME).o
+	$(KANTAN_STABLE) $(KANTAN_STABLE_FLAGS) $(K_FILES) -o $(BIN_NAME).o
 	$(CC) $(C_FLAGS) $(C_FILES) $(BIN_NAME).o -o $(BIN_NAME)
 	rm $(BIN_NAME).o
 
