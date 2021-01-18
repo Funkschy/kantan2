@@ -1,0 +1,353 @@
+import ":std/str";
+import ":std/libc";
+import ":std/ptrvec";
+
+import ":util" as _;
+
+import "report";
+
+type ValueKind enum {
+    Boolean, Byte, View
+}
+
+type Value struct {
+    kind: ValueKind,
+    data: ValueData
+}
+
+def val_bool(b: *bool): Value {
+    return Value { kind: ValueKind.Boolean, data: ValueData { boolean: b } };
+}
+
+def val_byte(b: *u8): Value {
+    return Value { kind: ValueKind.Byte, data: ValueData { byte: b } };
+}
+
+def val_view(v: *str.View): Value {
+    return Value { kind: ValueKind.View, data: ValueData { view: v } };
+}
+
+// this is called for flags (options that don't take a value) instead of set()
+def (v: *Value) set_default() {
+    if v.kind == ValueKind.Boolean {
+        *v.data.boolean = true;
+    }
+
+    // tbh, this method only makes sense for boolean, but it feels wrong to leave the value
+    // undefined for the other cases
+    if v.kind == ValueKind.View {
+        *v.data.view = str.view("", 0);
+    }
+
+    if v.kind == ValueKind.Byte {
+        *v.data.byte = 0;
+    }
+}
+
+def (v: *Value) set(value: str.View): Result {
+    if v.kind == ValueKind.View {
+        *v.data.view = value;
+        return Result.OK;
+    }
+
+    if v.kind == ValueKind.Byte {
+        if !value.is_number() {
+            return Result.Error;
+        }
+
+        let i = int_from_view(value, 10);
+        if i < 0 || i > 128 {
+            return Result.Error;
+        }
+
+        *v.data.byte = i as i8;
+        return Result.OK;
+    }
+
+    if v.kind == ValueKind.Boolean {
+        if value.eq(str.view("true", 4)) {
+            *v.data.boolean = true;
+            return Result.OK;
+        }
+        if value.eq(str.view("false", 5)) {
+            *v.data.boolean = false;
+            return Result.OK;
+        }
+
+        return Result.Error;
+    }
+
+    return Result.Error;
+}
+
+// contains pointers into the actual Options structure
+type ValueData union {
+    boolean: *bool,
+    byte: *u8,
+    view: *str.View
+}
+
+type Option struct {
+    _takes_argument: bool,
+    _argument_name: str.View,
+    _long_name: str.View,  // e.g. --option
+    _short_name: str.View, // e.g. -o
+    _help_text: str.View,
+    _allowed_values: str.View, // ' ' separated allowed values, e.g. linux darwin win32;
+    _remarks: str.View,
+    _value: Value
+}
+
+def option(long_name: str.View, value: Value): Option {
+    return Option {
+        _takes_argument: false,
+        _argument_name: str.view("argument", 8),
+        _long_name: long_name,
+        _short_name: str.view("", 0),
+        _help_text: str.view("", 0),
+        _allowed_values: str.view("", 0), // no restrictions
+        _remarks: str.view("", 0),
+        _value: value
+    };
+}
+
+def (o: *Option) short(v: str.View): *Option {
+    o._short_name = v;
+    return o;
+}
+
+def (o: *Option) help(v: str.View): *Option {
+    o._help_text = v;
+    return o;
+}
+
+def (o: *Option) remarks(v: str.View): *Option {
+    o._remarks = v;
+    return o;
+}
+
+def (o: *Option) allowed(v: str.View): *Option {
+    // the existence of allowed values implies that the option must take arguments
+    o._takes_argument = true;
+    o._allowed_values = v;
+    return o;
+}
+
+def (o: *Option) arg_name(v: str.View): *Option {
+    // the existence of an argument name implies that the option must take arguments
+    o._takes_argument = true;
+    o._argument_name = v;
+    return o;
+}
+
+def (o: *Option) is_allowed_value(v: str.View): bool {
+    if o._allowed_values.len == 0 {
+        // no value restrictions
+        return true;
+    }
+
+    let values = o._allowed_values;
+
+    while values.len > 0 {
+        let index = values.find(str.view(" ", 1));
+        if index == -1 {
+            return false;
+        }
+
+        let value = values.take(index);
+        values = values.drop(index + 1);
+
+        if value.eq(v) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+def (o: *Option) set(v: str.View): Result {
+    if o.is_allowed_value(v) && o._value.set(v).is_ok() {
+        return Result.OK;
+    }
+
+    return Result.Error;
+}
+
+// the help printing is separated into 3 columns
+def (o: *Option) first_col(): str.String {
+    let s = str.from("--");
+    s.push(o._long_name);
+    if o._short_name.len > 0 {
+        s.push(str.view(" / -", 4));
+        s.push(o._short_name);
+    }
+
+    if o._argument_name.len > 0 {
+        s.push(str.view(" <", 2));
+        s.push(o._argument_name);
+        s.push(str.view(">", 1));
+    }
+
+    return s;
+}
+
+def (o: *Option) second_col(): str.View {
+    return o._help_text;
+}
+
+def (o: *Option) third_col(): str.String {
+    let s = str.from("");
+    if o._allowed_values.len != 0 {
+        s.push(str.view("[possible values: ", 18));
+        let values = o._allowed_values;
+
+        let first = true;
+        while values.len > 0 {
+            let index = values.find(str.view(" ", 1));
+            if index == -1 {
+                break;
+            }
+
+            let value = values.take(index);
+            values = values.drop(index + 1);
+
+            if first {
+                first = false;
+            } else {
+                s.push(str.view(", ", 2));
+            }
+
+            s.push(value);
+        }
+
+        s.push(str.view("]", 1));
+    }
+
+    if o._remarks.len != 0 {
+        if o._allowed_values.len != 0 {
+            s.push(str.view(" ", 1));
+        }
+
+        s.push(str.view("(", 1));
+        s.push(o._remarks);
+        s.push(str.view(")", 1));
+    }
+
+    return s;
+}
+
+def report_error_string(message: string, arg: str.View) {
+    let error = str.from(message);
+    defer error.free();
+
+    error.push(str.view(" '", 2));
+    error.push(arg);
+    error.push(str.view("'", 1));
+
+    report.print_simple(error.view());
+}
+
+type Parser struct {
+    options: *Option,
+    num_options: usize,
+    arguments: *ptrvec.Vec // everything that is not an option
+}
+
+def parser(options: *Option, num_options: usize, arguments: *ptrvec.Vec): Parser {
+    return Parser {
+        options: options,
+        num_options: num_options,
+        arguments: arguments
+    };
+}
+
+// TODO: replace with slice []Option
+def (p: *Parser) parse(argc: i32, argv: **i8): Result {
+    for let i = 1; i < argc; i += 1 {
+        let arg = str.view_from(*(argv + i));
+
+        if arg.at(0) != '-' {
+            p.arguments.push_ptr(arg.data as *void);
+            continue;
+        } else if arg.len == 1 {
+            report.print_simple(str.view_from("Invalid option '-'"));
+            return Result.Error;
+        }
+
+        let matched_option: *Option = null;
+        let result = Result.OK;
+
+        if arg.at(1) != '-' {
+            result = p.parse_short(arg.drop(1), &matched_option);
+        } else if arg.len == 2 {
+            report.print_simple(str.view_from("Invalid option '--'"));
+            return Result.Error;
+        } else {
+            result = p.parse_long(arg.drop(2), &matched_option);
+        }
+
+        if result.is_error() {
+            return Result.Error;
+        }
+
+        if matched_option._takes_argument {
+            if argc - i <= 1 {
+                report_error_string("Expected argument after", arg);
+                return Result.Error;
+            }
+
+            // skip next argument
+            i += 1;
+
+            let value = str.view_from(*(argv + i));
+            if matched_option.set(value).is_error() {
+                let err_msg = str.from("Invalid value '");
+                err_msg.push(value);
+                err_msg.push(str.view_from("' for option '"));
+                err_msg.push(arg);
+                err_msg.push(str.view_from("'"));
+
+                report.print_simple(err_msg.view());
+                err_msg.free();
+                return Result.Error;
+            }
+        } else {
+            // flags can just be set to their default value
+            matched_option._value.set_default();
+        }
+    }
+
+    return Result.OK;
+}
+
+def (p: *Parser) parse_short(arg: str.View, matched_option: **Option): Result {
+    for let i: usize = 0; i < p.num_options; i += 1 {
+        let opt = p.options + i;
+
+        if !opt._short_name.eq(arg) {
+            continue;
+        }
+
+        *matched_option = opt;
+        return Result.OK;
+    }
+
+    report_error_string("Invalid option", arg);
+    return Result.Error;
+}
+
+def (p: *Parser) parse_long(arg: str.View, matched_option: **Option): Result {
+    for let i: usize = 0; i < p.num_options; i += 1 {
+        let opt = p.options + i;
+
+        if !opt._long_name.eq(arg) {
+            continue;
+        }
+
+        *matched_option = opt;
+        return Result.OK;
+    }
+
+    report_error_string("Invalid option", arg);
+    return Result.Error;
+}

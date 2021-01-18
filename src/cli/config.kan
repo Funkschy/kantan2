@@ -48,7 +48,7 @@ def fill_os_info(options: *opt.Options, config: *TargetConfig): bool {
 
     get_sys(&linux, &darwin, &win32);
 
-    if options.target_os == null {
+    if options.target_os.len == 0 {
         if darwin {
             config.sys = target.Sys.Darwin;
             config.vendor = target.Vendor.Apple;
@@ -70,7 +70,7 @@ def fill_os_info(options: *opt.Options, config: *TargetConfig): bool {
         }
     }
 
-    if libc.strcmp(options.target_os, "darwin") == 0 {
+    if options.target_os.eq(str.view_from("darwin")) {
         config.sys = target.Sys.Darwin;
         config.vendor = target.Vendor.Apple;
         config.abi = target.Abi.Empty;
@@ -78,13 +78,13 @@ def fill_os_info(options: *opt.Options, config: *TargetConfig): bool {
     }
 
     config.vendor = target.Vendor.PC;
-    if libc.strcmp(options.target_os, "linux") == 0 {
+    if options.target_os.eq(str.view_from("linux")) {
         config.sys = target.Sys.Linux;
         config.abi = target.Abi.Gnu;
         return linux;
     }
 
-    if libc.strcmp(options.target_os, "win32") == 0 {
+    if options.target_os.eq(str.view_from("win32")) {
         config.sys = target.Sys.Win32;
         config.abi = target.Abi.Msvc;
         return win32;
@@ -100,7 +100,7 @@ def from_options(options: *opt.Options): Config {
     let is_same_target_as_os = fill_os_info(options, &target_conf);
 
     // TODO(#3): support proper cross compilation for architecture
-    if options.target_arch != null && libc.strcmp(options.target_arch, "wasm32") == 0 {
+    if options.target_arch.len != 0 && options.target_arch.eq(str.view_from("wasm32")) {
         is_same_target_as_os = false;
         target_conf.ptr_width_bytes = 4;
         target_conf.arch = target.Arch.Wasm32;
@@ -117,14 +117,14 @@ def from_options(options: *opt.Options): Config {
     let temp_out = path.create_l(out_name, out_len);
 
     let output_filename = options.output_filename;
-    if output_filename != null {
-        let len = libc.strlen(output_filename);
+    if output_filename.len != 0 {
+        let len = output_filename.len;
         if len >= 3 {
-            gen_asm = libc.strcmp(output_filename + (len - 2), ".s") == 0;
-            gen_obj = libc.strcmp(output_filename + (len - 2), ".o") == 0;
+            gen_asm = output_filename.drop(len - 2).eq(str.view(".s", 2));
+            gen_obj = output_filename.drop(len - 2).eq(str.view(".o", 2));
         }
 
-        out_name = output_filename;
+        out_name = output_filename.data;
         out_len = len;
 
         if gen_asm || gen_obj {
