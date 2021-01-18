@@ -42,7 +42,7 @@ def (l: *InstanceSet) len(): usize {
 
 def ty_equals(a: *Type, b: *Type): bool {
     // variables are ignored for equality
-    // TODO: should this be an internal error instead?
+    // TODO(#33): should this be an internal error instead?
     if a.kind == TypeKind.Variable {
         return ty_equals(a.data.inner, b.data.inner);
     }
@@ -79,7 +79,7 @@ def ty_equals(a: *Type, b: *Type): bool {
             return false;
         }
 
-        // TODO: check args/ret
+        // TODO(#34): check args/ret
         let a_p = a_f.params_head;
         let b_p = b_f.params_head;
         while a_p != null {

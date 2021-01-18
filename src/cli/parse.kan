@@ -261,7 +261,7 @@ def parser(options: *Option, num_options: usize, arguments: *ptrvec.Vec): Parser
     };
 }
 
-// TODO: replace with slice []Option
+// TODO(#32): replace with slice []Option
 def (p: *Parser) parse(argc: i32, argv: **i8): Result {
     for let i = 1; i < argc; i += 1 {
         let arg = str.view_from(*(argv + i));

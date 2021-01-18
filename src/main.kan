@@ -119,7 +119,7 @@ def main(argc: i32, argv: *string): ReturnCode {
         ctx.bind_type_public(str.view_from("f64"), f64_ty, null);
 
         if opts.dump_type_graph {
-            // TODO: remove this test code
+            // TODO(#35): remove this test code
             import "types/graph";
             let g = graph.type_graph();
             defer g.free();

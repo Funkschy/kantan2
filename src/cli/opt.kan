@@ -46,7 +46,7 @@ def parse(argc: i32, argv: **i8): Options {
     };
 
     // this is just here to fix a stupid compiler bug
-    // TODO: remove this when the compiler bug is fixed
+    // TODO(#31): remove this when the compiler bug is fixed
     let dummy: p.Value = undefined;
 
     let v = &str.view_from;

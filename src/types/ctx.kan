@@ -131,7 +131,7 @@ def (ctx: *TyCtx) close_scope(): Result {
             let f = &bound.ty.data.function;
             let current = f.params_head;
             while current != null {
-                // TODO: get the source position for params/return
+                // TODO(#36): get the source position for params/return
                 result = result.or(ctx.perform_item_close(current.value, null));
                 current = current.next;
             }

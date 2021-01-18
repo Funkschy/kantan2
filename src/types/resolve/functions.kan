@@ -29,7 +29,7 @@ def resolve(ctx: *TyCtx, item: *Item): Result {
             ctx.open_scope();
             defer ctx.close_scope();
 
-            // TODO: check for duplicated template param names
+            // TODO(#37): check for duplicated template param names
             let current_generic_node = &generics_head;
             for let i: usize = 0; i < signature.generic_params.len; i += 1 {
                 let ast_param = signature.generic_param_at(i);

@@ -6,7 +6,7 @@ import ":source/ident";
 import "tyid";
 import "generics" as g;
 
-// TODO: actually support extern/export functions
+// TODO(#30): actually support extern/export functions
 type Modifier struct {
     // if the span is empty => not extern etc.
     // the span may be needed for error messages, so we use it instead of a bool
