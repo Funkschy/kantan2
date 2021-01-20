@@ -1,20 +1,11 @@
 import "opt";
 
-import "../std/files/path";
-import "../codegen/target";
-import "../std/ptrvec";
-import "../std/libc";
-import "../std/str";
+import ":std/ptrvec";
+import ":std/libc";
+import ":std/str";
+import ":std/files/path";
 
-extern def get_sys(linux: *bool, darwin: *bool, win32: *bool);
-
-type TargetConfig struct {
-    ptr_width_bytes: usize,
-    arch: target.Arch,
-    vendor: target.Vendor,
-    sys: target.Sys,
-    abi: target.Abi
-}
+import ":target/target";
 
 type OutputKind enum {
     ASM, OBJ, EXE
@@ -32,120 +23,47 @@ type Config struct {
     error_output_format: ErrorOutputFormat,
     opt_level: i8,
     output_file: path.Path,
-    temp_output_file: path.Path,
     files: ptrvec.Vec,
-    target: TargetConfig
+    target: target.Target
 }
 
 def (c: *Config) free() {
     c.files.free();
 }
 
-def fill_os_info(options: *opt.Options, config: *TargetConfig): bool {
-    let linux = false;
-    let darwin = false;
-    let win32 = false;
-
-    get_sys(&linux, &darwin, &win32);
-
+def is_same_os_as_target(options: *opt.Options, config: *target.Target): bool {
+    // no target information given => use defaults
     if options.target_os.len == 0 {
-        if darwin {
-            config.sys = target.Sys.Darwin;
-            config.vendor = target.Vendor.Apple;
-            config.abi = target.Abi.Empty;
-            return true;
-        }
-
-        config.vendor = target.Vendor.PC;
-        if linux {
-            config.sys = target.Sys.Linux;
-            config.abi = target.Abi.Gnu;
-            return true;
-        }
-
-        if win32 {
-            config.sys = target.Sys.Win32;
-            config.abi = target.Abi.Msvc;
-            return true;
-        }
+        return true;
     }
 
-    if options.target_os.eq(str.view_from("darwin")) {
-        config.sys = target.Sys.Darwin;
-        config.vendor = target.Vendor.Apple;
-        config.abi = target.Abi.Empty;
-        return darwin;
-    }
-
-    config.vendor = target.Vendor.PC;
-    if options.target_os.eq(str.view_from("linux")) {
-        config.sys = target.Sys.Linux;
-        config.abi = target.Abi.Gnu;
-        return linux;
-    }
-
-    if options.target_os.eq(str.view_from("win32")) {
-        config.sys = target.Sys.Win32;
-        config.abi = target.Abi.Msvc;
-        return win32;
-    }
-
-    return false;
+    return config.sys.as_view().eq(options.target_os);
 }
 
 def from_options(options: *opt.Options): Config {
-    let target_conf: TargetConfig = undefined;
-    target_conf.ptr_width_bytes = sizeof *void;
-    target_conf.arch = target.Arch.X86_64;
-    let is_same_target_as_os = fill_os_info(options, &target_conf);
+    // the current system
+    let target_conf = target.default();
+    // do we compile for the current system
+    let is_crosscompilation = !is_same_os_as_target(options, &target_conf);
 
-    // TODO(#3): support proper cross compilation for architecture
-    if options.target_arch.len != 0 && options.target_arch.eq(str.view_from("wasm32")) {
-        is_same_target_as_os = false;
-        target_conf.ptr_width_bytes = 4;
-        target_conf.arch = target.Arch.Wasm32;
-        target_conf.vendor = target.Vendor.None;
-        target_conf.sys = target.Sys.None;
-        target_conf.abi = target.Abi.None;
+    if is_crosscompilation {
+        target_conf.sys = target.sys_from_view(options.target_os);
     }
+    target_conf.insert_defaults_for_system();
 
-    let out_name = "out.o";
-    let out_len: usize = 5;
-    let gen_asm = false;
-    let gen_obj = false;
+    let out_name = options.output_filename;
+    let kind = OutputKind.EXE;
 
-    let temp_out = path.create_l(out_name, out_len);
-
-    let output_filename = options.output_filename;
-    if output_filename.len != 0 {
-        let len = output_filename.len;
-        if len >= 3 {
-            gen_asm = output_filename.drop(len - 2).eq(str.view(".s", 2));
-            gen_obj = output_filename.drop(len - 2).eq(str.view(".o", 2));
-        }
-
-        out_name = output_filename.data;
-        out_len = len;
-
-        if gen_asm || gen_obj {
-            temp_out = path.create_l(out_name, out_len);
-        }
-    } else {
-        // the default executable name
-        out_name = "a.out";
-        out_len = 5;
+    if out_name.len == 0 {
+        out_name = str.view("a.out", 5);
+    } else if out_name.drop(out_name.len - 2).eq(str.view(".s", 2)) {
+        kind = OutputKind.ASM;
+    } else if out_name.drop(out_name.len - 2).eq(str.view(".o", 2)) {
+        kind = OutputKind.OBJ;
     }
 
     // we currently use the system linker, which ofc only works on the same system
-    let invoke_linker = !(gen_asm || gen_obj) && is_same_target_as_os;
-    let out = path.create_l(out_name, out_len);
-
-    let kind = OutputKind.EXE;
-    if gen_asm {
-        kind = OutputKind.ASM;
-    } else if gen_obj {
-        kind = OutputKind.OBJ;
-    }
+    let invoke_linker = kind == OutputKind.EXE && !is_crosscompilation;
 
     let error_output_format = ErrorOutputFormat.HumanReadable;
     if options.output_json {
@@ -159,9 +77,68 @@ def from_options(options: *opt.Options): Config {
         output_kind: kind,
         error_output_format: error_output_format,
         opt_level: options.opt_level,
-        output_file: out,
-        temp_output_file: temp_out,
+        output_file: path.from_view(out_name),
         files: options.files,
         target: target_conf
     };
 }
+
+def push_bool(json: *str.String, b: bool) {
+    if b {
+        json.push(str.view("true", 4));
+    } else {
+        json.push(str.view("false", 5));
+    }
+}
+
+def (c: *Config) to_json(): str.String {
+    let json = str.from("{");
+    defer json.push(str.view("}", 1));
+
+    let output_kind: [3]str.View = undefined;
+    output_kind[OutputKind.ASM as i32] = str.view("asm", 3);
+    output_kind[OutputKind.OBJ as i32] = str.view("obj", 3);
+    output_kind[OutputKind.EXE as i32] = str.view("exe", 3);
+
+    let error_fmt: [2]str.View = undefined;
+    error_fmt[ErrorOutputFormat.HumanReadable as i32] = str.view("text", 4);
+    error_fmt[ErrorOutputFormat.JSON as i32] = str.view("json", 4);
+
+    json.push(str.view_from("\"emit-debug-info\": "));
+    push_bool(&json, c.emit_debug_info);
+    json.push(str.view(",", 1));
+
+    json.push(str.view_from("\"invoke-linker\": "));
+    push_bool(&json, c.invoke_linker);
+    json.push(str.view(",", 1));
+
+    json.push(str.view_from("\"quit-after-parsing\": "));
+    push_bool(&json, c.quit_after_parsing);
+    json.push(str.view(",", 1));
+
+    json.push(str.view_from("\"output-kind\": \""));
+    json.push(output_kind[c.output_kind as i32]);
+    json.push(str.view_from("\","));
+
+    json.push(str.view_from("\"error-output-format\": \""));
+    json.push(error_fmt[c.error_output_format as i32]);
+    json.push(str.view_from("\","));
+
+    json.push(str.view_from("\"optimization-level\": "));
+    let opt_char = c.opt_level + '0';
+    json.push(str.view(&opt_char, 1));
+    json.push(str.view(",", 1));
+
+    json.push(str.view_from("\"output-file\": \""));
+    json.push(c.output_file.as_view());
+    json.push(str.view_from("\","));
+
+    json.push(str.view_from("\"target\": \""));
+    let triple = c.target.to_triple();
+    json.push(triple.view());
+    triple.free();
+    json.push(str.view_from("\""));
+
+    return json;
+}
+

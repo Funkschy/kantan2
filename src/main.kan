@@ -1,3 +1,4 @@
+import "io";
 import "std/str";
 
 import "cli/opt";
@@ -35,6 +36,15 @@ def main(argc: i32, argv: *string): ReturnCode {
     // this is needed for mi mode, where errors are printed as json
     report.init(config.error_output_format, &compiler.modmap);
     defer report.finish();
+
+    if opts.dump_config {
+        io.printf("\"config\": ");
+        defer io.printf(",\n");
+
+        let json = config.to_json();
+        io.printf("%s", json.cstring());
+        json.free();
+    }
 
     if opts.had_errors {
         return ReturnCode.CliOptionError;
@@ -132,7 +142,6 @@ def main(argc: i32, argv: *string): ReturnCode {
             g.add_edge(graph.EdgeKind.Soft, n_f64, n_i32);
             g.add_edge(graph.EdgeKind.Hard, n_f64, n_f32);
 
-            import "io";
             io.printf("\"type-graph\": ");
             defer io.printf(",\n");
 
@@ -174,7 +183,6 @@ def main(argc: i32, argv: *string): ReturnCode {
 
 def dump_ast(compiler: *Compiler) {
     // TODO(#12): integrate this into the program in more appropriate manner
-    import "io";
     io.printf("\"modules\": [");
     defer io.printf("],\n");
 

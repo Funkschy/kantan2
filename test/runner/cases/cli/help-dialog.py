@@ -11,16 +11,17 @@ USAGE:
     kantan [OPTIONS] <source-file>...
 
 OPTIONS:
-    --help / -h <argument>          print this help text
-    --debug-symbols / -g <argument> enable debug symbols in the output
-    --mi <argument>                 enable the machine interface       (output everything as json)
-    --dump-ast <argument>           dump the ast as json
-    --dump-type-graph <argument>    dump the type-graph as json
-    --parse-only <argument>         quit after parsing
-    --opt-level / -O <level>        the optimization level             [possible values: 0, 1, 2, 3]
-    --out / -o <file>               the output file                    (end with .s/.o for assembly/obj-file output)
-    --sys <argument>                set the target OS                  [possible values: linux, win32, darwin]
-    --arch <argument>               set the target Architecture        [possible values: x86_64, wasm32]
+    --help / -h              print this help text
+    --debug-symbols / -g     enable debug symbols in the output
+    --mi                     enable the machine interface       (output everything as json)
+    --dump-ast               dump the ast as json
+    --dump-config            dump the compiler config as json
+    --dump-type-graph        dump the type-graph as json
+    --parse-only             quit after parsing
+    --opt-level / -O <level> the optimization level             [possible values: 0, 1, 2, 3]
+    --out / -o <file>        the output file                    (end with .s/.o for assembly/obj-file output)
+    --sys <argument>         set the target OS                  [possible values: none, linux, darwin, windows]
+    --arch <argument>        set the target Architecture        [possible values: x86_64, wasm32]
 
 ARGS:
     <source-file>...

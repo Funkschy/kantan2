@@ -182,7 +182,7 @@ def (o: *Option) first_col(): str.String {
         s.push(o._short_name);
     }
 
-    if o._argument_name.len > 0 {
+    if o._takes_argument {
         s.push(str.view(" <", 2));
         s.push(o._argument_name);
         s.push(str.view(">", 1));

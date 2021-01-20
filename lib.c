@@ -134,20 +134,19 @@ void *int_to_ptr(size_t i) {
     return (void *)s;
 }
 
-void get_sys(bool *is_linux, bool *is_darwin, bool *is_win32) {
-    // don't report unused params for the other platforms
-    (void)is_linux;
-    (void)is_darwin;
-    (void)is_win32;
+enum OS {
+    NONE, LINUX, DARWIN, WIN32
+};
+
+void get_os(int32_t *os) {
 #if defined(linux) || defined(__linux__)
-    if (is_linux)
-        *is_linux = true;
+    *os = (int32_t) LINUX;
 #elif defined(darwin) || defined(__APPLE__)
-    if (is_darwin)
-        *is_darwin = true;
+    *os = (int32_t) DARWIN;
 #elif defined(WIN32) || defined(_WIN32)
-    if (is_win32)
-        *is_win32 = true;
+    *os = (int32_t) WIN32;
+#else
+    *os = (int32_t) NONE;
 #endif
 }
 

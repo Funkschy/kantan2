@@ -13,7 +13,7 @@ K_FILES = src/ast/generics.kan \
 		  src/cli/opt.kan \
 		  src/cli/parse.kan \
 		  src/cli/report.kan \
-		  src/codegen/target.kan \
+		  src/target/target.kan \
 		  src/compiler.kan \
 		  src/error.kan \
 		  src/main.kan \

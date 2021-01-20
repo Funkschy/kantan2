@@ -23,6 +23,7 @@ class Output(object):
     def __init__(self, errors: List[OutputElement]):
         self.errors = errors
         self.modules = {}
+        self.config = {}
 
     @classmethod
     def from_json(cls, data: dict):
@@ -38,6 +39,8 @@ def parse_output(completed_process: CompletedProcess) -> Union[Output, List[str]
         output = Output.from_json(data)
         if 'modules' in data:
             output.modules = data['modules']
+        if 'config' in data:
+            output.config = data['config']
     except json.decoder.JSONDecodeError as e:
         return [raw_stdout, str(e)]
 

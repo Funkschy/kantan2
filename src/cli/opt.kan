@@ -1,11 +1,13 @@
 import "io";
 
-import "report";
-import "parse" as p;
-
 import ":std/str";
 import ":std/vec";
 import ":std/ptrvec";
+
+import ":target/target";
+
+import "report";
+import "parse" as p;
 
 type Options struct {
     had_errors: bool,
@@ -15,6 +17,7 @@ type Options struct {
     // output all errors and warnings in json
     output_json: bool,
     dump_ast: bool,
+    dump_config: bool,
     dump_type_graph: bool,
     // quit after parsing
     parse_only: bool,
@@ -25,8 +28,8 @@ type Options struct {
     target_arch: str.View
 }
 
-let num_options: usize = 10;
-let available_options: [10]p.Option = undefined;
+let num_options: usize = 11;
+let available_options: [11]p.Option = undefined;
 
 def parse(argc: i32, argv: **i8): Options {
     let options = Options {
@@ -36,6 +39,7 @@ def parse(argc: i32, argv: **i8): Options {
         debug_info: false,
         output_json: false,
         dump_ast: false,
+        dump_config: false,
         dump_type_graph: false,
         parse_only: false,
         files: ptrvec.with_cap(argc as usize),
@@ -66,6 +70,9 @@ def parse(argc: i32, argv: **i8): Options {
     available_options[i += 1] = *p.option(v("dump-ast"), p.val_bool(&options.dump_ast))
         .help(v("dump the ast as json"));
 
+    available_options[i += 1] = *p.option(v("dump-config"), p.val_bool(&options.dump_config))
+        .help(v("dump the compiler config as json"));
+
     available_options[i += 1] = *p.option(v("dump-type-graph"), p.val_bool(&options.dump_type_graph))
         .help(v("dump the type-graph as json"));
 
@@ -86,11 +93,11 @@ def parse(argc: i32, argv: **i8): Options {
 
     available_options[i += 1] = *p.option(v("sys"), p.val_view(&options.target_os))
         .help(v("set the target OS"))
-        .allowed(v("linux win32 darwin "));
+        .allowed(target.available_systems());
 
     available_options[i += 1] = *p.option(v("arch"), p.val_view(&options.target_arch))
         .help(v("set the target Architecture"))
-        .allowed(v("x86_64 wasm32 "));
+        .allowed(target.available_architectures());
 
     let parser = p.parser(&available_options[0], num_options, &options.files);
     options.had_errors = parser.parse(argc, argv).is_error();
@@ -111,6 +118,11 @@ def error_in_config_values(options: *Options): bool {
 
     if options.dump_ast && !options.output_json {
         report.print_simple(str.view("--dump-ast can only be used in combination with --mi", 52));
+        return true;
+    }
+
+    if options.dump_config && !options.output_json {
+        report.print_simple(str.view("--dump-config can only be used in combination with --mi", 55));
         return true;
     }
 
