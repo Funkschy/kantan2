@@ -46,8 +46,8 @@ def init() {
     vendors[t.Vendor.PC as i32]    = str.view("pc", 2);
     vendors[t.Vendor.Apple as i32] = str.view("apple", 5);
 
-    systems[t.Sys.None as i32]   = str.view("none", 4);
-    systems[t.Sys.Unknown as i32]   = str.view("unknown", 7);
+    systems[t.Sys.None as i32]    = str.view("none", 4);
+    systems[t.Sys.Unknown as i32] = str.view("unknown", 7);
     systems[t.Sys.Linux as i32]   = str.view("linux", 5);
     systems[t.Sys.Darwin as i32]  = str.view("darwin", 6);
     systems[t.Sys.Windows as i32] = str.view("windows", 7);
@@ -67,7 +67,7 @@ def init() {
         "x86_64-pc-windows-msvc", t.Arch.X86_64, t.Vendor.PC, t.Sys.Windows, t.Abi.Msvc
     );
     valid_targets[i += 1] = make_target(
-        "wasm-unknown-unknown", t.Arch.Wasm32, t.Vendor.Unknown, t.Sys.Unknown, t.Abi.Unknown
+        "wasm32-unknown-unknown", t.Arch.Wasm32, t.Vendor.Unknown, t.Sys.Unknown, t.Abi.Unknown
     );
 
     dbg.assert(num_targets() == i as usize + 1, "you forgot to change the target array length");
@@ -163,6 +163,7 @@ def parse(triple: str.View): ParsedTarget {
     if arch_index < 0 {
         return error(str.view_from("Invalid architecture"));
     }
+    target.arch = *(&arch_index as *t.Arch);
     part_idx += 1;
 
     let vendor_index = find_index(&vendors[0], num_vendors, parts[part_idx]);
@@ -188,7 +189,7 @@ def parse(triple: str.View): ParsedTarget {
     // because part_idx is not used after this
     assign_from_idx(&target.abi, abi_index, t.Abi.Unknown);
 
-    // fknd the matching valid target triple
+    // find the matching valid target triple
     let target_is_valid = false;
     for let i: usize = 0; i < num_targets; i += 1 {
         if valid_targets[i].eq(&target) {
