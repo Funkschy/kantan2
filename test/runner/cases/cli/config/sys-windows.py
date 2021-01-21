@@ -9,7 +9,7 @@ expected = 'x86_64-pc-windows-msvc'
 class Test(SuccessTestCase):
     def __init__(self, executor):
         super().__init__(executor)
-        self.options = ['--mi', '--dump-config', '--sys', 'windows']
+        self.options = ['--mi', '--dump-config', '--target', 'x86_64-pc-windows-msvc']
 
     def test_output(self, output: Output) -> Optional[TestError]:
         if output.config['target'] != expected:

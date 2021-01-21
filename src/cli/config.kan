@@ -6,6 +6,10 @@ import ":std/str";
 import ":std/files/path";
 
 import ":target/target";
+import ":target/parse" as tparse;
+import ":util" as _;
+
+import "report";
 
 type OutputKind enum {
     ASM, OBJ, EXE
@@ -31,25 +35,23 @@ def (c: *Config) free() {
     c.files.free();
 }
 
-def is_same_os_as_target(options: *opt.Options, config: *target.Target): bool {
-    // no target information given => use defaults
-    if options.target_os.len == 0 {
-        return true;
+def from_options(options: *opt.Options, config_out: *Config): Result {
+    let current_system = target.default();
+
+    let target_system = current_system;
+    if options.target_triple.len > 0 {
+        let parsed = tparse.parse(options.target_triple);
+        if parsed.error.len > 0 {
+            report.print_simple(parsed.error);
+            return Result.Error;
+        }
+        target_system = parsed.target;
     }
 
-    return config.sys.as_view().eq(options.target_os);
-}
-
-def from_options(options: *opt.Options): Config {
-    // the current system
-    let target_conf = target.default();
     // do we compile for the current system
-    let is_crosscompilation = !is_same_os_as_target(options, &target_conf);
-
+    let is_crosscompilation = !current_system.eq(&target_system);
     if is_crosscompilation {
-        target_conf.sys = target.sys_from_view(options.target_os);
     }
-    target_conf.insert_defaults_for_system();
 
     let out_name = options.output_filename;
     let kind = OutputKind.EXE;
@@ -70,7 +72,7 @@ def from_options(options: *opt.Options): Config {
         error_output_format = ErrorOutputFormat.JSON;
     }
 
-    return Config {
+    *config_out = Config {
         emit_debug_info: options.debug_info,
         invoke_linker: invoke_linker,
         quit_after_parsing: options.parse_only,
@@ -78,9 +80,14 @@ def from_options(options: *opt.Options): Config {
         error_output_format: error_output_format,
         opt_level: options.opt_level,
         output_file: path.from_view(out_name),
-        files: options.files,
-        target: target_conf
+        files: options.files, // move(options.files)
+        target: target_system
     };
+
+    // manually move the files out of the options, so they can be safely freed
+    options.files = ptrvec.create();
+
+    return Result.OK;
 }
 
 def push_bool(json: *str.String, b: bool) {
@@ -134,9 +141,7 @@ def (c: *Config) to_json(): str.String {
     json.push(str.view_from("\","));
 
     json.push(str.view_from("\"target\": \""));
-    let triple = c.target.to_triple();
-    json.push(triple.view());
-    triple.free();
+    json.push(c.target.triple);
     json.push(str.view_from("\""));
 
     return json;

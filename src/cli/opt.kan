@@ -1,10 +1,13 @@
 import "io";
 
 import ":std/str";
+import ":std/dbg";
 import ":std/vec";
 import ":std/ptrvec";
 
+import ":util";
 import ":target/target";
+import ":target/parse" as target_parse;
 
 import "report";
 import "parse" as p;
@@ -12,7 +15,6 @@ import "parse" as p;
 type Options struct {
     had_errors: bool,
     exit_immediately: bool,
-    print_help: bool,
     debug_info: bool,
     // output all errors and warnings in json
     output_json: bool,
@@ -24,18 +26,18 @@ type Options struct {
     files: ptrvec.Vec,
     opt_level: u8,
     output_filename: str.View,
-    target_os: str.View,
-    target_arch: str.View
+    target_triple: str.View
 }
 
-let num_options: usize = 11;
 let available_options: [11]p.Option = undefined;
+def num_options(): usize {
+    return util.sizeof_val(&available_options) / sizeof p.Option;
+}
 
 def parse(argc: i32, argv: **i8): Options {
     let options = Options {
         had_errors: false,
         exit_immediately: false,
-        print_help: false,
         debug_info: false,
         output_json: false,
         dump_ast: false,
@@ -45,9 +47,11 @@ def parse(argc: i32, argv: **i8): Options {
         files: ptrvec.with_cap(argc as usize),
         opt_level: 0,
         output_filename: str.view("", 0),
-        target_os: str.view("", 0),
-        target_arch: str.view("", 0)
+        target_triple: str.view("", 0)
     };
+
+    let print_help = false;
+    let print_available_targets = false;
 
     // this is just here to fix a stupid compiler bug
     // TODO(#31): remove this when the compiler bug is fixed
@@ -55,7 +59,7 @@ def parse(argc: i32, argv: **i8): Options {
 
     let v = &str.view_from;
     let i = -1;
-    available_options[i += 1] = *p.option(v("help"), p.val_bool(&options.print_help))
+    available_options[i += 1] = *p.option(v("help"), p.val_bool(&print_help))
         .short(v("h"))
         .help(v("print this help text"));
 
@@ -68,13 +72,16 @@ def parse(argc: i32, argv: **i8): Options {
         .remarks(v("output everything as json"));
 
     available_options[i += 1] = *p.option(v("dump-ast"), p.val_bool(&options.dump_ast))
-        .help(v("dump the ast as json"));
+        .help(v("dump the ast as json"))
+        .remarks(v("needs --mi"));
 
     available_options[i += 1] = *p.option(v("dump-config"), p.val_bool(&options.dump_config))
-        .help(v("dump the compiler config as json"));
+        .help(v("dump the compiler config as json"))
+        .remarks(v("needs --mi"));
 
     available_options[i += 1] = *p.option(v("dump-type-graph"), p.val_bool(&options.dump_type_graph))
-        .help(v("dump the type-graph as json"));
+        .help(v("dump the type-graph as json"))
+        .remarks(v("needs --mi"));
 
     available_options[i += 1] = *p.option(v("parse-only"), p.val_bool(&options.parse_only))
         .help(v("quit after parsing"));
@@ -91,21 +98,28 @@ def parse(argc: i32, argv: **i8): Options {
         .help(v("the output file"))
         .remarks(v("end with .s/.o for assembly/obj-file output"));
 
-    available_options[i += 1] = *p.option(v("sys"), p.val_view(&options.target_os))
-        .help(v("set the target OS"))
-        .allowed(target.available_systems());
+    available_options[i += 1] = *p.option(v("target"), p.val_view(&options.target_triple))
+        .help(v("set the target <arch>-<vendor>-<sys>-<abi>"))
+        .takes_argument()
+        .remarks(v("see --print-available-targets"));
 
-    available_options[i += 1] = *p.option(v("arch"), p.val_view(&options.target_arch))
-        .help(v("set the target Architecture"))
-        .allowed(target.available_architectures());
+    available_options[i += 1] = *p.option(v("print-available-targets"), p.val_bool(&print_available_targets))
+        .help(v("print all available target triples"));
+
+    let num_options = num_options();
+    dbg.assert(num_options == i as usize + 1, "you forgot to change the option array length");
 
     let parser = p.parser(&available_options[0], num_options, &options.files);
     options.had_errors = parser.parse(argc, argv).is_error();
     options.had_errors = error_in_config_values(&options);
-    options.exit_immediately = options.print_help;
+    options.exit_immediately = print_help || print_available_targets;
 
-    if options.print_help {
+    if print_help {
         print_usage();
+    }
+
+    if print_available_targets {
+        print_targets();
     }
 
     return options;
@@ -140,6 +154,8 @@ def print_usage() {
     io.printf("USAGE:\n");
     io.printf("    kantan [OPTIONS] <source-file>...\n\n");
     io.printf("OPTIONS:\n");
+
+    let num_options = num_options();
 
     let first_col = vec.with_cap(sizeof str.String, num_options);
     defer first_col.free();
@@ -195,4 +211,14 @@ def print_usage() {
     io.printf("\n");
     io.printf("ARGS:\n");
     io.printf("    <source-file>...\n");
+}
+
+def print_targets() {
+    let targets = target_parse.targets();
+
+    let n = target_parse.num_targets();
+    for let i: usize = 0; i < n; i += 1 {
+        let t = targets + i;
+        io.printf("%.*s\n", t.triple);
+    }
 }

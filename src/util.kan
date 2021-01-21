@@ -91,3 +91,7 @@ def int_from_view(v: str.View, base: u32): i64 {
 
     return value;
 }
+
+def [T] sizeof_val(v: *T): usize {
+    return sizeof T;
+}

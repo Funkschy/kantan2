@@ -9,7 +9,7 @@ expected = 'x86_64-apple-darwin'
 class Test(SuccessTestCase):
     def __init__(self, executor):
         super().__init__(executor)
-        self.options = ['--mi', '--dump-config', '--sys', 'darwin']
+        self.options = ['--mi', '--dump-config', '--target', 'x86_64-apple-darwin']
 
     def test_output(self, output: Output) -> Optional[TestError]:
         if output.config['target'] != expected:

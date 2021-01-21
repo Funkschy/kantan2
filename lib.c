@@ -135,7 +135,7 @@ void *int_to_ptr(size_t i) {
 }
 
 enum OS {
-    NONE, LINUX, DARWIN, WIN32
+    NONE, UNKNOWN, LINUX, DARWIN, WIN32
 };
 
 void get_os(int32_t *os) {

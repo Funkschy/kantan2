@@ -11,7 +11,7 @@ expected = 'x86_64-unknown-linux-sysv'
 class Test(SuccessTestCase):
     def __init__(self, executor):
         super().__init__(PredicateCompilerExecutor(executor, [lambda: env.get_os_name() == 'Linux']))
-        self.options = ['--mi', '--dump-config', '--sys', 'linux']
+        self.options = ['--mi', '--dump-config']
 
     def test_output(self, output: Output) -> Optional[TestError]:
         if output.config['target'] != expected:

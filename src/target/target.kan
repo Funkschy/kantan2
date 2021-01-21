@@ -4,6 +4,7 @@ import ":std/dbg";
 extern def get_os(os: *Sys): void;
 
 type Target struct {
+    triple: str.View,
     ptr_width_bytes: usize,
     arch: Arch,
     vendor: Vendor,
@@ -24,165 +25,46 @@ def default(): Target {
     return target;
 }
 
+def (t: *Target) eq(other: *Target): bool {
+    return t.arch == other.arch
+        && t.vendor == other.vendor
+        && t.sys == other.sys
+        && t.abi == other.abi;
+}
+
 def (t: *Target) insert_defaults_for_system() {
     if t.sys == Sys.Linux {
+        t.triple = str.view_from("x86_64-unknown-linux-sysv");
         t.vendor = Vendor.Unknown;
         t.abi = Abi.SysV;
     } else if t.sys == Sys.Darwin {
         t.vendor = Vendor.Apple;
+        t.triple = str.view_from("x86_64-apple-darwin");
         t.abi = Abi.Unknown;
     } else if t.sys == Sys.Windows {
         t.vendor = Vendor.PC;
+        t.triple = str.view_from("x86_64-pc-windows-msvc");
         t.abi = Abi.Msvc;
     }
-}
-
-def (t: *Target) to_triple(): str.String {
-    let target_arr: [4]str.View = undefined;
-    target_arr[0] = t.arch.as_view();
-    target_arr[1] = t.vendor.as_view();
-    target_arr[2] = t.sys.as_view();
-    target_arr[3] = t.abi.as_view();
-
-    // it is common, to leave the abi empty instead of writing an explicit 'unknown'
-    if target_arr[3].eq(str.view("unknown", 7)) {
-        target_arr[3] = str.view("", 0);
-    }
-
-    let triple = str.from("");
-    for let i = 0; i < 4; i += 1 {
-        let part = target_arr[i];
-        if part.len == 0 || part.eq(str.view("empty", 5)) {
-            continue;
-        }
-
-        if i > 0 {
-            triple.push(str.view("-", 1));
-        }
-
-        triple.push(part);
-    }
-
-    return triple;
 }
 
 type Arch enum {
     X86_64, Wasm32
 }
 
-let arch_string = "x86_64 wasm32 ";
-let arch_string_len: usize = 14;
-
 type Vendor enum {
     Unknown, PC, Apple
 }
 
-let vendor_string = "unknown pc apple ";
-
 // needs to be the same as the C enum in lib.c
 type Sys enum {
-    None, Linux, Darwin, Windows
+    None,
+    Unknown, // only for wasm
+    Linux,
+    Darwin,
+    Windows
 }
-
-let sys_string = "none linux darwin windows ";
 
 type Abi enum {
     Unknown, SysV, Msvc
 }
-
-let abi_string = "unknown sysv msvc ";
-
-
-// the following methods work generically on the string variable for their type
-// if you want to add another arch/vendor/sys/abi, it should be enough to change the
-// respective string and enum
-
-def (a: Arch) as_view(): str.View {
-    return enum_as_view(available_architectures(), a);
-}
-
-// this function assumes that a is valid!
-// if a is not valid, this will abort
-def arch_from_view(a: str.View): Arch {
-    let arch: Arch = undefined;
-    enum_from_view(available_architectures(), a, &arch);
-    return arch;
-}
-
-def available_architectures(): str.View {
-    return str.view_from(arch_string);
-}
-
-def (a: Arch) pointer_width_bits(): u32 {
-    if a == Arch.X86_64 {
-        return 64;
-    }
-    return 32;
-}
-
-def (v: Vendor) as_view(): str.View {
-    return enum_as_view(available_vendors(), v);
-}
-
-def available_vendors(): str.View {
-    return str.view_from(vendor_string);
-}
-
-def (s: Sys) as_view(): str.View {
-    return enum_as_view(available_systems(), s);
-}
-
-// this function assumes that s is valid!
-// if s is not valid, this will abort
-def sys_from_view(s: str.View): Sys {
-    let sys: Sys = undefined;
-    enum_from_view(available_systems(), s, &sys);
-    return sys;
-}
-
-def available_systems(): str.View {
-    return str.view_from(sys_string);
-}
-
-def (a: Abi) as_view(): str.View {
-    return enum_as_view(available_abis(), a);
-}
-
-def available_abis(): str.View {
-    return str.view_from(abi_string);
-}
-
-def [T] enum_as_view(available: str.View, value: T): str.View {
-    for let i = 0; i < value as i32; i += 1 {
-        let index = available.find(str.view(" ", 1));
-        available = available.drop(index + 1);
-    }
-
-    let index = available.find(str.view(" ", 1));
-    return available.take(index);
-}
-
-def [T] enum_from_view(available: str.View, a: str.View, out: *T) {
-    let i = 0;
-
-    while available.len > 0 {
-        let index = available.find(str.view(" ", 1));
-        if index == -1 {
-            dbg.unreachable();
-            return;
-        }
-
-        let elem = available.take(index);
-        available = available.drop(index + 1);
-
-        if elem.eq(a) {
-            *out = *(&i as *T);
-            return;
-        }
-
-        i += 1;
-    }
-
-    dbg.unreachable();
-}
-

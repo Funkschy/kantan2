@@ -1,0 +1,209 @@
+import ":std/str";
+import ":std/dbg";
+
+import ":util";
+import "target" as t;
+
+type ArchSpec struct {
+    name: str.View,
+    ptr_width_bytes: usize
+}
+
+def arch_spec(name: str.View, ptr_width_bytes: usize): ArchSpec {
+    return ArchSpec { name: name, ptr_width_bytes: ptr_width_bytes };
+}
+
+let arches:  [2]ArchSpec = undefined;
+let vendors: [3]str.View = undefined;
+let systems: [5]str.View = undefined;
+let abis:    [3]str.View = undefined;
+
+let valid_targets: [4]t.Target = undefined;
+
+def num_targets(): usize {
+    return util.sizeof_val(&valid_targets) / sizeof t.Target;
+}
+
+def targets(): *t.Target {
+    return &valid_targets[0];
+}
+
+def init() {
+    let num_arches  = (util.sizeof_val(&arches)  / sizeof ArchSpec ) as i32;
+    let num_vendors = (util.sizeof_val(&vendors) / sizeof str.View ) as i32;
+    let num_systems = (util.sizeof_val(&systems) / sizeof str.View ) as i32;
+    let num_abis    = (util.sizeof_val(&abis)    / sizeof str.View ) as i32;
+    // just some checks, so nobody forgets to update the arrays after adding an enum entry
+    dbg.assert(t.Arch.len == num_arches, "wrong number of arches");
+    dbg.assert(t.Vendor.len == num_vendors, "wrong number of vendors");
+    dbg.assert(t.Sys.len == num_systems, "wrong number of systems");
+    dbg.assert(t.Abi.len == num_abis, "wrong number of abis");
+
+    arches[t.Arch.X86_64 as i32] = arch_spec(str.view("x86_64", 6), 8);
+    arches[t.Arch.Wasm32 as i32] = arch_spec(str.view("wasm32", 6), 4);
+
+    vendors[t.Vendor.Unknown as i32]   = str.view("unknown", 7);
+    vendors[t.Vendor.PC as i32]    = str.view("pc", 2);
+    vendors[t.Vendor.Apple as i32] = str.view("apple", 5);
+
+    systems[t.Sys.None as i32]   = str.view("none", 4);
+    systems[t.Sys.Unknown as i32]   = str.view("unknown", 7);
+    systems[t.Sys.Linux as i32]   = str.view("linux", 5);
+    systems[t.Sys.Darwin as i32]  = str.view("darwin", 6);
+    systems[t.Sys.Windows as i32] = str.view("windows", 7);
+
+    abis[t.Abi.Unknown as i32] = str.view("unknown", 7);
+    abis[t.Abi.SysV as i32] = str.view("sysv", 4);
+    abis[t.Abi.Msvc as i32] = str.view("msvc", 4);
+
+    let i = -1;
+    valid_targets[i += 1] = make_target(
+        "x86_64-unknown-linux-sysv", t.Arch.X86_64, t.Vendor.Unknown, t.Sys.Linux, t.Abi.SysV
+    );
+    valid_targets[i += 1] = make_target(
+        "x86_64-apple-darwin", t.Arch.X86_64, t.Vendor.Apple, t.Sys.Darwin, t.Abi.Unknown
+    );
+    valid_targets[i += 1] = make_target(
+        "x86_64-pc-windows-msvc", t.Arch.X86_64, t.Vendor.PC, t.Sys.Windows, t.Abi.Msvc
+    );
+    valid_targets[i += 1] = make_target(
+        "wasm-unknown-unknown", t.Arch.Wasm32, t.Vendor.Unknown, t.Sys.Unknown, t.Abi.Unknown
+    );
+
+    dbg.assert(num_targets() == i as usize + 1, "you forgot to change the target array length");
+}
+
+def make_target(triple: *i8, a: t.Arch, v: t.Vendor, sys: t.Sys, abi: t.Abi): t.Target {
+    let arch_spec = &arches[a as i32];
+    return t.Target {
+        triple: str.view_from(triple),
+        ptr_width_bytes: arch_spec.ptr_width_bytes,
+        arch: a,
+        vendor: v,
+        sys: sys,
+        abi: abi
+    };
+}
+
+type ParsedTarget struct {
+    error: str.View, // empty for success
+    target: t.Target
+}
+
+def error(msg: str.View): ParsedTarget {
+    let target: t.Target = undefined;
+    target.triple = str.view("", 0);
+    return ParsedTarget { error: msg, target: target };
+}
+
+def find_index(array: *str.View, count: usize, supplied: str.View): isize {
+    for let i: usize = 0; i < count; i += 1 {
+        let current = *(array + i);
+
+        if current.eq(supplied) {
+            return i as isize;
+        }
+    }
+
+    return -1;
+}
+
+def [T] assign_from_idx(field: *T, value: isize, default: T) {
+    if value >= 0 {
+        *field = *(&value as *T);
+    } else {
+        *field = default;
+    }
+}
+
+def parse(triple: str.View): ParsedTarget {
+    let target: t.Target = undefined;
+    let num_targets = num_targets();
+
+    let num_arches  = util.sizeof_val(&arches)  / sizeof ArchSpec;
+    let num_vendors = util.sizeof_val(&vendors) / sizeof str.View;
+    let num_systems = util.sizeof_val(&systems) / sizeof str.View;
+    let num_abis    = util.sizeof_val(&abis)    / sizeof str.View;
+
+    // there cannot be more than '-' separated 4 parts (<arch><sub>-<vendor>-<sys>-<abi>)
+    let parts: [4]str.View = undefined;
+    // 0 and 1 must be filled anyway, otherwise we quit immediately
+    parts[2] = parts[3] = str.view("", 0);
+    let part_count: usize = 0;
+
+    while triple.len > 0 {
+        let next = triple.find(str.view("-", 1));
+        if next == -1 {
+            next = triple.len;
+        }
+
+        if next > 0 {
+            if part_count < 4 {
+                parts[part_count] = triple.take(next);
+            }
+            part_count += 1;
+        }
+
+        triple = triple.drop(next + 1);
+    }
+
+    if part_count < 2 || part_count > 4 {
+        return error(str.view_from("Invalid target"));
+    }
+    let part_idx = 0;
+
+    let arch_index: isize = -1;
+    for let i: usize = 0; i < num_arches; i += 1 {
+        if arches[i].name.eq(parts[part_idx]) {
+            arch_index = i as isize;
+        }
+    }
+
+    // arch is not optional
+    if arch_index < 0 {
+        return error(str.view_from("Invalid architecture"));
+    }
+    part_idx += 1;
+
+    let vendor_index = find_index(&vendors[0], num_vendors, parts[part_idx]);
+    assign_from_idx(&target.vendor, vendor_index, t.Vendor.Unknown);
+
+    // vendor is optional, so we need to check, if it was supplied
+    if vendor_index >= 0 {
+        part_idx += 1;
+    }
+
+    let system_index = find_index(&systems[0], num_systems, parts[part_idx]);
+    // system is not optional
+    if system_index < 0 {
+        return error(str.view_from("Invalid system"));
+    }
+    // this is unused anyway, since we already checked the index
+    let default: t.Sys = undefined;
+    assign_from_idx(&target.sys, system_index, default);
+    part_idx += 1;
+
+    let abi_index = find_index(&abis[0], num_abis, parts[part_idx]);
+    // abi is optional, but we don't need to check if it was set,
+    // because part_idx is not used after this
+    assign_from_idx(&target.abi, abi_index, t.Abi.Unknown);
+
+    // fknd the matching valid target triple
+    let target_is_valid = false;
+    for let i: usize = 0; i < num_targets; i += 1 {
+        if valid_targets[i].eq(&target) {
+            target_is_valid = true;
+            // overwrite the target, to get the missing stuff (triple, ptr_width_bytes)
+            target = valid_targets[i];
+        }
+    }
+
+    if !target_is_valid {
+        return error(str.view_from("invalid target"));
+    }
+
+    return ParsedTarget {
+        error: str.view("", 0),
+        target: target
+    };
+}

@@ -126,6 +126,11 @@ def (o: *Option) remarks(v: str.View): *Option {
     return o;
 }
 
+def (o: *Option) takes_argument(): *Option {
+    o._takes_argument = true;
+    return o;
+}
+
 def (o: *Option) allowed(v: str.View): *Option {
     // the existence of allowed values implies that the option must take arguments
     o._takes_argument = true;
