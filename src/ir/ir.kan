@@ -1,144 +1,34 @@
-import "../ty";
-import "../vec";
+import ":std/ptrvec";
 
 // Statements
+type StatementKind enum {
+    Assign, Nop
+}
 
 type Statement struct {
+    kind: StatementKind,
+    data: StatementData
+}
 
+type StatementData union {
+}
+
+// Terminators
+
+type TerminatorKind enum {
+    Return, Call, Jmp
 }
 
 type Terminator struct {
+    kind: TerminatorKind,
+    data: TerminatorData
+}
+
+type TerminatorData union {
 
 }
 
-// Memory Locations
-
-type MemLocationKind enum {
-    Local, Global
+type BasicBlock struct {
+    statements: ptrvec.Vec,
+    terminator: Terminator
 }
-
-type MemLocation struct {
-    kind: MemLocationKind,
-    location: MemLocationData,
-    projections: vec.Vec // vec.Vec[Projection]
-}
-
-type MemLocationData union {
-    local: Local,
-    global: Global
-}
-
-type Local struct {
-    idx: usize
-}
-
-type Global struct {
-    idx: usize
-}
-
-type ProjectionKind enum {
-    Field, Index, Deref
-}
-
-type Projection struct {
-    kind: ProjectionKind,
-    data: ProjectionData
-}
-
-type ProjectionData union {
-    field: Field,
-    index: Local
-    // deref does not need any data
-}
-
-type Field struct {
-    idx: usize,
-    ty: *ty.Type
-}
-
-// Expressions
-
-type RValueKind enum {
-    Use, Ref, Cast, Binary, Unary, Null, Undefined
-}
-
-type RValue struct {
-    kind: RValueKind
-}
-
-type RValueData union {
-    use: Operand,
-    ref: MemLocation,
-    cast: Cast,
-    binary: BinaryOperation,
-    null_value: *ty.Type,
-    undef_value: *ty.Type
-}
-
-type OperandKind enum {
-    Copy, Constant
-}
-
-type Operand struct {
-    kind: OperandKind
-}
-
-type OperandData union {
-    copy: MemLocation,
-    constant: Constant
-}
-
-type CastKind enum {
-    Pointer, Int
-}
-
-type Cast struct {
-    kind: CastKind,
-    operand: Operand,
-    into: *ty.Type
-}
-
-type BinaryKind enum {
-    Add = 1,
-    Sub,
-    Mul,
-    Div,
-    Mod,
-    BitAnd,
-    BitOr,
-    BitXor,
-
-    ST,
-    SE,
-    GT,
-    GE,
-    EQ,
-    NE,
-
-    BoolAnd,
-    BoolOr,
-
-    LShift,
-    RShift,
-
-    AddScalar,
-    SubScalar
-}
-
-type BinaryOperation struct {
-    kind: BinaryKind,
-    left: Operand,
-    right: Operand
-}
-
-type UnaryKind enum {
-    Not = 1,
-    NumNeg
-}
-
-type UnaryOperation struct {
-    kind: UnaryKind,
-    operand: Operand
-}
-
-type Constant struct {}

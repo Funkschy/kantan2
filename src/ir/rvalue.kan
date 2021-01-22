@@ -1,0 +1,88 @@
+import ":types/types" as ty;
+
+import "memory";
+
+type ExpressionKind enum {
+    Use, Ref, Cast, Binary, Unary, Null, Undefined
+}
+
+type Expression struct {
+    kind: ExpressionKind
+}
+
+type ExpressionData union {
+    use: Operand,
+    ref: memory.Location,
+    cast: Cast,
+    binary: BinaryOperation,
+    null_value: *ty.Type,
+    undef_value: *ty.Type
+}
+
+type OperandKind enum {
+    Copy, Constant
+}
+
+type Operand struct {
+    kind: OperandKind
+}
+
+type OperandData union {
+    copy: memory.Location,
+    constant: Constant
+}
+
+type CastKind enum {
+    Pointer, Int
+}
+
+type Cast struct {
+    kind: CastKind,
+    operand: Operand,
+    into: *ty.Type
+}
+
+type BinaryKind enum {
+    Add = 1,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+    BitAnd,
+    BitOr,
+    BitXor,
+
+    ST,
+    SE,
+    GT,
+    GE,
+    EQ,
+    NE,
+
+    BoolAnd,
+    BoolOr,
+
+    LShift,
+    RShift,
+
+    AddScalar,
+    SubScalar
+}
+
+type BinaryOperation struct {
+    kind: BinaryKind,
+    left: Operand,
+    right: Operand
+}
+
+type UnaryKind enum {
+    Not = 1,
+    NumNeg
+}
+
+type UnaryOperation struct {
+    kind: UnaryKind,
+    operand: Operand
+}
+
+type Constant struct {}

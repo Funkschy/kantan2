@@ -13,10 +13,11 @@ K_FILES = src/ast/generics.kan \
 		  src/cli/opt.kan \
 		  src/cli/parse.kan \
 		  src/cli/report.kan \
-		  src/target/parse.kan \
-		  src/target/target.kan \
 		  src/compiler.kan \
 		  src/error.kan \
+		  src/ir/ir.kan \
+		  src/ir/memory.kan \
+		  src/ir/rvalue.kan \
 		  src/main.kan \
 		  src/memory/arena.kan \
 		  src/source/file.kan \
@@ -36,6 +37,8 @@ K_FILES = src/ast/generics.kan \
 		  src/std/str.kan \
 		  src/std/vec.kan \
 		  src/std/vmap.kan \
+		  src/target/parse.kan \
+		  src/target/target.kan \
 		  src/types/check/binary.kan \
 		  src/types/check/call.kan \
 		  src/types/check/expr.kan \

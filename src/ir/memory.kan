@@ -1,0 +1,48 @@
+import ":std/vec";
+import ":types/types" as ty;
+
+// Memory Locations
+
+type LocationKind enum {
+    Local, Global
+}
+
+type Location struct {
+    kind: LocationKind,
+    location: LocationData,
+    projections: vec.Vec // vec.Vec[Projection]
+}
+
+type LocationData union {
+    local: Local,
+    global: Global
+}
+
+type Local struct {
+    idx: usize
+}
+
+type Global struct {
+    idx: usize
+}
+
+type ProjectionKind enum {
+    Field, Index, Deref
+}
+
+type Projection struct {
+    kind: ProjectionKind,
+    data: ProjectionData
+}
+
+type ProjectionData union {
+    field: Field,
+    index: Local
+    // deref does not need any data
+}
+
+type Field struct {
+    idx: usize,
+    ty: *ty.Type
+}
+
