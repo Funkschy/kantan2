@@ -53,10 +53,6 @@ def parse(argc: i32, argv: **i8): Options {
     let print_help = false;
     let print_available_targets = false;
 
-    // this is just here to fix a stupid compiler bug
-    // TODO(#31): remove this when the compiler bug is fixed
-    let dummy: p.Value = undefined;
-
     let v = &str.view_from;
     let i = -1;
     available_options[i += 1] = *p.option(v("help"), p.val_bool(&print_help))
