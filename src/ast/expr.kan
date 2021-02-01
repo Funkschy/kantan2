@@ -20,7 +20,9 @@ type ExprKind enum {
 type Expr struct {
     kind: ExprKind,
     span: span.Span,
-    data: ExprData
+    data: ExprData,
+    // the type will be inserted during typechecking
+    ty: *ty.Type
 }
 
 type ExprData union {
@@ -34,6 +36,7 @@ type ExprData union {
 
 def (e: *Expr) init_basic(kind: ExprKind) {
     e.kind = kind;
+    e.ty = null;
 }
 
 def (e: *Expr) init_lit(token: tok.Token) {
@@ -67,7 +70,7 @@ def (e: *Expr) init_unary(kind: UnaryKind, tok: tok.Token, right: *Expr) {
 def (e: *Expr) init_ident(name: ident.Ident) {
     e.init_basic(ExprKind.Ident);
     e.span = name.span;
-    e.data = ExprData { ident: IdentExpr { name: name, ty: null } };
+    e.data = ExprData { ident: IdentExpr { name: name } };
 }
 
 def (e: *Expr) init_assign(kind: AssignKind, left: *Expr, right: *Expr) {
@@ -108,9 +111,7 @@ type Literal struct {
 }
 
 type IdentExpr struct {
-    name: ident.Ident,
-    // the type of the ident will be inserted during type checking
-    ty: *ty.Type
+    name: ident.Ident
 }
 
 type UnaryKind enum {
@@ -225,22 +226,33 @@ def (k: AssignKind) as_view(): str.View {
     return _assign_kind_strings[k as i32];
 }
 
+def push_ty(json: *str.String, ty: *ty.Type) {
+    json.push(str.view_from(",\"ty\": \""));
+    let ty_s = ty.to_string();
+    json.push(ty_s.view());
+    json.push(str.view_from("\""));
+    ty_s.free();
+}
+
 def (e: *Expr) to_json(): str.String {
     if e.kind == ExprKind.Ident {
-        let json = str.from("{\"kind\": \"identifier\", \"value\": ");
-        json.push(str.view_from("\""));
+        let json = str.from("{\"kind\": \"identifier\"");
+
+        json.push(str.view_from(", \"value\": \""));
         json.push(e.data.ident.name.as_view());
-        json.push(str.view_from("\","));
-        json.push(str.view_from("\"ty\": \""));
-        let ty = e.data.ident.ty.to_string();
-        defer ty.free();
-        json.push(ty.view());
-        json.push(str.view_from("\"}"));
+        json.push(str.view_from("\""));
+
+        push_ty(&json, e.ty);
+
+        json.push(str.view_from("}"));
         return json;
     }
 
     if e.kind == ExprKind.Literal {
-        let json = str.from("{\"kind\": \"literal\", \"value\": ");
+        let json = str.from("{\"kind\": \"literal\"");
+        // push_ty(&json, e.ty);
+
+        json.push(str.view_from(", \"value\": "));
         let view = e.data.lit.token.span.as_view();
 
         let kind = e.data.lit.kind;
@@ -263,10 +275,12 @@ def (e: *Expr) to_json(): str.String {
     }
 
     if e.kind == ExprKind.Binary {
-        let json = str.from("{\"kind\": \"binary\", ");
+        let json = str.from("{\"kind\": \"binary\"");
+        // push_ty(&json, e.ty);
+
         let left = e.data.binary.left.to_json();
         defer left.free();
-        json.push(str.view_from("\"left\": "));
+        json.push(str.view_from(", \"left\": "));
         json.push(left.view());
         json.push(str.view_from(", \"op\": \""));
         json.push(e.data.binary.kind.as_view());

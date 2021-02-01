@@ -1,0 +1,23 @@
+import ":std/str";
+
+import ":source/ident";
+import ":types/types" as ty;
+
+import "../ir";
+import "../memory";
+
+import "locals";
+
+type IRCtx struct {
+    names: locals.NameTable,
+    current_body: *ir.FunctionBody
+}
+
+def (ctx: *IRCtx) declare_local(name: ident.Ident, ty: *ty.Type) {
+    let local = ctx.bind(name);
+    ctx.current_body.add_local(local, ty);
+}
+
+def (ctx: *IRCtx) bind(name: ident.Ident): memory.Local {
+    return ctx.names.bind(name.as_view());
+}

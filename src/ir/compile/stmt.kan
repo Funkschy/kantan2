@@ -1,0 +1,17 @@
+import ":std/dbg";
+
+import ":util" as _;
+import ":ast/stmt" as _;
+
+import "ctx" as _;
+
+def compile(ctx: *IRCtx, stmt: *Stmt): Result {
+    if stmt.kind == StmtKind.LocalVarDecl {
+        let decl = &stmt.data.local;
+        ctx.declare_local(decl.name, decl.value.ty);
+        return Result.OK;
+    }
+
+    dbg.assert(false, "Unhandled StmtKind");
+    return Result.Error;
+}

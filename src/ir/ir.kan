@@ -1,4 +1,10 @@
-import ":std/ptrvec";
+import ":std/vec";
+import ":std/dbg";
+
+import ":types/types" as ty;
+
+import "rvalue";
+import "memory";
 
 // Statements
 type StatementKind enum {
@@ -11,6 +17,13 @@ type Statement struct {
 }
 
 type StatementData union {
+    // nop does not need any data
+    assign: Assign
+}
+
+type Assign struct {
+    location: memory.Location,
+    value: rvalue.Expression
 }
 
 // Terminators
@@ -29,6 +42,21 @@ type TerminatorData union {
 }
 
 type BasicBlock struct {
-    statements: ptrvec.Vec,
+    statements: vec.Vec, // vec.Vec[*Statement]
     terminator: Terminator
+}
+
+type FunctionBody struct {
+    blocks: vec.Vec, // vec.Vec[BasicBlock]
+    locals: vec.Vec  // vec.Vec[LocalVarDecl] (indexed by memory.Local)
+}
+
+def (b: *FunctionBody) add_local(local: memory.Local, ty: *ty.Type) {
+    let decl = LocalVarDecl { ty: ty };
+    b.locals.push(&decl as *void);
+    dbg.assert(b.locals.len == local.idx, "inconsistent locals");
+}
+
+type LocalVarDecl struct {
+    ty: *ty.Type
 }

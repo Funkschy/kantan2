@@ -59,7 +59,7 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
                 ty = var;
             }
 
-            expr.data.ident.ty = ty;
+            expr.ty = ty;
             return ok(ty);
         }
 

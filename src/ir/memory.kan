@@ -22,6 +22,10 @@ type Local struct {
     idx: usize
 }
 
+def local(idx: usize): Local {
+    return Local { idx: idx };
+}
+
 type Global struct {
     idx: usize
 }

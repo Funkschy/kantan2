@@ -1,0 +1,19 @@
+import ":std/dbg";
+
+import ":util" as _;
+import ":ast/item" as _;
+
+import "ctx" as _;
+import "stmt";
+
+def compile(ctx: *IRCtx, item: *Item): Result {
+    if item.kind == ItemKind.FuncDef {
+        let body = item.data.func_def.block();
+        for let i: usize = 0; i < body.len(); i += 1 {
+            stmt.compile(ctx, body.at(i));
+        }
+    }
+
+    dbg.assert(false, "Unhandled ItemKind");
+    return Result.Error;
+}

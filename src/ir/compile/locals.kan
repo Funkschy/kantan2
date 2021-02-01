@@ -1,0 +1,109 @@
+import ":std/map";
+import ":std/vec";
+import ":std/dbg";
+import ":std/str";
+import ":std/num";
+
+import "../memory" as mem;
+
+type NameScope struct {
+    // maps from a source name to a index into mangled_names of the NameTable
+    bindings: map.Map // map.Map<str.View, mem.Local>
+}
+
+def create_scope(): NameScope {
+    return NameScope{
+        bindings: map.create()
+    };
+}
+
+def (ns: *NameScope) free() {
+    ns.bindings.free();
+}
+
+def (ns: *NameScope) bind(original: str.View, local: mem.Local) {
+    dbg.assert(local.idx > 0, "local with 0 index");
+    let key = map.create_key(original.len, original.data);
+    ns.bindings.insert(key, num.int_to_ptr(local.idx));
+}
+
+def (ns: *NameScope) get(name: str.View, out: *mem.Local): bool {
+    let index = ns.bindings.get(map.key(name));
+    // Locals may not have an index of 0
+    if index == null {
+        return false;
+    }
+
+    *out = mem.local(num.ptr_to_int(index));
+    return true;
+}
+
+// A NameTable for local variables
+// 1 {
+// 2     let x = 5;
+// 3     {
+// 4         let x = "test";
+// 5     }
+// 6     x; // refers to 5 (Local(0))
+// 7     let x = "";
+// 8 }
+//
+// In the outer scope, nt.lookup("x") will return Local(1) before line 7 (Local(3) after).
+// In the inner scope, is will return Local(2)
+type NameTable struct {
+    local_counter: usize,
+    scopes: vec.Vec // vec.Vec<NameScope>
+}
+
+def create(): NameTable {
+    return NameTable {
+        local_counter: 0,
+        scopes: vec.create(sizeof NameScope)
+    };
+}
+
+def (nt: *NameTable) free() {
+    dbg.assert(nt.scopes.len == 0, "open scopes left");
+    nt.scopes.free();
+}
+
+def (nt: *NameTable) top(): *NameScope {
+    return nt.scope_at(nt.scopes.len - 1);
+}
+
+def (nt: *NameTable) scope_at(i: usize): *NameScope {
+    return nt.scopes.get_ptr(i) as *NameScope;
+}
+
+def (nt: *NameTable) bind(name: str.View): mem.Local {
+    let local = mem.local(nt.local_counter += 1);
+    nt.top().bind(name, local);
+    return local;
+}
+
+def (nt: *NameTable) open_scope() {
+    let scope = create_scope();
+    nt.push_scope(&scope);
+}
+
+def (nt: *NameTable) close_scope() {
+    nt.top().free();
+    nt.scopes.len -= 1;
+}
+
+def (nt: *NameTable) push_scope(scope: *NameScope) {
+    nt.scopes.push(scope as *void);
+}
+
+def (nt: *NameTable) lookup(name: str.View, out: *mem.Local): bool {
+    for let i = nt.scopes.len - 1; i as isize >= 0; i -= 1 {
+        let scope = nt.scope_at(i);
+        let local: mem.Local = undefined;
+        if scope.get(name, &local) {
+            *out = local;
+            return true;
+        }
+    }
+
+    return false;
+}
