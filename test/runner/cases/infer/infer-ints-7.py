@@ -9,78 +9,85 @@ expected_modules = [{
     'imports': [],
     'items': [
         {
-            "kind": "func_def",
-            "name": "first",
-            "instances": ["() -> void"],
-            "body": {
-                "kind": "block",
-                "stmts": [
+            'kind': 'func_def',
+            'name': 'first',
+            'instances': ['() -> void'],
+            'body': {
+                'kind': 'block',
+                'stmts': [
                     {
-                        "kind": "local_var_decl",
-                        "name": "i",
-                        "ty": None,
-                        "value": {
-                            "kind": "literal",
-                            "value": "undefined"
+                        'kind': 'local_var_decl',
+                        'name': 'i',
+                        'ty': None,
+                        'value': {
+                            'kind': 'literal',
+                            'ty': 'i32',
+                            'value': 'undefined'
                         }
                     },
                     {
-                        "kind": "local_var_decl",
-                        "name": "j",
-                        "ty": None,
-                        "value": {
-                            "kind": "literal",
-                            "value": "undefined"
+                        'kind': 'local_var_decl',
+                        'name': 'j',
+                        'ty': None,
+                        'value': {
+                            'kind': 'literal',
+                            'ty': 'i32',
+                            'value': 'undefined'
                         }
                     },
                     {
-                        "kind": "local_var_decl",
-                        "name": "k",
-                        "ty": None,
-                        "value": {
-                            "kind": "literal",
-                            "value": "undefined"
+                        'kind': 'local_var_decl',
+                        'name': 'k',
+                        'ty': None,
+                        'value': {
+                            'kind': 'literal',
+                            'ty': 'i32',
+                            'value': 'undefined'
                         }
                     },
                     {
-                        "kind": "expr_stmt",
-                        "expr": {
-                            "kind": "assign",
-                            "left": {
-                                "kind": "identifier",
-                                "value": "i",
-                                "ty": "i32"
+                        'kind': 'expr_stmt',
+                        'expr': {
+                            'kind': 'assign',
+                            'ty': 'i32',
+                            'left': {
+                                'kind': 'identifier',
+                                'ty': 'i32',
+                                'value': 'i',
                             },
-                            "op": "=",
-                            "right": {
-                                "kind": "assign",
-                                "left": {
-                                    "kind": "identifier",
-                                    "value": "j",
-                                    "ty": "i32"
+                            'op': '=',
+                            'right': {
+                                'kind': 'assign',
+                                'ty': 'i32',
+                                'left': {
+                                    'kind': 'identifier',
+                                    'ty': 'i32',
+                                    'value': 'j',
                                 },
-                                "op": "=",
-                                "right": {
-                                    "kind": "identifier",
-                                    "value": "k",
-                                    "ty": "i32"
+                                'op': '=',
+                                'right': {
+                                    'kind': 'identifier',
+                                    'ty': 'i32',
+                                    'value': 'k',
                                 }
                             }
                         }
                     },
                     {
-                        "kind": "expr_stmt",
-                        "expr": {
-                            "kind": "assign",
-                            "left": {
-                                "kind": "identifier",
-                                "value": "i",
-                                "ty": "i32"
+                        'kind': 'expr_stmt',
+                        'expr': {
+                            'kind': 'assign',
+                            'ty': 'i32',
+                            'left': {
+                                'kind': 'identifier',
+                                'ty': 'i32',
+                                'value': 'i',
                             },
-                            "op": "=",
-                            "right": {
-                                "kind": "literal",
-                                "value": 1
+                            'op': '=',
+                            'right': {
+                                'kind': 'literal',
+                                'ty': 'i32',
+                                'value': 1
                             }
                         }
                     }
@@ -88,78 +95,85 @@ expected_modules = [{
             }
         },
         {
-            "kind": "func_def",
-            "name": "second",
-            "instances": ["() -> void"],
-            "body": {
-                "kind": "block",
-                "stmts": [
+            'kind': 'func_def',
+            'name': 'second',
+            'instances': ['() -> void'],
+            'body': {
+                'kind': 'block',
+                'stmts': [
                     {
-                        "kind": "local_var_decl",
-                        "name": "i",
-                        "ty": None,
-                        "value": {
-                            "kind": "literal",
-                            "value": "undefined"
+                        'kind': 'local_var_decl',
+                        'name': 'i',
+                        'ty': None,
+                        'value': {
+                            'kind': 'literal',
+                            'ty': 'i32',
+                            'value': 'undefined'
                         }
                     },
                     {
-                        "kind": "local_var_decl",
-                        "name": "j",
-                        "ty": None,
-                        "value": {
-                            "kind": "literal",
-                            "value": "undefined"
+                        'kind': 'local_var_decl',
+                        'name': 'j',
+                        'ty': None,
+                        'value': {
+                            'kind': 'literal',
+                            'ty': 'i32',
+                            'value': 'undefined'
                         }
                     },
                     {
-                        "kind": "local_var_decl",
-                        "name": "k",
-                        "ty": None,
-                        "value": {
-                            "kind": "literal",
-                            "value": "undefined"
+                        'kind': 'local_var_decl',
+                        'name': 'k',
+                        'ty': None,
+                        'value': {
+                            'kind': 'literal',
+                            'ty': 'i32',
+                            'value': 'undefined'
                         }
                     },
                     {
-                        "kind": "expr_stmt",
-                        "expr": {
-                            "kind": "assign",
-                            "left": {
-                                "kind": "identifier",
-                                "value": "i",
-                                "ty": "i32"
+                        'kind': 'expr_stmt',
+                        'expr': {
+                            'kind': 'assign',
+                            'ty': 'i32',
+                            'left': {
+                                'kind': 'identifier',
+                                'ty': 'i32',
+                                'value': 'i',
                             },
-                            "op": "=",
-                            "right": {
-                                "kind": "assign",
-                                "left": {
-                                    "kind": "identifier",
-                                    "value": "j",
-                                    "ty": "i32"
+                            'op': '=',
+                            'right': {
+                                'kind': 'assign',
+                                'ty': 'i32',
+                                'left': {
+                                    'kind': 'identifier',
+                                    'ty': 'i32',
+                                    'value': 'j',
                                 },
-                                "op": "=",
-                                "right": {
-                                    "kind": "identifier",
-                                    "value": "k",
-                                    "ty": "i32"
+                                'op': '=',
+                                'right': {
+                                    'kind': 'identifier',
+                                    'ty': 'i32',
+                                    'value': 'k',
                                 }
                             }
                         }
                     },
                     {
-                        "kind": "expr_stmt",
-                        "expr": {
-                            "kind": "assign",
-                            "left": {
-                                "kind": "identifier",
-                                "value": "j",
-                                "ty": "i32"
+                        'kind': 'expr_stmt',
+                        'expr': {
+                            'kind': 'assign',
+                            'ty': 'i32',
+                            'left': {
+                                'kind': 'identifier',
+                                'ty': 'i32',
+                                'value': 'j',
                             },
-                            "op": "=",
-                            "right": {
-                                "kind": "literal",
-                                "value": 1
+                            'op': '=',
+                            'right': {
+                                'kind': 'literal',
+                                'ty': 'i32',
+                                'value': 1
                             }
                         }
                     }
@@ -167,78 +181,85 @@ expected_modules = [{
             }
         },
         {
-            "kind": "func_def",
-            "name": "third",
-            "instances": ["() -> void"],
-            "body": {
-                "kind": "block",
-                "stmts": [
+            'kind': 'func_def',
+            'name': 'third',
+            'instances': ['() -> void'],
+            'body': {
+                'kind': 'block',
+                'stmts': [
                     {
-                        "kind": "local_var_decl",
-                        "name": "i",
-                        "ty": None,
-                        "value": {
-                            "kind": "literal",
-                            "value": "undefined"
+                        'kind': 'local_var_decl',
+                        'name': 'i',
+                        'ty': None,
+                        'value': {
+                            'kind': 'literal',
+                            'ty': 'i32',
+                            'value': 'undefined'
                         }
                     },
                     {
-                        "kind": "local_var_decl",
-                        "name": "j",
-                        "ty": None,
-                        "value": {
-                            "kind": "literal",
-                            "value": "undefined"
+                        'kind': 'local_var_decl',
+                        'name': 'j',
+                        'ty': None,
+                        'value': {
+                            'kind': 'literal',
+                            'ty': 'i32',
+                            'value': 'undefined'
                         }
                     },
                     {
-                        "kind": "local_var_decl",
-                        "name": "k",
-                        "ty": None,
-                        "value": {
-                            "kind": "literal",
-                            "value": "undefined"
+                        'kind': 'local_var_decl',
+                        'name': 'k',
+                        'ty': None,
+                        'value': {
+                            'kind': 'literal',
+                            'ty': 'i32',
+                            'value': 'undefined'
                         }
                     },
                     {
-                        "kind": "expr_stmt",
-                        "expr": {
-                            "kind": "assign",
-                            "left": {
-                                "kind": "identifier",
-                                "value": "i",
-                                "ty": "i32"
+                        'kind': 'expr_stmt',
+                        'expr': {
+                            'kind': 'assign',
+                            'ty': 'i32',
+                            'left': {
+                                'kind': 'identifier',
+                                'ty': 'i32',
+                                'value': 'i',
                             },
-                            "op": "=",
-                            "right": {
-                                "kind": "assign",
-                                "left": {
-                                    "kind": "identifier",
-                                    "value": "j",
-                                    "ty": "i32"
+                            'op': '=',
+                            'right': {
+                                'kind': 'assign',
+                                'ty': 'i32',
+                                'left': {
+                                    'kind': 'identifier',
+                                    'ty': 'i32',
+                                    'value': 'j',
                                 },
-                                "op": "=",
-                                "right": {
-                                    "kind": "identifier",
-                                    "value": "k",
-                                    "ty": "i32"
+                                'op': '=',
+                                'right': {
+                                    'kind': 'identifier',
+                                    'ty': 'i32',
+                                    'value': 'k',
                                 }
                             }
                         }
                     },
                     {
-                        "kind": "expr_stmt",
-                        "expr": {
-                            "kind": "assign",
-                            "left": {
-                                "kind": "identifier",
-                                "value": "k",
-                                "ty": "i32"
+                        'kind': 'expr_stmt',
+                        'expr': {
+                            'kind': 'assign',
+                            'ty': 'i32',
+                            'left': {
+                                'kind': 'identifier',
+                                'value': 'k',
+                                'ty': 'i32'
                             },
-                            "op": "=",
-                            "right": {
-                                "kind": "literal",
-                                "value": 1
+                            'op': '=',
+                            'right': {
+                                'kind': 'literal',
+                                'ty': 'i32',
+                                'value': 1
                             }
                         }
                     }

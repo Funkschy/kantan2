@@ -1,0 +1,8 @@
+def main() {
+    let j = 2;
+
+    let i = 1+1+j+1;
+
+    let u: u32 = 0;
+    let t = i = u;
+}

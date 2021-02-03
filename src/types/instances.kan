@@ -44,7 +44,10 @@ def ty_equals(a: *Type, b: *Type): bool {
     // variables are ignored for equality
     // TODO(#33): should this be an internal error instead?
     if a.kind == TypeKind.Variable {
-        return ty_equals(a.data.inner, b.data.inner);
+        return ty_equals(a.data.inner, b);
+    }
+    if b.kind == TypeKind.Variable {
+        return ty_equals(a, b.data.inner);
     }
 
     if a.kind != b.kind {

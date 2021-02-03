@@ -11,18 +11,60 @@ expected_modules = [{
         {
             'kind': 'func_def',
             'name': 'main',
-            'instances': ['() -> void'],
+            'instances': [
+                '() -> void'
+            ],
             'body': {
                 'kind': 'block',
                 'stmts': [
                     {
                         'kind': 'local_var_decl',
-                        'name': 'i',
+                        'name': 'j',
                         'ty': None,
                         'value': {
                             'kind': 'literal',
                             'ty': 'u32',
-                            'value': 0
+                            'value': 2
+                        }
+                    },
+                    {
+                        'kind': 'local_var_decl',
+                        'name': 'i',
+                        'ty': None,
+                        'value': {
+                            'kind': 'binary',
+                            'ty': 'u32',
+                            'left': {
+                                'kind': 'binary',
+                                'ty': 'u32',
+                                'left': {
+                                    'kind': 'binary',
+                                    'ty': 'u32',
+                                    'left': {
+                                        'kind': 'literal',
+                                        'ty': 'u32',
+                                        'value': 1
+                                    },
+                                    'op': '+',
+                                    'right': {
+                                        'kind': 'literal',
+                                        'ty': 'u32',
+                                        'value': 1
+                                    }
+                                },
+                                'op': '+',
+                                'right': {
+                                    'kind': 'identifier',
+                                    'ty': 'u32',
+                                    'value': 'j'
+                                }
+                            },
+                            'op': '+',
+                            'right': {
+                                'kind': 'literal',
+                                'ty': 'u32',
+                                'value': 1
+                            }
                         }
                     },
                     {
@@ -37,83 +79,29 @@ expected_modules = [{
                     },
                     {
                         'kind': 'local_var_decl',
-                        'name': 'p',
+                        'name': 't',
                         'ty': None,
                         'value': {
-                            'kind': 'literal',
-                            'ty': '*u32',
-                            'value': 'null'
-                        }
-                    },
-                    {
-                        'kind': 'expr_stmt',
-                        'expr': {
-                            'kind': 'assign',
-                            'ty': 'u32',
-                            'left': {
-                                'kind': 'unary',
-                                'ty': 'u32',
-                                'op': '*',
-                                'right': {
-                                    'kind': 'identifier',
-                                    'ty': '*u32',
-                                    'value': 'p',
-                                }
-                            },
-                            'op': '=',
-                            'right': {
-                                'kind': 'identifier',
-                                'ty': 'u32',
-                                'value': 'i',
-                            }
-                        }
-                    },
-                    {
-                        'kind': 'expr_stmt',
-                        'expr': {
                             'kind': 'assign',
                             'ty': 'u32',
                             'left': {
                                 'kind': 'identifier',
                                 'ty': 'u32',
-                                'value': 'u',
+                                'value': 'i'
                             },
                             'op': '=',
                             'right': {
                                 'kind': 'identifier',
                                 'ty': 'u32',
-                                'value': 'i',
+                                'value': 'u'
                             }
-                        }
-                    },
-                    {
-                        'kind': 'expr_stmt',
-                        'expr': {
-                            'kind': 'identifier',
-                            'ty': '*u32',
-                            'value': 'p',
-                        }
-                    },
-                    {
-                        'kind': 'expr_stmt',
-                        'expr': {
-                            'kind': 'identifier',
-                            'ty': 'u32',
-                            'value': 'i',
-                        }
-                    },
-                    {
-                        'kind': 'expr_stmt',
-                        'expr': {
-                            'kind': 'identifier',
-                            'ty': 'u32',
-                            'value': 'u',
                         }
                     }
                 ]
             }
         }
     ]
+
 }]
 
 

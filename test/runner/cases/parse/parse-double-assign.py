@@ -10,50 +10,55 @@ expected_modules = [{
     'items': [
         {
             'kind': 'func_def',
-            "name": "main",
-            "instances": ["() -> void"],
+            'name': 'main',
+            'instances': ['() -> void'],
             'body': {
                 'kind': 'block',
                 'stmts': [
                     {
-                        "kind": "local_var_decl",
-                        "name": "test",
-                        "ty": None,
-                        "value": {
-                            "kind": "literal",
-                            "value": 1
+                        'kind': 'local_var_decl',
+                        'name': 'test',
+                        'ty': None,
+                        'value': {
+                            'kind': 'literal',
+                            'ty': 'i32',
+                            'value': 1
                         }
                     },
                     {
-                        "kind": "local_var_decl",
-                        "name": "other",
-                        "ty": None,
-                        "value": {
-                            "kind": "literal",
-                            "value": 2
+                        'kind': 'local_var_decl',
+                        'name': 'other',
+                        'ty': None,
+                        'value': {
+                            'kind': 'literal',
+                            'ty': 'i32',
+                            'value': 2
                         }
                     },
                     {
-                        "kind": "expr_stmt",
-                        "expr": {
-                            "kind": "assign",
-                            "left": {
-                                "kind": "identifier",
-                                "value": "test",
-                                "ty": "i32"
+                        'kind': 'expr_stmt',
+                        'expr': {
+                            'kind': 'assign',
+                            'ty': 'i32',
+                            'left': {
+                                'kind': 'identifier',
+                                'ty': 'i32',
+                                'value': 'test',
                             },
-                            "op": "=",
-                            "right": {
-                                "kind": "assign",
-                                "left": {
-                                    "kind": "identifier",
-                                    "value": "other",
-                                    "ty": "i32"
+                            'op': '=',
+                            'right': {
+                                'kind': 'assign',
+                                'ty': 'i32',
+                                'left': {
+                                    'kind': 'identifier',
+                                    'ty': 'i32',
+                                    'value': 'other'
                                 },
-                                "op": "=",
-                                "right": {
-                                    "kind": "literal",
-                                    "value": 3,
+                                'op': '=',
+                                'right': {
+                                    'kind': 'literal',
+                                    'ty': 'i32',
+                                    'value': 3,
                                 }
                             }
                         }

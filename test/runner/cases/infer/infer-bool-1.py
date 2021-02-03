@@ -9,38 +9,41 @@ expected_modules = [{
     'imports': [],
     'items': [
         {
-            "kind": "func_def",
-            "name": "main",
-            "instances": ["() -> void"],
-            "body": {
-                "kind": "block",
-                "stmts": [
+            'kind': 'func_def',
+            'name': 'main',
+            'instances': ['() -> void'],
+            'body': {
+                'kind': 'block',
+                'stmts': [
                     {
-                        "kind": "local_var_decl",
-                        "name": "t",
-                        "ty": None,
-                        "value": {
-                            "kind": "literal",
-                            "value": "undefined"
+                        'kind': 'local_var_decl',
+                        'name': 't',
+                        'ty': None,
+                        'value': {
+                            'kind': 'literal',
+                            'ty': 'bool',
+                            'value': 'undefined'
                         }
                     },
                     {
-                        "kind": "expr_stmt",
-                        "expr": {
-                            "kind": "assign",
-                            "left": {
-                                "kind": "identifier",
-                                "value": "t",
-                                "ty": "bool"
+                        'kind': 'expr_stmt',
+                        'expr': {
+                            'kind': 'assign',
+                            'ty': 'bool',
+                            'left': {
+                                'kind': 'identifier',
+                                'ty': 'bool',
+                                'value': 't',
                             },
-                            "op": "=",
-                            "right": {
-                                "kind": "unary",
-                                "op": "!",
-                                "right": {
-                                    "kind": "identifier",
-                                    "value": "t",
-                                    "ty": "bool"
+                            'op': '=',
+                            'right': {
+                                'kind': 'unary',
+                                'ty': 'bool',
+                                'op': '!',
+                                'right': {
+                                    'kind': 'identifier',
+                                    'ty': 'bool',
+                                    'value': 't',
                                 }
                             }
                         }

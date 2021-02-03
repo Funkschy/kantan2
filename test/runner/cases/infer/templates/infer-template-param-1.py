@@ -9,109 +9,117 @@ expected_modules = [{
     'imports': [],
     'items': [
         {
-            "kind": "func_def",
-            "name": "f",
-            "instances": [
-                "(i32) -> void",
-                "(f32) -> void",
-                "(u32) -> void"
+            'kind': 'func_def',
+            'name': 'f',
+            'instances': [
+                '(i32) -> void',
+                '(f32) -> void',
+                '(u32) -> void'
             ],
-            "body": {
-                "kind": "block",
-                "stmts": []
+            'body': {
+                'kind': 'block',
+                'stmts': []
             }
         },
         {
-            "kind": "func_def",
-            "name": "main",
-            "instances": ["() -> void"],
-            "body": {
-                "kind": "block",
-                "stmts": [
+            'kind': 'func_def',
+            'name': 'main',
+            'instances': ['() -> void'],
+            'body': {
+                'kind': 'block',
+                'stmts': [
                     {
-                        "kind": "expr_stmt",
-                        "expr": {
-                            "kind": "call",
-                            "callee": {
-                                "kind": "identifier",
-                                "value": "f",
-                                "ty": "(i32) -> void"
+                        'kind': 'expr_stmt',
+                        'expr': {
+                            'kind': 'call',
+                            'ty': 'void',
+                            'callee': {
+                                'kind': 'identifier',
+                                'ty': '(i32) -> void',
+                                'value': 'f',
                             },
-                            "args": [
+                            'args': [
                                 {
-                                    "kind": "literal",
-                                    "value": 1
+                                    'kind': 'literal',
+                                    'ty': 'i32',
+                                    'value': 1
                                 }
                             ]
                         }
                     },
                     {
-                        "kind": "expr_stmt",
-                        "expr": {
-                            "kind": "call",
-                            "callee": {
-                                "kind": "identifier",
-                                "value": "f",
-                                "ty": "(f32) -> void"
+                        'kind': 'expr_stmt',
+                        'expr': {
+                            'kind': 'call',
+                            'ty': 'void',
+                            'callee': {
+                                'kind': 'identifier',
+                                'ty': '(f32) -> void',
+                                'value': 'f',
                             },
-                            "args": [
+                            'args': [
                                 {
-                                    "kind": "literal",
-                                    "value": 1
+                                    'kind': 'literal',
+                                    'ty': 'f32',
+                                    'value': 1
                                 }
                             ]
                         }
                     },
                     {
-                        "kind": "local_var_decl",
-                        "name": "x",
-                        "ty": None,
-                        "value": {
-                            "kind": "literal",
-                            "value": "undefined"
+                        'kind': 'local_var_decl',
+                        'name': 'x',
+                        'ty': None,
+                        'value': {
+                            'kind': 'literal',
+                            'ty': 'u32',
+                            'value': 'undefined'
                         }
                     },
                     {
-                        "kind": "expr_stmt",
-                        "expr": {
-                            "kind": "call",
-                            "callee": {
-                                "kind": "identifier",
-                                "value": "f",
-                                "ty": "(u32) -> void"
+                        'kind': 'expr_stmt',
+                        'expr': {
+                            'kind': 'call',
+                            'ty': 'void',
+                            'callee': {
+                                'kind': 'identifier',
+                                'ty': '(u32) -> void',
+                                'value': 'f',
                             },
-                            "args": [
+                            'args': [
                                 {
-                                    "kind": "identifier",
-                                    "value": "x",
-                                    "ty": "u32"
+                                    'kind': 'identifier',
+                                    'ty': 'u32',
+                                    'value': 'x',
                                 }
                             ]
                         }
                     },
                     {
-                        "kind": "local_var_decl",
-                        "name": "u",
-                        "ty": "u32",
-                        "value": {
-                            "kind": "literal",
-                            "value": 0
+                        'kind': 'local_var_decl',
+                        'name': 'u',
+                        'ty': 'u32',
+                        'value': {
+                            'kind': 'literal',
+                            'ty': 'u32',
+                            'value': 0
                         }
                     },
                     {
-                        "kind": "expr_stmt",
-                        "expr": {
-                            "kind": "assign",
-                            "left": {
-                                "kind": "identifier",
-                                "value": "x",
-                                "ty": "u32"
+                        'kind': 'expr_stmt',
+                        'expr': {
+                            'kind': 'assign',
+                            'ty': 'u32',
+                            'left': {
+                                'kind': 'identifier',
+                                'ty': 'u32',
+                                'value': 'x',
                             },
-                            "op": "=",
-                            "right": {
-                                "kind": "identifier",
-                                "value": "u",
-                                "ty": "u32"
+                            'op': '=',
+                            'right': {
+                                'kind': 'identifier',
+                                'ty': 'u32',
+                                'value': 'u',
                             }
                         }
                     }]

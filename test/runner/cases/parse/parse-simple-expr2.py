@@ -11,8 +11,8 @@ expected_modules = [{
     'items': [
         {
             'kind': 'func_def',
-            "name": "main",
-            "instances": ["(i32, **i8) -> void"],
+            'name': 'main',
+            'instances': ['(i32, **i8) -> void'],
             'body': {
                 'kind': 'block',
                 'stmts': [
@@ -20,20 +20,25 @@ expected_modules = [{
                         'kind': 'expr_stmt',
                         'expr': {
                             'kind': 'binary',
+                            'ty': 'i32',
                             'left': {
                                 'kind': 'literal',
+                                'ty': 'i32',
                                 'value': 1
                             },
                             'op': '+',
                             'right': {
                                 'kind': 'binary',
+                                'ty': 'i32',
                                 'left': {
                                     'kind': 'literal',
+                                    'ty': 'i32',
                                     'value': 2
                                 },
                                 'op': '*',
                                 'right': {
                                     'kind': 'literal',
+                                    'ty': 'i32',
                                     'value': 3
                                 }
                             }

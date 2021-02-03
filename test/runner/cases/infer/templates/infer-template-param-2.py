@@ -7,177 +7,191 @@ expected_modules = [{
     'kind': 'module',
     'path': kantan_filename(__file__),
     'imports': [],
-    "items": [
+    'items': [
         {
-            "kind": "func_def",
-            "name": "f",
-            "instances": [
-                "(*i32) -> void",
-                "(*i8) -> void"
+            'kind': 'func_def',
+            'name': 'f',
+            'instances': [
+                '(*i32) -> void',
+                '(*i8) -> void'
             ],
-            "body": {
-                "kind": "block",
-                "stmts": []
+            'body': {
+                'kind': 'block',
+                'stmts': []
             }
         },
         {
-            "kind": "func_def",
-            "name": "main",
-            "instances": [
-                "() -> void"
+            'kind': 'func_def',
+            'name': 'main',
+            'instances': [
+                '() -> void'
             ],
-            "body": {
-                "kind": "block",
-                "stmts": [
+            'body': {
+                'kind': 'block',
+                'stmts': [
 
                     {
-                        "kind": "local_var_decl",
-                        "name": "p",
-                        "ty": None,
-                        "value": {
-                            "kind": "literal",
-                            "value": "null"
+                        'kind': 'local_var_decl',
+                        'name': 'p',
+                        'ty': None,
+                        'value': {
+                            'kind': 'literal',
+                            'ty': '*i32',
+                            'value': 'null'
                         }
                     },
                     {
-                        "kind": "expr_stmt",
-                        "expr": {
-                            "kind": "call",
-                            "callee": {
-                                "kind": "identifier",
-                                "value": "f",
-                                "ty": "(*i32) -> void"
+                        'kind': 'expr_stmt',
+                        'expr': {
+                            'kind': 'call',
+                            'ty': 'void',
+                            'callee': {
+                                'kind': 'identifier',
+                                'ty': '(*i32) -> void',
+                                'value': 'f',
                             },
-                            "args": [
+                            'args': [
                                 {
-                                    "kind": "identifier",
-                                    "value": "p",
-                                    "ty": "*i32"
+                                    'kind': 'identifier',
+                                    'ty': '*i32',
+                                    'value': 'p',
                                 }
                             ]
                         }
                     },
                     {
-                        "kind": "local_var_decl",
-                        "name": "p2",
-                        "ty": None,
-                        "value": {
-                            "kind": "literal",
-                            "value": "undefined"
+                        'kind': 'local_var_decl',
+                        'name': 'p2',
+                        'ty': None,
+                        'value': {
+                            'kind': 'literal',
+                            'ty': '*i8',
+                            'value': 'undefined'
                         }
                     },
                     {
-                        "kind": "expr_stmt",
-                        "expr": {
-                            "kind": "call",
-                            "callee": {
-                                "kind": "identifier",
-                                "value": "f",
-                                "ty": "(*i8) -> void"
+                        'kind': 'expr_stmt',
+                        'expr': {
+                            'kind': 'call',
+                            'ty': 'void',
+                            'callee': {
+                                'kind': 'identifier',
+                                'ty': '(*i8) -> void',
+                                'value': 'f',
                             },
-                            "args": [
+                            'args': [
                                 {
-                                    "kind": "identifier",
-                                    "value": "p2",
-                                    "ty": "*i8"
+                                    'kind': 'identifier',
+                                    'ty': '*i8',
+                                    'value': 'p2',
                                 }
                             ]
                         }
                     },
                     {
-                        "kind": "local_var_decl",
-                        "name": "x",
-                        "ty": None,
-                        "value": {
-                            "kind": "literal",
-                            "value": "undefined"
+                        'kind': 'local_var_decl',
+                        'name': 'x',
+                        'ty': None,
+                        'value': {
+                            'kind': 'literal',
+                            'ty': 'i32',
+                            'value': 'undefined'
                         }
                     },
                     {
-                        "kind": "expr_stmt",
-                        "expr": {
-                            "kind": "assign",
-                            "left": {
-                                "kind": "unary",
-                                "op": "*",
-                                "right": {
-                                    "kind": "identifier",
-                                    "value": "p",
-                                    "ty": "*i32"
+                        'kind': 'expr_stmt',
+                        'expr': {
+                            'kind': 'assign',
+                            'ty': 'i32',
+                            'left': {
+                                'kind': 'unary',
+                                'ty': 'i32',
+                                'op': '*',
+                                'right': {
+                                    'kind': 'identifier',
+                                    'ty': '*i32',
+                                    'value': 'p',
                                 }
                             },
-                            "op": "=",
-                            "right": {
-                                "kind": "identifier",
-                                "value": "x",
-                                "ty": "i32"
+                            'op': '=',
+                            'right': {
+                                'kind': 'identifier',
+                                'ty': 'i32',
+                                'value': 'x',
                             }
                         }
                     },
                     {
-                        "kind": "expr_stmt",
-                        "expr": {
-                            "kind": "assign",
-                            "left": {
-                                "kind": "identifier",
-                                "value": "x",
-                                "ty": "i32"
+                        'kind': 'expr_stmt',
+                        'expr': {
+                            'kind': 'assign',
+                            'ty': 'i32',
+                            'left': {
+                                'kind': 'identifier',
+                                'value': 'x',
+                                'ty': 'i32'
                             },
-                            "op": "=",
-                            "right": {
-                                "kind": "literal",
-                                "value": 1
+                            'op': '=',
+                            'right': {
+                                'kind': 'literal',
+                                'ty': 'i32',
+                                'value': 1
                             }
                         }
                     },
                     {
-                        "kind": "local_var_decl",
-                        "name": "s",
-                        "ty": "*i8",
-                        "value": {
-                            "kind": "literal",
-                            "value": "null"
+                        'kind': 'local_var_decl',
+                        'ty': '*i8',
+                        'name': 's',
+                        'value': {
+                            'kind': 'literal',
+                            'ty': '*i8',
+                            'value': 'null'
                         }
                     },
                     {
-                        "kind": "expr_stmt",
-                        "expr": {
-                            "kind": "call",
-                            "callee": {
-                                "kind": "identifier",
-                                "value": "f",
-                                "ty": "(*i8) -> void"
+                        'kind': 'expr_stmt',
+                        'expr': {
+                            'kind': 'call',
+                            'ty': 'void',
+                            'callee': {
+                                'kind': 'identifier',
+                                'ty': '(*i8) -> void',
+                                'value': 'f',
                             },
-                            "args": [
+                            'args': [
                                 {
-                                    "kind": "identifier",
-                                    "value": "s",
-                                    "ty": "*i8"
+                                    'kind': 'identifier',
+                                    'ty': '*i8',
+                                    'value': 's',
                                 }
                             ]
                         }
                     },
                     {
-                        "kind": "expr_stmt",
-                        "expr": {
-                            "kind": "assign",
-                            "left": {
-                                "kind": "unary",
-                                "op": "*",
-                                "right": {
-                                    "kind": "identifier",
-                                    "value": "p2",
-                                    "ty": "*i8"
+                        'kind': 'expr_stmt',
+                        'expr': {
+                            'kind': 'assign',
+                            'ty': 'i8',
+                            'left': {
+                                'kind': 'unary',
+                                'ty': 'i8',
+                                'op': '*',
+                                'right': {
+                                    'kind': 'identifier',
+                                    'value': 'p2',
+                                    'ty': '*i8'
                                 }
                             },
-                            "op": "=",
-                            "right": {
-                                "kind": "unary",
-                                "op": "*",
-                                "right": {
-                                    "kind": "identifier",
-                                    "value": "s",
-                                    "ty": "*i8"
+                            'op': '=',
+                            'right': {
+                                'kind': 'unary',
+                                'ty': 'i8',
+                                'op': '*',
+                                'right': {
+                                    'kind': 'identifier',
+                                    'value': 's',
+                                    'ty': '*i8'
                                 }
                             }
                         }

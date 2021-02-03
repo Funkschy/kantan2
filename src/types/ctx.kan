@@ -61,8 +61,7 @@ def (ctx: *TyCtx) perform_item_close(ty: *Type, declared_at: *span.Span): Result
     // deref the type to the most basic level
     while true {
         if ty.kind == TypeKind.Variable {
-            // TODO(#21): is there any way to produce cycles here?
-            *ty = *ty.data.inner;
+            ty = ty.data.inner;
         } else if ty.kind == TypeKind.Ptr {
             ty = ty.data.ptr_to;
         } else {
@@ -127,8 +126,9 @@ def (ctx: *TyCtx) close_scope(): Result {
             result = Result.Error;
         }
 
-        if bound.ty.kind == TypeKind.Function {
-            let f = &bound.ty.data.function;
+        let f = ctx.get_function(bound.ty);
+        if f != null {
+            let f = &f.data.function;
             let current = f.params_head;
             while current != null {
                 // TODO(#36): get the source position for params/return
@@ -298,7 +298,7 @@ def (ctx: *TyCtx) unify(a: *Type, previous: *Type): *Type {
         return a;
     }
 
-    if a.equals(previous) {
+    if left.equals(right) {
         if a.is_variable() {
             *a.var_innermost() = previous;
             return previous;
@@ -347,6 +347,10 @@ def (ctx: *TyCtx) is_less_concrete_version_of(t: *Type, other: *Type): bool {
 // this will get the actual function type for a callable type or null, if the types was not callable
 // in the case of a template, it will initialize all generic parameters using the allocator
 def (ctx: *TyCtx) get_function(t: *Type): *Type {
+    if t.kind == TypeKind.Variable {
+        return ctx.get_function(t.data.inner);
+    }
+
     if t.kind == TypeKind.Function {
         return t;
     }
@@ -381,10 +385,6 @@ def (ctx: *TyCtx) get_function(t: *Type): *Type {
 
         monomorphed_f.ret = ctx.replace_param_type(&map, monomorphed_f.ret);
         return monomorphed;
-    }
-
-    if t.kind == TypeKind.Variable {
-        return ctx.get_function(t.data.inner);
     }
 
     return null;

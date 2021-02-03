@@ -20,21 +20,26 @@ expected_modules = [{
                         'kind': 'expr_stmt',
                         'expr': {
                             'kind': 'binary',
+                            'ty': 'i32',
                             'left': {
                                 'kind': 'binary',
+                                'ty': 'i32',
                                 'left': {
                                     'kind': 'literal',
+                                    'ty': 'i32',
                                     'value': 1
                                 },
                                 'op': '+',
                                 'right': {
                                     'kind': 'literal',
+                                    'ty': 'i32',
                                     'value': 2
                                 }
                             },
                             'op': '+',
                             'right': {
                                 'kind': 'literal',
+                                'ty': 'i32',
                                 'value': 3
                             }
                         }

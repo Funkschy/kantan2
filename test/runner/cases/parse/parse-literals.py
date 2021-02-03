@@ -12,7 +12,7 @@ expected_modules = [{
         {
             'kind': 'func_def',
             "name": "main",
-            "instances": [], # this file is only parsed, not type checked
+            "instances": [],  # this file is only parsed, not type checked
             'body': {
                 'kind': 'block',
                 'stmts': [
@@ -20,6 +20,7 @@ expected_modules = [{
                         'kind': 'expr_stmt',
                         'expr': {
                             'kind': 'literal',
+                            'ty': None,
                             'value': 'null'
                         }
                     },
@@ -27,6 +28,7 @@ expected_modules = [{
                         'kind': 'expr_stmt',
                         'expr': {
                             'kind': 'literal',
+                            'ty': None,
                             'value': 'undefined'
                         }
                     },
@@ -34,6 +36,7 @@ expected_modules = [{
                         'kind': 'expr_stmt',
                         'expr': {
                             'kind': 'literal',
+                            'ty': None,
                             'value': 'test'
                         }
                     },
@@ -41,6 +44,7 @@ expected_modules = [{
                         'kind': 'expr_stmt',
                         'expr': {
                             'kind': 'literal',
+                            'ty': None,
                             'value': 'a'
                         }
                     },
@@ -48,6 +52,7 @@ expected_modules = [{
                         'kind': 'expr_stmt',
                         'expr': {
                             'kind': 'literal',
+                            'ty': None,
                             'value': 45054
                         }
                     },
@@ -55,6 +60,7 @@ expected_modules = [{
                         'kind': 'expr_stmt',
                         'expr': {
                             'kind': 'literal',
+                            'ty': None,
                             'value': 1
                         }
                     },
@@ -62,6 +68,7 @@ expected_modules = [{
                         'kind': 'expr_stmt',
                         'expr': {
                             'kind': 'literal',
+                            'ty': None,
                             'value': 3.14
                         }
                     }

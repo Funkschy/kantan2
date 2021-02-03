@@ -4,88 +4,92 @@ from runner.output import Output
 from runner.testcase import SuccessTestCase, TestError, expected_but_got, kantan_filename
 
 expected_modules = [{
-    "kind": "module",
-    "path": kantan_filename(__file__),
-    "imports": [],
-    "items": [
+    'kind': 'module',
+    'path': kantan_filename(__file__),
+    'imports': [],
+    'items': [
         {
-            "kind": "func_def",
-            "name": "f",
-            "instances": [
-                "() -> bool",
-                "() -> u32"
+            'kind': 'func_def',
+            'name': 'f',
+            'instances': [
+                '() -> bool',
+                '() -> u32'
             ],
-            "body": {
-                "kind": "block",
-                "stmts": []
+            'body': {
+                'kind': 'block',
+                'stmts': []
             }
         },
         {
-            "kind": "func_def",
-            "name": "g",
-            "instances": [
-                "(u32) -> u32"
+            'kind': 'func_def',
+            'name': 'g',
+            'instances': [
+                '(u32) -> u32'
             ],
-            "body": {
-                "kind": "block",
-                "stmts": []
+            'body': {
+                'kind': 'block',
+                'stmts': []
             }
         },
         {
-            "kind": "func_def",
-            "name": "main",
-            "instances": [
-                "() -> void"
+            'kind': 'func_def',
+            'name': 'main',
+            'instances': [
+                '() -> void'
             ],
-            "body": {
-                "kind": "block",
-                "stmts": [
+            'body': {
+                'kind': 'block',
+                'stmts': [
                     {
-                        "kind": "local_var_decl",
-                        "name": "x",
-                        "ty": None,
-                        "value": {
-                            "kind": "call",
-                            "callee": {
-                                "kind": "identifier",
-                                "value": "f",
-                                "ty": "() -> bool"
+                        'kind': 'local_var_decl',
+                        'name': 'x',
+                        'ty': None,
+                        'value': {
+                            'kind': 'call',
+                            'ty': 'bool',
+                            'callee': {
+                                'kind': 'identifier',
+                                'ty': '() -> bool',
+                                'value': 'f',
                             },
-                            "args": []
+                            'args': []
                         }
                     },
                     {
-                        "kind": "expr_stmt",
-                        "expr": {
-                            "kind": "unary",
-                            "op": "!",
-                            "right": {
-                                "kind": "identifier",
-                                "value": "x",
-                                "ty": "bool"
+                        'kind': 'expr_stmt',
+                        'expr': {
+                            'kind': 'unary',
+                            'ty': 'bool',
+                            'op': '!',
+                            'right': {
+                                'kind': 'identifier',
+                                'ty': 'bool',
+                                'value': 'x',
                             }
                         }
                     },
                     {
-                        "kind": "local_var_decl",
-                        "name": "u",
-                        "ty": "u32",
-                        "value": {
-                            "kind": "call",
-                            "callee": {
-                                "kind": "identifier",
-                                "value": "g",
-                                "ty": "(u32) -> u32"
+                        'kind': 'local_var_decl',
+                        'name': 'u',
+                        'ty': 'u32',
+                        'value': {
+                            'kind': 'call',
+                            'ty': 'u32',
+                            'callee': {
+                                'kind': 'identifier',
+                                'ty': '(u32) -> u32',
+                                'value': 'g',
                             },
-                            "args": [
+                            'args': [
                                 {
-                                    "kind": "call",
-                                    "callee": {
-                                        "kind": "identifier",
-                                        "value": "f",
-                                        "ty": "() -> u32"
+                                    'kind': 'call',
+                                    'ty': 'u32',
+                                    'callee': {
+                                        'kind': 'identifier',
+                                        'ty': '() -> u32',
+                                        'value': 'f',
                                     },
-                                    "args": []
+                                    'args': []
                                 }
                             ]
                         }

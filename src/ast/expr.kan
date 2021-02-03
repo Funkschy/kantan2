@@ -227,8 +227,14 @@ def (k: AssignKind) as_view(): str.View {
 }
 
 def push_ty(json: *str.String, ty: *ty.Type) {
-    json.push(str.view_from(",\"ty\": \""));
+    json.push(str.view_from(",\"ty\": "));
+    if ty == null {
+        json.push(str.view("null", 4));
+        return;
+    }
+
     let ty_s = ty.to_string();
+    json.push(str.view_from("\""));
     json.push(ty_s.view());
     json.push(str.view_from("\""));
     ty_s.free();
@@ -237,12 +243,11 @@ def push_ty(json: *str.String, ty: *ty.Type) {
 def (e: *Expr) to_json(): str.String {
     if e.kind == ExprKind.Ident {
         let json = str.from("{\"kind\": \"identifier\"");
+        push_ty(&json, e.ty);
 
         json.push(str.view_from(", \"value\": \""));
         json.push(e.data.ident.name.as_view());
         json.push(str.view_from("\""));
-
-        push_ty(&json, e.ty);
 
         json.push(str.view_from("}"));
         return json;
@@ -250,7 +255,7 @@ def (e: *Expr) to_json(): str.String {
 
     if e.kind == ExprKind.Literal {
         let json = str.from("{\"kind\": \"literal\"");
-        // push_ty(&json, e.ty);
+        push_ty(&json, e.ty);
 
         json.push(str.view_from(", \"value\": "));
         let view = e.data.lit.token.span.as_view();
@@ -276,7 +281,7 @@ def (e: *Expr) to_json(): str.String {
 
     if e.kind == ExprKind.Binary {
         let json = str.from("{\"kind\": \"binary\"");
-        // push_ty(&json, e.ty);
+        push_ty(&json, e.ty);
 
         let left = e.data.binary.left.to_json();
         defer left.free();
@@ -294,8 +299,10 @@ def (e: *Expr) to_json(): str.String {
     }
 
     if e.kind == ExprKind.Unary {
-        let json = str.from("{\"kind\": \"unary\", ");
-        json.push(str.view_from("\"op\": \""));
+        let json = str.from("{\"kind\": \"unary\"");
+        push_ty(&json, e.ty);
+
+        json.push(str.view_from(", \"op\": \""));
         json.push(e.data.unary.kind.as_view());
         json.push(str.view_from("\", \"right\": "));
         let right = e.data.unary.right.to_json();
@@ -306,10 +313,12 @@ def (e: *Expr) to_json(): str.String {
     }
 
     if e.kind == ExprKind.Assign {
-        let json = str.from("{\"kind\": \"assign\", ");
+        let json = str.from("{\"kind\": \"assign\"");
+        push_ty(&json, e.ty);
+
         let left = e.data.assign.left.to_json();
         defer left.free();
-        json.push(str.view_from("\"left\": "));
+        json.push(str.view_from(", \"left\": "));
         json.push(left.view());
         json.push(str.view_from(", \"op\": \""));
         json.push(e.data.assign.kind.as_view());
@@ -323,10 +332,12 @@ def (e: *Expr) to_json(): str.String {
     }
 
     if e.kind == ExprKind.Call {
-        let json = str.from("{\"kind\": \"call\", ");
+        let json = str.from("{\"kind\": \"call\"");
+        push_ty(&json, e.ty);
+
         let callee = e.data.call.callee.to_json();
         defer callee.free();
-        json.push(str.view_from("\"callee\": "));
+        json.push(str.view_from(", \"callee\": "));
         json.push(callee.view());
 
         json.push(str.view_from(",\"args\": ["));

@@ -9,58 +9,61 @@ expected_modules = [{
     'imports': [],
     'items': [
         {
-            "kind": "func_def",
-            "name": "f",
-            "instances": ["(*i8, isize) -> void"],
-            "body": {
-                "kind": "block",
-                "stmts": []
+            'kind': 'func_def',
+            'name': 'f',
+            'instances': ['(*i8, isize) -> void'],
+            'body': {
+                'kind': 'block',
+                'stmts': []
             }
         },
         {
-            "kind": "func_def",
-            "name": "main",
-            "instances": ["() -> void"],
-            "body": {
-                "kind": "block",
-                "stmts": [
+            'kind': 'func_def',
+            'name': 'main',
+            'instances': ['() -> void'],
+            'body': {
+                'kind': 'block',
+                'stmts': [
                     {
-                        "kind": "local_var_decl",
-                        "name": "s",
-                        "ty": None,
-                        "value": {
-                            "kind": "literal",
-                            "value": "null"
+                        'kind': 'local_var_decl',
+                        'name': 's',
+                        'ty': None,
+                        'value': {
+                            'kind': 'literal',
+                            'ty': '*i8',
+                            'value': 'null'
                         }
                     },
                     {
-                        "kind": "local_var_decl",
-                        "name": "len",
-                        "ty": None,
-                        "value": {
-                            "kind": "literal",
-                            "value": 0
+                        'kind': 'local_var_decl',
+                        'name': 'len',
+                        'ty': None,
+                        'value': {
+                            'kind': 'literal',
+                            'ty': 'isize',
+                            'value': 0
                         }
                     },
                     {
-                        "kind": "expr_stmt",
-                        "expr": {
-                            "kind": "call",
-                            "callee": {
-                                "kind": "identifier",
-                                "value": "f",
-                                "ty": "(*i8, isize) -> void"
+                        'kind': 'expr_stmt',
+                        'expr': {
+                            'kind': 'call',
+                            'ty': 'void',
+                            'callee': {
+                                'kind': 'identifier',
+                                'ty': '(*i8, isize) -> void',
+                                'value': 'f',
                             },
-                            "args": [
+                            'args': [
                                 {
-                                    "kind": "identifier",
-                                    "value": "s",
-                                    "ty": "*i8"
+                                    'kind': 'identifier',
+                                    'ty': '*i8',
+                                    'value': 's',
                                 },
                                 {
-                                    "kind": "identifier",
-                                    "value": "len",
-                                    "ty": "isize"
+                                    'kind': 'identifier',
+                                    'ty': 'isize',
+                                    'value': 'len',
                                 }
                             ]
                         }

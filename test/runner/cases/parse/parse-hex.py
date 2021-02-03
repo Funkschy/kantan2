@@ -11,8 +11,8 @@ expected_modules = [{
     'items': [
         {
             'kind': 'func_def',
-            "name": "main",
-            "instances": ["() -> void"],
+            'name': 'main',
+            'instances': ['() -> void'],
             'body': {
                 'kind': 'block',
                 'stmts': [
@@ -20,6 +20,7 @@ expected_modules = [{
                         'kind': 'expr_stmt',
                         'expr': {
                             'kind': 'literal',
+                            'ty': 'i32',
                             'value': 0xa101b3f
                         }
                     }

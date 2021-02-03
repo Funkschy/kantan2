@@ -119,6 +119,21 @@ def (t: *Type) checked_var_innermost(): *Type {
     return t;
 }
 
+def (t: *Type) var_innermost_var(): **Type {
+    let inner = &t;
+    while (*inner).data.inner.kind == TypeKind.Variable {
+        inner = &(*inner).data.inner;
+    }
+    return inner;
+}
+
+def (t: *Type) checked_var_innermost_var(): *Type {
+    if t.kind == TypeKind.Variable {
+        return *t.var_innermost_var();
+    }
+    return t;
+}
+
 def (t: *Type) equals(other: *Type): bool {
     if t == other {
         return true;
@@ -167,7 +182,7 @@ def (t: *Type) to_string(): str.String {
     }
 
     if t.kind == TypeKind.Variable {
-        let s = str.from("->");
+        let s = str.from("");
         let inner = t.data.inner.to_string();
         s.push(inner.view());
         inner.free();

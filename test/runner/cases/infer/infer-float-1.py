@@ -9,27 +9,28 @@ expected_modules = [{
     'imports': [],
     'items': [
         {
-            "kind": "func_def",
-            "name": "main",
-            "instances": ["() -> void"],
-            "body": {
-                "kind": "block",
-                "stmts": [
+            'kind': 'func_def',
+            'name': 'main',
+            'instances': ['() -> void'],
+            'body': {
+                'kind': 'block',
+                'stmts': [
                     {
-                        "kind": "local_var_decl",
-                        "name": "f",
-                        "ty": None,
-                        "value": {
-                            "kind": "literal",
-                            "value": 0.0
+                        'kind': 'local_var_decl',
+                        'name': 'f',
+                        'ty': None,
+                        'value': {
+                            'kind': 'literal',
+                            'ty': 'f32',
+                            'value': 0.0
                         }
                     },
                     {
-                        "kind": "expr_stmt",
-                        "expr": {
-                            "kind": "identifier",
-                            "value": "f",
-                            "ty": "f32"
+                        'kind': 'expr_stmt',
+                        'expr': {
+                            'kind': 'identifier',
+                            'ty': 'f32',
+                            'value': 'f',
                         }
                     },
                 ]
