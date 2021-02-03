@@ -34,6 +34,12 @@ import "literal";
 
 // if an error occurs, it will be reported and the returned type will be error
 def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
+    let inferred = _infer(ctx, expr);
+    expr.ty = inferred.ty;
+    return inferred;
+}
+
+def _infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
     if expr.kind == ExprKind.Literal {
         return literal.infer(ctx, expr);
     }
@@ -131,5 +137,6 @@ def try_unify(ctx: *ctx.TyCtx, expr: *Expr, inferred: *Type, expected: *Type): T
         return error();
     }
 
+    expr.ty = instance;
     return ok(instance);
 }

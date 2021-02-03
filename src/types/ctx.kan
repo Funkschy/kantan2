@@ -268,57 +268,48 @@ def (ctx: *TyCtx) bind_type_public(name: str.View, ty: *Type, declared_at: *span
 }
 
 def (ctx: *TyCtx) unify(a: *Type, previous: *Type): *Type {
+    if a == previous {
+        return a;
+    }
+
     if ctx.is_concrete_version_of(a, previous) {
-
-        if previous.kind == TypeKind.Variable {
-            if a.kind == TypeKind.Variable  {
-                // otherwise we could have cycles
-                if a != previous {
-                    // point the innermost variable to a instead
-                    *previous.var_innermost() = a;
-                }
-            } else {
-                // "overwrite" the old value
-                previous.data.inner.kind = TypeKind.Variable;
-                previous.data.inner.data.inner = a;
-            }
-        }
-
+        dbg.assert(previous.is_variable(), "previous is not a variable");
+        // point the innermost variable to a instead
+        *previous.var_innermost() = a;
         return a;
     }
 
     if ctx.is_less_concrete_version_of(a, previous) {
-
-        if a.kind == TypeKind.Variable {
-            if previous.kind == TypeKind.Variable {
-                // otherwise we could have cycles
-                if a != previous {
-                    *a.var_innermost() = previous;
-                }
-            } else {
-                // "overwrite" the old value
-                a.data.inner.kind = TypeKind.Variable;
-                a.data.inner.data.inner = previous;
-            }
-        }
-
+        dbg.assert(a.is_variable(), "expression type is not a variable");
+        *a.var_innermost() = previous;
         return previous;
     }
 
-    let a = a.checked_var_innermost();
-    let previous = previous.checked_var_innermost();
+    let left = a.checked_var_innermost();
+    let right = previous.checked_var_innermost();
 
-    if a.kind == TypeKind.Ptr && previous.kind == TypeKind.Ptr {
-        let inner = ctx.unify(a.data.ptr_to, previous.data.ptr_to);
+    if left.kind == TypeKind.Ptr && right.kind == TypeKind.Ptr {
+        let inner = ctx.unify(left.data.ptr_to, right.data.ptr_to);
         if inner == null {
             return null;
         }
 
-        a.data.ptr_to = inner;
+        left.data.ptr_to = inner;
         return a;
     }
 
     if a.equals(previous) {
+        if a.is_variable() {
+            *a.var_innermost() = previous;
+            return previous;
+        } else if previous.is_variable() {
+            *previous.var_innermost() = a;
+            return a;
+        } else {
+            a.kind = TypeKind.Variable;
+            a.data.inner = previous;
+        }
+
         return a;
     }
 
