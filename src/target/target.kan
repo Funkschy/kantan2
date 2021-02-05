@@ -19,6 +19,9 @@ def default(): Target {
     get_os(&target.sys);
 
     target.ptr_width_bytes = sizeof *void;
+    // TODO(#38): determine target arch based on the current architecture
+    //  it is currently hard coded to x86_64, which is ok for now, since we only support that
+    //  and wasm, but this will become a problem later on
     target.arch = Arch.X86_64;
     target.insert_defaults_for_system();
 
