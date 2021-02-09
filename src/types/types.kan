@@ -14,6 +14,9 @@ type TypeKind enum {
     // the error type is bound to variables, whose initializers could not be inferred
     // this is used to swallow follow up errors (for undefined variables)
     Error,
+    // only used during the finalize stage of typechecking and invalid otherwise. This is used
+    // to separate the final types from temporary types, which will be dropped with their arena
+    Moved,
     // only used to infer types during typechecking and illegal afterwards
     // this is basically just a wrapper around another type. When checking agains a variable type,
     // the type that this points to may be changed (just the pointer, not the real type)
@@ -38,6 +41,7 @@ type Type struct {
 
 type TypeData union {
     inner: *Type,
+    new_location: *Type, // used when kind == Moved
     int: primitive.Integer,
     float: primitive.Float,
     ptr_to: *Type, // the inner type
@@ -182,7 +186,7 @@ def (t: *Type) to_string(): str.String {
     }
 
     if t.kind == TypeKind.Variable {
-        let s = str.from("");
+        let s = str.from("->");
         let inner = t.data.inner.to_string();
         s.push(inner.view());
         inner.free();

@@ -1,8 +1,9 @@
 import ":std/str";
 import ":std/dbg";
 
-import ":cli/report";
+import ":util";
 import ":error" as e;
+import ":cli/report";
 import ":source/span";
 import ":ast/expr" as ast;
 

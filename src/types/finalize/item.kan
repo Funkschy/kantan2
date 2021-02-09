@@ -1,0 +1,33 @@
+import ":std/dbg";
+
+import ":util" as _;
+import ":ast/item" as _;
+
+import "../util";
+import "../ctx" as c;
+
+import "stmt";
+import "types";
+
+def finalize(ctx: *c.TyCtx, item: *Item): Result {
+    if item.kind == ItemKind.FuncDef {
+        let f = &item.data.func_def;
+
+        let had_errors = false;
+        for let i: usize = 0; i < f.instances.len(); i += 1 {
+            let instance_ref = f.instances.get_ptr(i);
+            if types.finalize(ctx, instance_ref, item.span).is_error() {
+                had_errors = true;
+            }
+        }
+
+        if had_errors {
+            return Result.Error;
+        }
+
+        return stmt.finalize(ctx, &f.block_stmt);
+    }
+
+    dbg.assert(false, "Unhandled ItemKind");
+    return Result.Error;
+}

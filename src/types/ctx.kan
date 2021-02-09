@@ -24,6 +24,7 @@ import "primitive";
 type TyCtx struct {
     ty_arena: *arena.TypedArena,
     node_arena: *arena.TypedArena,
+    temp_arena: arena.TypedArena,
 
     // this holds the types of lvalues, for later lookup by name
     values: scope.ScopeStack,
@@ -31,25 +32,86 @@ type TyCtx struct {
     types: scope.ScopeStack,
 
     // the current function or null, if in global scope
-    current_function: *Type
+    current_function: *Type,
+    final_i32_ty: *Type,
+    final_f32_ty: *Type
 }
 
 def create(ty_arena: *arena.TypedArena, node_arena: *arena.TypedArena): TyCtx {
     dbg.assert(ty_arena.elem_size == sizeof Type, "invalid memory ty_arena");
     dbg.assert(node_arena.elem_size == sizeof TypeNode, "wrong type node arena size");
 
-    return TyCtx {
+    let temp_arena = arena.typed(sizeof Type);
+
+    let ctx = TyCtx {
         ty_arena: ty_arena,
         node_arena: node_arena,
+        temp_arena: temp_arena,
         values: scope.scope_stack(),
         types: scope.scope_stack(),
-        current_function: null
+        current_function: null,
+        final_i32_ty: null,
+        final_f32_ty: null
     };
+    ctx.init_global_types();
+    return ctx;
 }
 
 def (ctx: *TyCtx) free() {
+    ctx.close_scope();
     ctx.values.free();
     ctx.types.free();
+    ctx.temp_arena.free();
+}
+
+def (ctx: *TyCtx) init_global_types() {
+    ctx.open_scope();
+
+    let void_ty = ctx.alloc_ty();
+    void_ty.kind = TypeKind.Void;
+    ctx.bind_type_public(str.view_from("void"), void_ty, null);
+
+    let b_ty = ctx.alloc_ty();
+    b_ty.kind = TypeKind.Bool;
+    ctx.bind_type_public(str.view_from("bool"), b_ty, null);
+
+    let c_ty = ctx.alloc_ty();
+    c_ty.init_int(primitive.Signedness.Signed, size_bytes(1));
+    ctx.bind_type_public(str.view_from("i8"), c_ty, null);
+
+    let isize_ty = ctx.alloc_ty();
+    isize_ty.init_int(primitive.Signedness.Signed, size_bytes_platform_dependent(8));
+    ctx.bind_type_public(str.view_from("isize"), isize_ty, null);
+
+    let s_ty = ctx.alloc_ty();
+    s_ty.init_ptr(c_ty);
+    ctx.bind_type_public(str.view_from("string"), s_ty, null);
+
+    let i32_ty = ctx.alloc_ty();
+    i32_ty.init_int(primitive.Signedness.Signed, size_bytes(4));
+    ctx.bind_type_public(str.view_from("i32"), i32_ty, null);
+
+    // i32 and f32 are special, since they could be used before being moved in the finalize stage
+    // also they are referenced directly inside TyCtx
+    let final_i32_ty = ctx.alloc_final_ty();
+    *final_i32_ty = *i32_ty;
+    ctx.final_i32_ty = final_i32_ty;
+
+    let u32_ty = ctx.alloc_ty();
+    u32_ty.init_int(primitive.Signedness.Unsigned, size_bytes(4));
+    ctx.bind_type_public(str.view_from("u32"), u32_ty, null);
+
+    let f32_ty = ctx.alloc_ty();
+    f32_ty.init_float(size_bytes(4));
+    ctx.bind_type_public(str.view_from("f32"), f32_ty, null);
+
+    let final_f32_ty = ctx.alloc_final_ty();
+    *final_f32_ty = *f32_ty;
+    ctx.final_f32_ty = final_f32_ty;
+
+    let f64_ty = ctx.alloc_ty();
+    f64_ty.init_float(size_bytes(8));
+    ctx.bind_type_public(str.view_from("f64"), f64_ty, null);
 }
 
 def (ctx: *TyCtx) open_scope() {
@@ -57,103 +119,17 @@ def (ctx: *TyCtx) open_scope() {
     ctx.types.open();
 }
 
-def (ctx: *TyCtx) perform_item_close(ty: *Type, declared_at: *span.Span): Result {
-    // deref the type to the most basic level
-    while true {
-        if ty.kind == TypeKind.Variable {
-            ty = ty.data.inner;
-        } else if ty.kind == TypeKind.Ptr {
-            ty = ty.data.ptr_to;
-        } else {
-            break;
-        }
-    }
-
-    if ty.kind == TypeKind.AnyInt {
-        // convert anyInt to i32
-        ty.init_int(primitive.Signedness.Signed, size_bytes(4));
-    }
-
-    if ty.kind == TypeKind.AnyFloat {
-        // convert anyFloat to f32
-        ty.init_float(size_bytes(4));
-    }
-
-    // a type that could not be inferred is considered an error
-    if ty.kind == TypeKind.Any {
-        if declared_at == null {
-            let msg = str.view_from("could not infer type for an item without a source position");
-            util.report_internal_error(msg);
-            return Result.Error;
-        }
-
-        util.report_simple(e.ErrorKind.CouldNotInfer, *declared_at);
-        return Result.Error;
-    }
-
-    return Result.OK;
-}
-
-def (ctx: *TyCtx) close_scope(): Result {
-    let result = Result.OK;
-
-    // this 'collapses' undecided types
-    // If we encounter anyInt types, they will be converted to i32
-    let current = ctx.values.top();
-    for let i: usize = 0; i < current.bindings.len(); i += 1 {
-        let bound = current.bindings.get_ptr_idx(i) as *scope.BoundItem;
-        result = result.or(ctx.perform_item_close(bound.ty, bound.declared_at));
-
-        // this check is only needed for real identifiers. Expression statements may be unsized
-        // e.g. a call to some f(): void. And arguments will have been checked against the function
-        // type already
-        // TODO(#28): implement proper errors for unsized types
-        if bound.ty.is_unsized() {
-            util.report_internal_error_span(str.view_from("unsized bound"), *bound.declared_at);
-            result = Result.Error;
-        }
-
-        if bound.ty.kind == TypeKind.Error {
-            result = Result.Error;
-        }
-    }
-
-    for let i: usize = 0; i < current.temp_vars.len; i += 1 {
-        let bound = current.temp_vars.get_ptr(i) as *scope.BoundItem;
-        result = result.or(ctx.perform_item_close(bound.ty, bound.declared_at));
-
-        if bound.ty.kind == TypeKind.Error {
-            result = Result.Error;
-        }
-
-        let f = ctx.get_function(bound.ty);
-        if f != null {
-            let f = &f.data.function;
-            let current = f.params_head;
-            while current != null {
-                // TODO(#36): get the source position for params/return
-                result = result.or(ctx.perform_item_close(current.value, null));
-                current = current.next;
-            }
-
-            result = result.or(ctx.perform_item_close(f.ret, null));
-            // push the initialized function type into the original instance list
-            // this might look confusing at first, but each function definition has a list of
-            // instances. For normal functions, this list will only contain a single entry, but
-            // for templated functions (generic function) this list might have an arbitrary
-            // amount of different instances. The instance list internally works like a set
-            f.instances.push(bound.ty);
-        }
-    }
-
+def (ctx: *TyCtx) close_scope() {
     ctx.values.close();
     ctx.types.close();
+}
 
-    return result;
+def (ctx: *TyCtx) alloc_final_ty(): *Type {
+    return ctx.ty_arena.alloc() as *Type;
 }
 
 def (ctx: *TyCtx) alloc_ty(): *Type {
-    return ctx.ty_arena.alloc() as *Type;
+    return ctx.temp_arena.alloc() as *Type;
 }
 
 def (ctx: *TyCtx) alloc_node(): *TypeNode {

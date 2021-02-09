@@ -1,0 +1,56 @@
+import ":std/str";
+
+import ":util" as _;
+import ":error" as e;
+
+import ":source/span";
+import ":ast/expr" as _;
+
+import "../util";
+import "../ctx" as c;
+import "../types" as _;
+
+import "types";
+
+def finalize(ctx: *c.TyCtx, expr: *Expr): Result {
+    let result = Result.OK;
+
+    if expr.kind == ExprKind.Assign {
+        let assign = &expr.data.assign;
+        result = result.or(finalize(ctx, assign.left));
+        result = result.or(finalize(ctx, assign.right));
+
+        if result.is_ok() && assign.left.ty.is_unsized() {
+            // TODO(#28): implement proper errors for unsized types
+            util.report_internal_error_span(str.view_from("unsized bound"), expr.span);
+            result = Result.Error;
+        }
+    }
+
+    if expr.kind == ExprKind.Unary {
+        result = result.or(finalize(ctx, expr.data.unary.right));
+    }
+
+    if expr.kind == ExprKind.Binary {
+        result = result.or(finalize(ctx, expr.data.binary.left));
+        result = result.or(finalize(ctx, expr.data.binary.right));
+    }
+
+    if expr.kind == ExprKind.Call {
+        let call = &expr.data.call;
+        result = result.or(finalize(ctx, call.callee));
+        let arg = call.args_head;
+        while arg != null {
+            result = result.or(finalize(ctx, &arg.value));
+            arg = arg.next;
+        }
+        // push the initialized function type into the original instance list
+        // this might look confusing at first, but each function definition has a list of
+        // instances. For normal functions, this list will only contain a single entry, but
+        // for templated functions (generic function) this list might have an arbitrary
+        // amount of different instances. The instance list internally works like a set
+        call.callee.ty.data.function.instances.push(call.callee.ty);
+    }
+
+    return result.or(types.finalize(ctx, &expr.ty, expr.span));
+}

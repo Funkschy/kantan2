@@ -52,6 +52,10 @@ K_FILES = src/ast/generics.kan \
 		  src/types/check/unary.kan \
 		  src/types/ctx.kan \
 		  src/types/data.kan \
+		  src/types/finalize/expr.kan \
+		  src/types/finalize/item.kan \
+		  src/types/finalize/stmt.kan \
+		  src/types/finalize/types.kan \
 		  src/types/function.kan \
 		  src/types/graph.kan \
 		  src/types/info.kan \

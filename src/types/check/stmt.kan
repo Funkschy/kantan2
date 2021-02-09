@@ -1,6 +1,5 @@
 import ":std/dbg";
 import ":std/str";
-import ":cli/report";
 import ":error" as e;
 
 import ":ast/expr";

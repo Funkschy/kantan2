@@ -1,0 +1,60 @@
+import ":std/dbg";
+import ":std/str";
+import ":error" as e;
+
+import ":ast/expr";
+import ":util" as _;
+import ":ast/stmt" as _;
+
+import "../util";
+import "../ctx" as c;
+
+import "expr";
+
+def finalize(ctx: *c.TyCtx, stmt: *Stmt): Result {
+    if stmt.kind == StmtKind.Expr {
+        return expr.finalize(ctx, &stmt.data.expr);
+    }
+
+    if stmt.kind == StmtKind.Block {
+        let block = &stmt.data.block;
+        let len = block.len();
+
+        let had_errors = false;
+        for let i: usize = 0; i < len; i += 1 {
+            let s = block.at(i);
+            if finalize(ctx, s).is_error() {
+                had_errors = true;
+            }
+        }
+
+        if had_errors {
+            return Result.Error;
+        }
+
+        return Result.OK;
+    }
+
+    if stmt.kind == StmtKind.LocalVarDecl {
+        let local = &stmt.data.local;
+        let result = expr.finalize(ctx, local.value);
+        if result.is_ok() && local.value.ty.is_unsized() {
+            // TODO(#28): implement proper errors for unsized types
+            util.report_internal_error_span(str.view_from("unsized bound"), local.value.span);
+            result = Result.Error;
+        }
+
+        return result;
+    }
+
+    if stmt.kind == StmtKind.Return {
+        if stmt.data.ret == null {
+            return Result.OK;
+        }
+
+        return expr.finalize(ctx, stmt.data.ret);
+    }
+
+    util.report_internal_error(str.view_from("unhandled stmt kind"));
+    return Result.Error;
+}

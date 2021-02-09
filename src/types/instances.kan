@@ -36,6 +36,10 @@ def (l: *InstanceSet) get(idx: usize): *Type {
     return l._list.get(idx) as *Type;
 }
 
+def (l: *InstanceSet) get_ptr(idx: usize): **Type {
+    return l._list.get_ptr(idx) as **Type;
+}
+
 def (l: *InstanceSet) len(): usize {
     return l._list.len;
 }
