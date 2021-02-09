@@ -5,6 +5,7 @@ import ":ast/item" as _;
 
 import "../util";
 import "../ctx" as c;
+import "../instances" as i;
 
 import "stmt";
 import "types";
@@ -13,18 +14,25 @@ def finalize(ctx: *c.TyCtx, item: *Item): Result {
     if item.kind == ItemKind.FuncDef {
         let f = &item.data.func_def;
 
+        // we create a new set, since mutating the types inside a set will make it invalid
+        let new_instances = i.instance_set();
+
         let had_errors = false;
         for let i: usize = 0; i < f.instances.len(); i += 1 {
             let instance_ref = f.instances.get_ptr(i);
             if types.finalize(ctx, instance_ref, item.span).is_error() {
                 had_errors = true;
             }
+            new_instances.push(*instance_ref);
         }
 
         if had_errors {
+            new_instances.free();
             return Result.Error;
         }
 
+        f.instances.free();
+        f.instances = new_instances;
         return stmt.finalize(ctx, &f.block_stmt);
     }
 

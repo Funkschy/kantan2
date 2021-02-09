@@ -53,7 +53,12 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
     // Here we change the inferred callee type from the template type to the actual function type
     if callee.ty.kind == TypeKind.Variable && callee.ty.data.inner.kind == TypeKind.Template {
         callee.ty.data.inner = func_ty;
-        ctx.bind_temp(callee.ty, &call.callee.span);
+        // push the initialized function type into the original instance list
+        // this might look confusing at first, but each function definition has a list of
+        // instances. For normal functions, this list will only contain a single entry, but
+        // for templated functions (generic function) this list might have an arbitrary
+        // amount of different instances. The instance list internally works like a set
+        function.instances.push(func_ty);
     }
 
     return ok(function.ret);

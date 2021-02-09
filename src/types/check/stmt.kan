@@ -19,11 +19,6 @@ def check(ctx: *TyCtx, stmt: *Stmt): Result {
             return Result.Error;
         }
 
-        if stmt.data.expr.kind != expr.ExprKind.Assign && stmt.data.expr.kind != expr.ExprKind.Ident {
-            // convert this into an implicit assignment (at least in the eyes of the TyCtx)
-            ctx.bind_temp(result.ty, &stmt.data.expr.span);
-        }
-
         return Result.OK;
     }
 

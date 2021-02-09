@@ -226,15 +226,6 @@ def bind_in(name: str.View, ty: *Type, vis: Visibility, stack: *scope.ScopeStack
     stack.bind(name, item);
 }
 
-def (ctx: *TyCtx) bind_temp(ty: *Type, span: *span.Span) {
-    let item = scope.BoundItem {
-        ty: ty,
-        vis: Visibility.Public,
-        declared_at: span
-    };
-    ctx.values.top().temp_vars.push(&item as *void);
-}
-
 def (ctx: *TyCtx) bind_value_public(name: str.View, ty: *Type, declared_at: *span.Span) {
     bind_in(name, ty, Visibility.Public, &ctx.values, declared_at);
 }

@@ -12,6 +12,12 @@ type InstanceSet struct {
     _list: ptrvec.Vec // ptrvec.Vec[*Type]
 }
 
+def instance_set(): InstanceSet {
+    let i: InstanceSet = undefined;
+    i.init();
+    return i;
+}
+
 def (l: *InstanceSet) init() {
     l._list = ptrvec.create();
 }
@@ -101,6 +107,6 @@ def ty_equals(a: *Type, b: *Type): bool {
         return ty_equals(a_f.ret, b_f.ret);
     }
 
-    util.report_internal_error(str.view_from("unhandled or illegal TypeKind"));
+    // util.report_internal_error(str.view_from("unhandled or illegal TypeKind"));
     return false;
 }

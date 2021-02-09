@@ -44,12 +44,6 @@ def finalize(ctx: *c.TyCtx, expr: *Expr): Result {
             result = result.or(finalize(ctx, &arg.value));
             arg = arg.next;
         }
-        // push the initialized function type into the original instance list
-        // this might look confusing at first, but each function definition has a list of
-        // instances. For normal functions, this list will only contain a single entry, but
-        // for templated functions (generic function) this list might have an arbitrary
-        // amount of different instances. The instance list internally works like a set
-        call.callee.ty.data.function.instances.push(call.callee.ty);
     }
 
     return result.or(types.finalize(ctx, &expr.ty, expr.span));

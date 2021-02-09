@@ -18,18 +18,12 @@ type BoundItem struct {
 }
 
 type Scope struct {
-    bindings: vmap.Map, // vmap.Map[str.View, BoundItem]
-    // for temporary stuff
-    // e.g. when we encounter an expr_stmt like '1 + 1;' it will be inserted into this vector
-    // as a temporary variable and then handled by the same collapse/report logic in the TyCtx
-    // as any variable
-    temp_vars: vec.Vec  // BoundItem
+    bindings: vmap.Map // vmap.Map[str.View, BoundItem]
 }
 
 def scope(): Scope {
     return Scope {
-        bindings: vmap.create(sizeof BoundItem),
-        temp_vars: vec.create(sizeof BoundItem)
+        bindings: vmap.create(sizeof BoundItem)
     };
 }
 
@@ -39,12 +33,10 @@ def new_scope(): *Scope {
 
 def (s: *Scope) free() {
     s.bindings.free();
-    s.temp_vars.free();
 }
 
 def (s: *Scope) clear() {
     s.bindings.clear();
-    s.temp_vars.clear();
 }
 
 def (s: *Scope) lookup(name: str.View, out: *BoundItem): Result {
