@@ -1,6 +1,8 @@
 import ":std/vec";
 import ":std/dbg";
+import ":std/str";
 
+import ":source/ident";
 import ":types/types" as ty;
 
 import "rvalue";
@@ -21,6 +23,18 @@ type StatementData union {
     assign: Assign
 }
 
+def assign(location: memory.Location, value: rvalue.Expression): Statement {
+    return Statement {
+        kind: StatementKind.Assign,
+        data: StatementData {
+            assign: Assign {
+                location: location,
+                value: value
+            }
+        }
+    };
+}
+
 type Assign struct {
     location: memory.Location,
     value: rvalue.Expression
@@ -29,6 +43,7 @@ type Assign struct {
 // Terminators
 
 type TerminatorKind enum {
+    Nop, // this should only be set during compilation. It is not a valid Terminator!
     Return, Call, Jmp
 }
 
@@ -38,17 +53,77 @@ type Terminator struct {
 }
 
 type TerminatorData union {
+    call: Call
+}
 
+type Call struct {
+    function: rvalue.Operand,
+    args_head: *rvalue.OperandNode,
+    // the return value of this call will be written to dest
+    dest: *memory.Location
 }
 
 type BasicBlock struct {
-    statements: vec.Vec, // vec.Vec[*Statement]
+    statements: vec.Vec, // vec.Vec[Statement]
     terminator: Terminator
+}
+
+def basic_block(): BasicBlock {
+    return BasicBlock {
+        statements: vec.create(sizeof Statement),
+        terminator: Terminator {
+            kind: TerminatorKind.Nop,
+            data: undefined
+        }
+    };
+}
+
+def (bb: *BasicBlock) free() {
+    bb.statements.free();
+}
+
+def (bb: *BasicBlock) push_stmt(stmt: *Statement) {
+    bb.statements.push(stmt as *void);
+}
+
+def (bb: *BasicBlock) terminate(terminator: *Terminator) {
+    bb.terminator = *terminator;
+}
+
+type Function struct {
+    original_name: ident.Ident,
+    mangled_name: str.String,
+    ty: *ty.Type,
+    body: FunctionBody
+}
+
+def (f: *Function) free() {
+    f.mangled_name.free();
+    f.body.free();
+}
+
+def (f: *Function) current_bb(): *BasicBlock {
+    // if there is no block, just open one
+    if f.body.blocks.len == 0 {
+        let bb = basic_block();
+        f.body.blocks.push(&bb as *void);
+    }
+
+    return f.body.blocks.get_ptr(f.body.blocks.len - 1) as *BasicBlock;
 }
 
 type FunctionBody struct {
     blocks: vec.Vec, // vec.Vec[BasicBlock]
     locals: vec.Vec  // vec.Vec[LocalVarDecl] (indexed by memory.Local)
+}
+
+def (b: *FunctionBody) free() {
+    for let i: usize = 0; i < b.blocks.len; i += 1 {
+        let bb = b.blocks.get_ptr(i) as *BasicBlock;
+        bb.free();
+    }
+    b.blocks.free();
+    b.locals.free();
 }
 
 def (b: *FunctionBody) add_local(local: memory.Local, ty: *ty.Type) {
@@ -59,4 +134,87 @@ def (b: *FunctionBody) add_local(local: memory.Local, ty: *ty.Type) {
 
 type LocalVarDecl struct {
     ty: *ty.Type
+}
+
+// json generation stuff
+
+def (f: *Function) to_json(): str.String {
+    let json = str.from("{");
+    defer json.push(str.view("}", 1));
+
+    json.push(str.view_from("\"original_name\": \""));
+    json.push(f.original_name.as_view());
+    json.push(str.view_from("\""));
+
+    json.push(str.view_from(", \"locals\": ["));
+    for let i: usize = 0; i < f.body.locals.len; i += 1 {
+        if i > 0 {
+            json.push(str.view(", ", 2));
+        }
+
+        let l = f.body.locals.get_ptr(i) as *LocalVarDecl;
+        json.push(str.view_from("{\"name\": \""));
+        defer json.push(str.view("}", 1));
+
+        // locals start at 1
+        let name = memory.local(1 + i).to_string();
+        json.push(name.view());
+        name.free();
+
+        json.push(str.view_from("\", \"ty\": \""));
+        let ty_s = l.ty.to_string();
+        json.push(ty_s.view());
+        ty_s.free();
+        json.push(str.view("\"", 1));
+    }
+    json.push(str.view("]", 1));
+
+    json.push(str.view_from(", \"blocks\": ["));
+    for let i: usize = 0; i < f.body.blocks.len; i += 1 {
+        if i > 0 {
+            json.push(str.view(", ", 2));
+        }
+
+        let bb = f.body.blocks.get_ptr(i) as *BasicBlock;
+        json.push(str.view_from("{\"statements\": ["));
+        defer json.push(str.view("}", 1));
+        defer json.push(str.view("]", 1));
+
+        for let j: usize = 0; j < bb.statements.len; j += 1 {
+            if j > 0 {
+                json.push(str.view(", ", 2));
+            }
+
+            let s = bb.statements.get_ptr(j) as *Statement;
+            let s_json = s.to_json();
+            json.push(s_json.view());
+            s_json.free();
+        }
+    }
+    json.push(str.view("]", 1));
+
+    return json;
+}
+
+def (s: *Statement) to_json(): str.String {
+    if s.kind == StatementKind.Assign {
+        let json = str.from("{\"kind\": ");
+        defer json.push(str.view_from("}"));
+        json.push(str.view_from("\"assignment\""));
+
+        json.push(str.view_from(", \"location\": "));
+        let location = s.data.assign.location.to_json();
+        json.push(location.view());
+        location.free();
+
+        json.push(str.view_from(", \"value\": "));
+        let value = s.data.assign.value.to_json();
+        json.push(value.view());
+        value.free();
+
+        return json;
+    }
+
+    // dbg.assert(false, "Unhandled StmtKind");
+    return str.from("");
 }

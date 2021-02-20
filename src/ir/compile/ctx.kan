@@ -1,5 +1,8 @@
 import ":std/str";
+import ":std/dbg";
+import ":std/vec";
 
+import ":util" as _;
 import ":source/ident";
 import ":types/types" as ty;
 
@@ -10,14 +13,93 @@ import "locals";
 
 type IRCtx struct {
     names: locals.NameTable,
-    current_body: *ir.FunctionBody
+    functions: vec.Vec // vec.Vec[ir.Function]
 }
 
-def (ctx: *IRCtx) declare_local(name: ident.Ident, ty: *ty.Type) {
+def create(): IRCtx {
+    return IRCtx {
+        names: locals.create(),
+        functions: vec.create(sizeof ir.Function)
+    };
+}
+
+def (ctx: *IRCtx) free() {
+    ctx.names.free();
+
+    for let i: usize = 0; i < ctx.functions.len; i += 1 {
+        let f = ctx.functions.get_ptr(i) as *ir.Function;
+        f.free();
+    }
+    ctx.functions.free();
+}
+
+def (ctx: *IRCtx) push_function(name: ident.Ident, ty: *ty.Type) {
+    ctx.names.free();
+    ctx.names = locals.create();
+
+    let function = ir.Function {
+        original_name: name,
+        mangled_name: str.from(""),
+        ty: ty,
+        body: ir.FunctionBody {
+            blocks: vec.create(sizeof ir.BasicBlock),
+            locals: vec.create(sizeof ir.LocalVarDecl)
+        }
+    };
+    ctx.functions.push(&function as *void);
+}
+
+def (ctx: *IRCtx) current_function(): *ir.Function {
+    if ctx.functions.len == 0 {
+        return null;
+    }
+    return ctx.functions.get_ptr(ctx.functions.len - 1) as *ir.Function;
+}
+
+def (ctx: *IRCtx) push_stmt(stmt: *ir.Statement) {
+    let f = ctx.current_function();
+    dbg.assert(f != null, "trying to push statement without a function");
+
+    let bb = f.current_bb();
+    bb.push_stmt(stmt);
+}
+
+def (ctx: *IRCtx) push_terminator(terminator: *ir.Terminator) {
+    let f = ctx.current_function();
+    dbg.assert(f != null, "trying to set terminator without a function");
+
+    let bb = f.current_bb();
+    bb.terminate(terminator);
+}
+
+def (ctx: *IRCtx) create_temp_var(): memory.Local {
+    return ctx.names.create_temp_var();
+}
+
+def (ctx: *IRCtx) declare_temp_var(ty: *ty.Type): memory.Local {
+    let local = ctx.create_temp_var();
+    ctx.current_function().body.add_local(local, ty);
+    return local;
+}
+
+def (ctx: *IRCtx) declare_local(name: ident.Ident, ty: *ty.Type): memory.Local {
     let local = ctx.bind(name);
-    ctx.current_body.add_local(local, ty);
+    ctx.current_function().body.add_local(local, ty);
+    return local;
 }
 
 def (ctx: *IRCtx) bind(name: ident.Ident): memory.Local {
     return ctx.names.bind(name.as_view());
+}
+
+def (ctx: *IRCtx) lookup(name: ident.Ident, out: *memory.Local): Result {
+    return ctx.names.lookup(name.as_view(), out);
+}
+
+def (ctx: *IRCtx) open_scope() {
+    ctx.names.open_scope();
+}
+
+def (ctx: *IRCtx) close_scope() {
+    ctx.names.close_scope();
 }

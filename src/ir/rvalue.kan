@@ -1,3 +1,6 @@
+import ":std/str";
+import ":std/dbg";
+
 import ":types/types" as ty;
 
 import "memory";
@@ -7,7 +10,8 @@ type ExpressionKind enum {
 }
 
 type Expression struct {
-    kind: ExpressionKind
+    kind: ExpressionKind,
+    data: ExpressionData
 }
 
 type ExpressionData union {
@@ -19,17 +23,55 @@ type ExpressionData union {
     undef_value: *ty.Type
 }
 
+def expr_undefined(ty: *ty.Type): Expression {
+    return Expression {
+        kind: ExpressionKind.Undefined,
+        data: ExpressionData { undef_value: ty }
+    };
+}
+
+def expr_ref(location: memory.Location): Expression {
+    return Expression {
+        kind: ExpressionKind.Ref,
+        data: ExpressionData { ref: location }
+    };
+}
+
+def expr_copy(location: memory.Location): Expression {
+    return expr_use(copy(location));
+}
+
+def expr_use(operand: Operand): Expression {
+    return Expression {
+        kind: ExpressionKind.Use,
+        data: ExpressionData { use: operand }
+    };
+}
+
 type OperandKind enum {
     Copy, Constant
 }
 
 type Operand struct {
-    kind: OperandKind
+    kind: OperandKind,
+    data: OperandData
 }
 
 type OperandData union {
     copy: memory.Location,
     constant: Constant
+}
+
+def copy(location: memory.Location): Operand {
+    return Operand {
+        kind: OperandKind.Copy,
+        data: OperandData { copy: location }
+    };
+}
+
+type OperandNode struct {
+    value: Operand,
+    next: *OperandNode
 }
 
 type CastKind enum {
@@ -86,3 +128,49 @@ type UnaryOperation struct {
 }
 
 type Constant struct {}
+
+// json generation stuff
+
+def (e: *Expression) to_json(): str.String {
+    if e.kind == ExpressionKind.Undefined {
+        let json = str.from("{\"kind\": \"undefined\"");
+        defer json.push(str.view("}", 1));
+        return json;
+    }
+
+    if e.kind == ExpressionKind.Use {
+        let json = str.from("{\"kind\": \"use\", \"operand\": ");
+        defer json.push(str.view("}", 1));
+
+        let operand = e.data.use.to_json();
+        json.push(operand.view());
+        operand.free();
+
+        return json;
+    }
+
+    if e.kind == ExpressionKind.Ref {
+        let json = str.from("{\"kind\": \"ref\"");
+        defer json.push(str.view("}", 1));
+        return json;
+    }
+
+    dbg.assert(false, "unhandled expressionkind");
+    return undefined;
+}
+
+def (op: *Operand) to_json(): str.String {
+    let json = str.from("{\"kind\": ");
+    defer json.push(str.view("}", 1));
+
+    if op.kind == OperandKind.Copy {
+        json.push(str.view_from("\"copy\", \"location\": "));
+        let location = op.data.copy.to_json();
+        json.push(location.view());
+        location.free();
+    } else {
+        json.push(str.view_from("\"constant\""));
+    }
+
+    return json;
+}

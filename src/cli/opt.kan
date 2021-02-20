@@ -21,6 +21,7 @@ type Options struct {
     dump_ast: bool,
     dump_config: bool,
     dump_type_graph: bool,
+    dump_ir: bool,
     // quit after parsing
     parse_only: bool,
     files: ptrvec.Vec,
@@ -29,7 +30,7 @@ type Options struct {
     target_triple: str.View
 }
 
-let available_options: [11]p.Option = undefined;
+let available_options: [12]p.Option = undefined;
 def num_options(): usize {
     return util.sizeof_val(&available_options) / sizeof p.Option;
 }
@@ -43,6 +44,7 @@ def parse(argc: i32, argv: **i8): Options {
         dump_ast: false,
         dump_config: false,
         dump_type_graph: false,
+        dump_ir: false,
         parse_only: false,
         files: ptrvec.with_cap(argc as usize),
         opt_level: 0,
@@ -77,6 +79,10 @@ def parse(argc: i32, argv: **i8): Options {
 
     available_options[i += 1] = *p.option(v("dump-type-graph"), p.val_bool(&options.dump_type_graph))
         .help(v("dump the type-graph as json"))
+        .remarks(v("needs --mi"));
+
+    available_options[i += 1] = *p.option(v("dump-ir"), p.val_bool(&options.dump_ir))
+        .help(v("dump the ir as json"))
         .remarks(v("needs --mi"));
 
     available_options[i += 1] = *p.option(v("parse-only"), p.val_bool(&options.parse_only))
@@ -138,6 +144,11 @@ def error_in_config_values(options: *Options): bool {
 
     if options.dump_type_graph && !options.output_json {
         report.print_simple(str.view("--dump-type-graph can only be used in combination with --mi", 52));
+        return true;
+    }
+
+    if options.dump_ir && !options.output_json {
+        report.print_simple(str.view("--dump-ir can only be used in combination with --mi", 51));
         return true;
     }
 

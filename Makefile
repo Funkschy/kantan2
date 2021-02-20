@@ -16,6 +16,7 @@ K_FILES = src/ast/generics.kan \
 		  src/compiler.kan \
 		  src/error.kan \
 		  src/ir/compile/ctx.kan \
+		  src/ir/compile/expr.kan \
 		  src/ir/compile/item.kan \
 		  src/ir/compile/locals.kan \
 		  src/ir/compile/stmt.kan \

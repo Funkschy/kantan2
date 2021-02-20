@@ -1,6 +1,6 @@
-import "std/str";
-import "std/dbg";
-import "std/files/path";
+import ":std/str";
+import ":std/dbg";
+import ":std/files/path";
 
 import "ast/mod";
 import "ast/tyid";
@@ -8,6 +8,13 @@ import "ast/item";
 import "ast/expr";
 import "ast/lexer" as lex;
 import "ast/parser" as parse;
+
+import "types/ctx";
+import "types/types";
+import "types/graph";
+import "types/check/item" as item_check;
+import "types/finalize/item" as item_finalize;
+import "types/resolve/functions" as resolve_functions;
 
 import "cli/config";
 import "cli/report";
@@ -31,9 +38,16 @@ type Compiler struct {
 
     mod_arena: arena.TypedArena,
     item_arena: arena.TypedArena,
-    ty_arena: arena.TypedArena,
+    tyid_arena: arena.TypedArena,
     expr_arena: arena.TypedArena,
-    node_arena: arena.TypedArena
+    node_arena: arena.TypedArena,
+
+    type_arena: arena.TypedArena,
+    type_node_arena: arena.TypedArena,
+
+    // this will only be initialized when config.generate_type_graph is set to true
+    // otherwise it will contain uninitialized memory!
+    type_graph: graph.TypeGraph
 }
 
 def compiler(config: *config.Config): Compiler {
@@ -44,17 +58,22 @@ def compiler(config: *config.Config): Compiler {
         modmap: mods.filemap(),
         mod_arena: arena.typed(sizeof mod.Module),
         item_arena: arena.typed(sizeof item.Item),
-        ty_arena: arena.typed(sizeof tyid.Type),
+        tyid_arena: arena.typed(sizeof tyid.Type),
         expr_arena: arena.typed(sizeof expr.Expr),
-        node_arena: arena.typed(sizeof expr.ExprNode)
+        node_arena: arena.typed(sizeof expr.ExprNode),
+        type_arena: arena.typed(sizeof types.Type),
+        type_node_arena: arena.typed(sizeof types.TypeNode),
+        type_graph: undefined
     };
 }
 
-def (c: *Compiler) read_files() {
+def (c: *Compiler) read_files(): Result {
+    let result = Result.OK;
     for let i: usize = 0; i < c.config.files.len; i += 1 {
         let filepath = path.create(c.config.files.get(i) as string);
-        c.add_file(filepath, false, null);
+        result = result.or(c.add_file(filepath, false, null));
     }
+    return result;
 }
 
 // try to add a single file to the modmap
@@ -96,14 +115,16 @@ def (c: *Compiler) resolve_import_path(
     return c.std_path.merge_abs_rel_suffix(&imported, ".kan", full_imported_path);
 }
 
-def (c: *Compiler) resolve_imports() {
+def (c: *Compiler) resolve_imports(): Result {
+    let resolve_result = Result.OK;
+
     for let i: usize = 0; i < c.modmap.len(); i += 1 {
         let mod = c.modmap.at(i);
 
         let parser = parse.create(
             lex.create(mod.file.code()),
              &c.item_arena,
-             &c.ty_arena,
+             &c.tyid_arena,
              &c.expr_arena,
              &c.node_arena
          );
@@ -115,8 +136,9 @@ def (c: *Compiler) resolve_imports() {
             defer parsed_import = parser.parse_next_import();
 
             if parsed_import.was_error {
-                // we don't want to quit on an erroneous import, since we want to try to
-                // report all errors
+                // we don't want to immediately quit on an erroneous import, since we want to
+                // try to report all errors
+                resolve_result = Result.Error;
                 continue;
             }
 
@@ -134,6 +156,7 @@ def (c: *Compiler) resolve_imports() {
             );
             if result.is_error() {
                 report_import_error(result, relative_to, imported, decl.path.span);
+                resolve_result = Result.Error;
                 continue;
             }
 
@@ -149,6 +172,7 @@ def (c: *Compiler) resolve_imports() {
 
                 // try to add the imported file to the modmap, if this fails, we bail
                 if c.add_file(full_imported_path, is_std_lib, &note).is_error() {
+                    resolve_result = Result.Error;
                     continue;
                 }
 
@@ -171,6 +195,7 @@ def (c: *Compiler) resolve_imports() {
             if imported_module == mod {
                 let error = e.simple_error(e.ErrorKind.SelfImport, decl.path.span);
                 report.print_error(&error);
+                resolve_result = Result.Error;
                 continue;
             }
 
@@ -187,6 +212,7 @@ def (c: *Compiler) resolve_imports() {
     // At this point all legal imports have been parsed. If we encounter any more, they should
     // be reported as parse errors
 
+    return resolve_result;
 }
 
 def (c: *Compiler) parse(): Result {
@@ -196,7 +222,7 @@ def (c: *Compiler) parse(): Result {
         let info = c.modmap.info_at(i);
         let mod = info.module;
 
-        let parser = parse.create(info.lexer, &c.item_arena, &c.ty_arena, &c.expr_arena, &c.node_arena);
+        let parser = parse.create(info.lexer, &c.item_arena, &c.tyid_arena, &c.expr_arena, &c.node_arena);
         while !parser.is_at_end() {
             let parsed_item = parser.parse_item();
             if parsed_item != null {
@@ -212,6 +238,60 @@ def (c: *Compiler) parse(): Result {
     }
 
     return Result.OK;
+}
+
+def (c: *Compiler) resolve_types(): Result {
+    if c.config.generate_type_graph {
+        c.type_graph = graph.type_graph();
+    }
+    return Result.OK;
+}
+
+def (c: *Compiler) infer_and_check_types(): Result {
+    let ctx = ctx.create(&c.type_arena, &c.type_node_arena);
+    defer ctx.free();
+
+    let result = Result.OK;
+    for let i: usize = 0; i < c.modmap.len(); i += 1 {
+        let mod = c.modmap.at(i);
+        ctx.open_scope();
+        defer ctx.close_scope();
+
+        // resolve all the functions in the module
+        // we need to do this before checking the function bodys in order to be able to call
+        // functions that are declared below the function we are in
+        for let j: usize = 0; j < mod.num_items(); j += 1 {
+            let item = mod.item_at(j);
+            result = result.or(resolve_functions.resolve(&ctx, item));
+        }
+
+        // actually check the function bodys
+        for let j: usize = 0; j < mod.num_items(); j += 1 {
+            let item = mod.item_at(j);
+            result = result.or(item_check.check(&ctx, item));
+        }
+    }
+
+    if result.is_error() {
+        return result;
+    }
+
+    // finalize the types. During typechecking we generate a lot of Type Variables, which are
+    // basically just pointers to another type. Since these are an annoying edge case, we want
+    // to remove them. We also collapse anyInt -> i32, anyFloat -> f32 and report uninfered types
+    // in this step
+    // FIXME: add missing branches
+    // TODO: we need to mark i32 and f32 as moved before finalizing
+    for let i: usize = 0; i < c.modmap.len(); i += 1 {
+        let mod = c.modmap.at(i);
+
+        for let j: usize = 0; j < mod.num_items(); j += 1 {
+            let item = mod.item_at(j);
+            result = result.or(item_finalize.finalize(&ctx, item));
+        }
+    }
+
+    return result;
 }
 
 def report_import_error(
@@ -250,7 +330,13 @@ def (c: *Compiler) free() {
     c.expr_arena.free();
     c.node_arena.free();
     c.item_arena.free_destructor(&item.Item.free as arena.Destructor);
-    c.ty_arena.free_destructor(&tyid.Type.free as arena.Destructor);
+    c.tyid_arena.free_destructor(&tyid.Type.free as arena.Destructor);
+    c.type_arena.free();
+    c.type_node_arena.free();
+
+    if c.config.generate_type_graph {
+        c.type_graph.free();
+    }
 }
 
 def find_stdlib_path(): path.Path {

@@ -1,41 +1,51 @@
 import ":std/map";
-import ":std/vec";
 import ":std/dbg";
 import ":std/str";
 import ":std/num";
+import ":std/ptrvec";
+
+import ":util" as _;
 
 import "../memory" as mem;
 
-type NameScope struct {
+type Scope struct {
     // maps from a source name to a index into mangled_names of the NameTable
     bindings: map.Map // map.Map<str.View, mem.Local>
 }
 
-def create_scope(): NameScope {
-    return NameScope{
+def scope(): Scope {
+    return Scope{
         bindings: map.create()
     };
 }
 
-def (ns: *NameScope) free() {
-    ns.bindings.free();
+def new_scope(): *Scope {
+    return new scope();
 }
 
-def (ns: *NameScope) bind(original: str.View, local: mem.Local) {
-    dbg.assert(local.idx > 0, "local with 0 index");
-    let key = map.create_key(original.len, original.data);
-    ns.bindings.insert(key, num.int_to_ptr(local.idx));
+def (s: *Scope) free() {
+    s.bindings.free();
 }
 
-def (ns: *NameScope) get(name: str.View, out: *mem.Local): bool {
-    let index = ns.bindings.get(map.key(name));
+def (s: *Scope) clear() {
+    s.bindings.clear();
+}
+
+def (s: *Scope) lookup(name: str.View, out: *mem.Local): Result {
+    let index = s.bindings.get(map.key(name));
     // Locals may not have an index of 0
     if index == null {
-        return false;
+        return Result.Error;
     }
 
     *out = mem.local(num.ptr_to_int(index));
-    return true;
+    return Result.OK;
+}
+
+def (s: *Scope) bind(original: str.View, local: mem.Local) {
+    dbg.assert(local.idx > 0, "local with 0 index");
+    let key = map.create_key(original.len, original.data);
+    s.bindings.insert(key, num.int_to_ptr(local.idx));
 }
 
 // A NameTable for local variables
@@ -44,35 +54,88 @@ def (ns: *NameScope) get(name: str.View, out: *mem.Local): bool {
 // 3     {
 // 4         let x = "test";
 // 5     }
-// 6     x; // refers to 5 (Local(0))
+// 6     x; // refers to 5 (Local(1))
 // 7     let x = "";
 // 8 }
 //
 // In the outer scope, nt.lookup("x") will return Local(1) before line 7 (Local(3) after).
 // In the inner scope, is will return Local(2)
+//
+// TODO: this has a lot of duplicated code with types.scope.ScopeStack
+//  when we have generic types, those 2 should be refactored into a single data structure
 type NameTable struct {
     local_counter: usize,
-    scopes: vec.Vec // vec.Vec<NameScope>
+    // to save memory, scopes are not freed on close(). Instead they are put in the queue
+    // and may be recycled later.
+    // since we always use pop_last, this is technically a stack, but because all recycled scopes
+    // are identical, this does not really matter. The name Queue makes more sense in describing
+    // the actual function
+    scope_queue: ptrvec.Vec, // ptrvec.Vec[*Scope]
+    // a stack of currently open scopes
+    // lookup() will always access the top element (last in vec) of this stack
+    open_scopes: ptrvec.Vec  // ptrvec.Vec[*Scope]
 }
 
 def create(): NameTable {
     return NameTable {
         local_counter: 0,
-        scopes: vec.create(sizeof NameScope)
+        scope_queue: ptrvec.create(),
+        open_scopes: ptrvec.create()
     };
 }
 
 def (nt: *NameTable) free() {
-    dbg.assert(nt.scopes.len == 0, "open scopes left");
-    nt.scopes.free();
+    dbg.assert(nt.open_scopes.len == 0, "open scopes left");
+
+    for let i: usize = 0; i < nt.scope_queue.len; i += 1 {
+        let scope = nt.scope_queue.get(i) as *Scope;
+        scope.free();
+        delete scope;
+    }
+    for let i: usize = 0; i < nt.open_scopes.len; i += 1 {
+        let scope = nt.open_scopes.get(i) as *Scope;
+        scope.free();
+        delete scope;
+    }
+    nt.scope_queue.free();
+    nt.open_scopes.free();
 }
 
-def (nt: *NameTable) top(): *NameScope {
-    return nt.scope_at(nt.scopes.len - 1);
+def (nt: *NameTable) open_scope() {
+    let scope: *Scope = null;
+    if nt.scope_queue.len > 0 {
+        // recycle an old scope from the queue
+        scope = nt.scope_queue.pop_last() as *Scope;
+        // delete the old bindings
+        scope.clear();
+    } else {
+        scope = new_scope();
+    }
+
+    nt.open_scopes.push_ptr(scope as *void);
 }
 
-def (nt: *NameTable) scope_at(i: usize): *NameScope {
-    return nt.scopes.get_ptr(i) as *NameScope;
+def (nt: *NameTable) close_scope() {
+    dbg.assert(nt.open_scopes.len > 0, "trying to close empty nametable");
+    nt.scope_queue.push_ptr(nt.open_scopes.pop_last());
+}
+
+def (nt: *NameTable) top(): *Scope {
+    dbg.assert(nt.open_scopes.len > 0, "trying to get top of empty nametable");
+    return nt.open_scopes.get(nt.open_scopes.len - 1) as *Scope;
+}
+
+def (nt: *NameTable) lookup(name: str.View, out: *mem.Local): Result {
+    // using an isize here is important, since the >= operator does not work
+    // for usize if we go below zero. -1 will just be interpreted as 64 ones
+    for let i = nt.open_scopes.len as isize - 1; i >= 0; i -= 1 {
+        let s = nt.open_scopes.get(i) as *Scope;
+        if s.lookup(name, out).is_ok() {
+            return Result.OK;
+        }
+    }
+
+    return Result.Error;
 }
 
 def (nt: *NameTable) bind(name: str.View): mem.Local {
@@ -81,29 +144,6 @@ def (nt: *NameTable) bind(name: str.View): mem.Local {
     return local;
 }
 
-def (nt: *NameTable) open_scope() {
-    let scope = create_scope();
-    nt.push_scope(&scope);
-}
-
-def (nt: *NameTable) close_scope() {
-    nt.top().free();
-    nt.scopes.len -= 1;
-}
-
-def (nt: *NameTable) push_scope(scope: *NameScope) {
-    nt.scopes.push(scope as *void);
-}
-
-def (nt: *NameTable) lookup(name: str.View, out: *mem.Local): bool {
-    for let i = nt.scopes.len - 1; i as isize >= 0; i -= 1 {
-        let scope = nt.scope_at(i);
-        let local: mem.Local = undefined;
-        if scope.get(name, &local) {
-            *out = local;
-            return true;
-        }
-    }
-
-    return false;
+def (nt: *NameTable) create_temp_var(): mem.Local {
+    return mem.local(nt.local_counter += 1);
 }

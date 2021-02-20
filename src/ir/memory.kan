@@ -1,3 +1,5 @@
+import ":std/str";
+import ":std/dbg";
 import ":std/vec";
 import ":types/types" as ty;
 
@@ -9,13 +11,46 @@ type LocationKind enum {
 
 type Location struct {
     kind: LocationKind,
-    location: LocationData,
-    projections: vec.Vec // vec.Vec[Projection]
+    data: LocationData,
+    projection_head: *ProjectionNode
 }
 
 type LocationData union {
     local: Local,
     global: Global
+}
+
+def (l: *Location) to_json(): str.String {
+    if l.kind == LocationKind.Local {
+        let json = str.from("{\"kind\": \"local\", \"name\": \"");
+        defer json.push(str.view("}", 1));
+
+        let name = l.data.local.to_string();
+        json.push(name.view());
+        name.free();
+
+        json.push(str.view_from("\", \"projections\": ["));
+        defer json.push(str.view("]", 1));
+
+        let p = l.projection_head;
+        while p != null {
+            let proj = p.value;
+
+            if proj.kind == ProjectionKind.Field {
+                dbg.assert(false, "unhandled projection kind");
+            } else if proj.kind == ProjectionKind.Index {
+                dbg.assert(false, "unhandled projection kind");
+            } else if proj.kind == ProjectionKind.Deref {
+                dbg.assert(false, "unhandled projection kind");
+            }
+
+            p = p.next;
+        }
+        return json;
+    }
+
+    dbg.assert(false, "unhandled location kind");
+    return undefined;
 }
 
 type Local struct {
@@ -24,6 +59,24 @@ type Local struct {
 
 def local(idx: usize): Local {
     return Local { idx: idx };
+}
+
+def (l: Local) to_string(): str.String {
+    let s = str.from("_");
+    let idx_s = str.i64_to_string(l.idx as i64);
+    s.push(idx_s.view());
+    idx_s.free();
+    return s;
+}
+
+def (l: Local) as_location(): Location {
+    return Location {
+        kind: LocationKind.Local,
+        data: LocationData {
+            local: l
+        },
+        projection_head: null
+    };
 }
 
 type Global struct {
@@ -43,6 +96,11 @@ type ProjectionData union {
     field: Field,
     index: Local
     // deref does not need any data
+}
+
+type ProjectionNode struct {
+    value: Projection,
+    next: *ProjectionNode
 }
 
 type Field struct {

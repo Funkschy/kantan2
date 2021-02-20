@@ -3,15 +3,36 @@ import ":std/dbg";
 import ":util" as _;
 import ":ast/stmt" as _;
 
+import "../ir";
+
 import "ctx" as _;
+import "expr";
 
 def compile(ctx: *IRCtx, stmt: *Stmt): Result {
     if stmt.kind == StmtKind.LocalVarDecl {
         let decl = &stmt.data.local;
-        ctx.declare_local(decl.name, decl.value.ty);
+
+        let local = ctx.declare_local(decl.name, decl.value.ty).as_location();
+        let value = expr.compile(ctx, decl.value);
+        if value.is_error {
+            return Result.Error;
+        }
+
+        let assign = ir.assign(local, value.value);
+        ctx.push_stmt(&assign);
+
         return Result.OK;
     }
 
-    dbg.assert(false, "Unhandled StmtKind");
+    if stmt.kind == StmtKind.Expr {
+        let value = expr.compile(ctx, &stmt.data.expr);
+        if value.is_error {
+            return Result.Error;
+        }
+
+        return Result.OK;
+    }
+
+    // dbg.assert(false, "Unhandled StmtKind");
     return Result.Error;
 }

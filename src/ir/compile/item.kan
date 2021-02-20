@@ -8,10 +8,23 @@ import "stmt";
 
 def compile(ctx: *IRCtx, item: *Item): Result {
     if item.kind == ItemKind.FuncDef {
-        let body = item.data.func_def.block();
+        let f = &item.data.func_def;
+        let body = f.block();
+
+        ctx.push_function(item.name, f.instances.get(0));
+        ctx.open_scope();
+        defer ctx.close_scope();
+
+        let had_errors = false;
         for let i: usize = 0; i < body.len(); i += 1 {
-            stmt.compile(ctx, body.at(i));
+            had_errors |= stmt.compile(ctx, body.at(i)).is_error();
         }
+
+        if had_errors {
+            return Result.Error;
+        }
+
+        return Result.OK;
     }
 
     dbg.assert(false, "Unhandled ItemKind");

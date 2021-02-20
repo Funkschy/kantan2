@@ -6,6 +6,7 @@ import "cli/opt";
 import "cli/report";
 import "cli/config" as conf;
 
+import "util" as _;
 import "compiler" as _;
 
 // for table initialization
@@ -65,8 +66,14 @@ def main(argc: i32, argv: *string): ReturnCode {
         return ReturnCode.NoInputFiles;
     }
 
-    compiler.read_files();
-    compiler.resolve_imports();
+    if compiler.read_files().is_error() {
+        return ReturnCode.InvalidInput;
+    }
+
+    if compiler.resolve_imports().is_error() {
+        return ReturnCode.InvalidInput;
+    }
+
     if compiler.parse().is_error() {
         return ReturnCode.InvalidInput;
     }
@@ -78,86 +85,66 @@ def main(argc: i32, argv: *string): ReturnCode {
         return ReturnCode.OK;
     }
 
-    // TODO(#4): this is debug code
-    import "types/types";
-    import "memory/arena";
+    if compiler.resolve_types().is_error() {
+        return ReturnCode.InvalidInput;
+    }
 
-    let ty_arena = arena.typed(sizeof types.Type);
-    defer ty_arena.free();
-    let node_arena = arena.typed(sizeof types.TypeNode);
-    defer node_arena.free();
+    // TODO: integrate this into the program in more appropriate manner
+    if opts.dump_type_graph {
+        let g = &compiler.type_graph;
 
-    {
-        import "types/ctx";
-        import "types/check/item" as i_check;
-        import "types/finalize/item" as i_finalize;
-        import "types/resolve/functions" as resolve_functions;
-        import "types/info";
-        import "types/primitive";
+        io.printf("\"type-graph\": ");
+        defer io.printf(",\n");
 
-        let ctx = ctx.create(&ty_arena, &node_arena);
-        defer ctx.free();
+        let json = g.to_json(str.view_from("type graph"));
+        io.printf("%s", json.cstring());
+        json.free();
+    }
 
-        if opts.dump_type_graph {
-            // TODO(#35): remove this test code
-            import "types/graph";
-            let g = graph.type_graph();
-            defer g.free();
-
-            io.printf("\"type-graph\": ");
-            defer io.printf(",\n");
-
-            let json = g.to_json(str.view_from("stupid graph"));
-            io.printf("%s", json.cstring());
-            json.free();
-        }
-
-        let had_errors = false;
-        for let i: usize = 0; i < compiler.modmap.len(); i += 1 {
-            let mod = compiler.modmap.at(i);
-            ctx.open_scope();
-            defer ctx.close_scope();
-
-            for let j: usize = 0; j < mod.num_items(); j += 1 {
-                let item = mod.item_at(j);
-                if resolve_functions.resolve(&ctx, item).is_error() {
-                    had_errors = true;
-                }
-            }
-
-            for let j: usize = 0; j < mod.num_items(); j += 1 {
-                let item = mod.item_at(j);
-                if i_check.check(&ctx, item).is_error() {
-                    had_errors = true;
-                }
-            }
-        }
-
-        if had_errors {
-            return ReturnCode.InvalidInput;
-        }
-
-        // FIXME: add missing branches
-        // TODO: we need to mark i32 and f32 as moved before finalizing
-        let had_errors = false;
-        for let i: usize = 0; i < compiler.modmap.len(); i += 1 {
-            let mod = compiler.modmap.at(i);
-
-            for let j: usize = 0; j < mod.num_items(); j += 1 {
-                let item = mod.item_at(j);
-                if i_finalize.finalize(&ctx, item).is_error() {
-                    had_errors = true;
-                }
-            }
-        }
-
-        if had_errors {
-            return ReturnCode.InvalidInput;
-        }
+    if compiler.infer_and_check_types().is_error() {
+        return ReturnCode.InvalidInput;
     }
 
     if opts.dump_ast {
         dump_ast(&compiler);
+    }
+
+    {
+        import "ir/ir";
+        import "ir/compile/item" as ir_item;
+        import "ir/compile/ctx" as ir_ctx;
+
+        let ctx = ir_ctx.create();
+        defer ctx.free();
+
+        let result = Result.OK;
+        for let i: usize = 0; i < compiler.modmap.len(); i += 1 {
+            let mod = compiler.modmap.at(i);
+
+            for let j: usize = 0; j < mod.num_items(); j += 1 {
+                let item = mod.item_at(j);
+                result = result.or(ir_item.compile(&ctx, item));
+            }
+        }
+
+        if result.is_error() {
+            return ReturnCode.InvalidInput;
+        }
+
+        if opts.dump_ir {
+            io.printf("\"ir\": [");
+            defer io.printf("],\n");
+            for let i: usize = 0; i < ctx.functions.len; i += 1 {
+                if i > 0 {
+                    io.printf(", ");
+                }
+
+                let f = ctx.functions.get_ptr(i) as *ir.Function;
+                let json = f.to_json();
+                io.printf("%s\n", json.cstring());
+                json.free();
+            }
+        }
     }
 
     return ReturnCode.OK;

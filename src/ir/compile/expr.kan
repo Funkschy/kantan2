@@ -1,0 +1,125 @@
+import ":std/dbg";
+
+import ":util" as _;
+import ":ast/expr" as _;
+
+import "../ir";
+import "../rvalue";
+import "../memory";
+
+import "ctx" as _;
+
+type ExpressionResult struct {
+    is_error: bool,
+    value: rvalue.Expression
+}
+
+def ok(value: rvalue.Expression): ExpressionResult {
+    return ExpressionResult { is_error: false, value: value };
+}
+
+def error(): ExpressionResult {
+    return ExpressionResult { is_error: true, value: undefined };
+}
+
+type ResultFormat enum {
+    RValue, // any rvalue
+    Location // a location in memory. Might create a temporary variable
+}
+
+def compile_assign(ctx: *IRCtx, left: *Expr, right: *Expr, format: ResultFormat): ExpressionResult {
+    // try to get the destination location for this assignment
+    let dest = compile_fmt(ctx, left, ResultFormat.Location);
+    if dest.is_error {
+        return dest;
+    }
+    let dest = dest.value;
+    dbg.assert(dest.kind == rvalue.ExpressionKind.Ref, "compile_fmt ignored format");
+    let dest_location = dest.data.ref;
+
+    // try to get the value which should be copied into the destination
+    // we also get the location here and then convert that into a copy
+    let value = compile_fmt(ctx, right, ResultFormat.Location);
+    if value.is_error {
+        return value;
+    }
+    let value = value.value;
+    dbg.assert(value.kind == rvalue.ExpressionKind.Ref, "compile_fmt ignored format");
+    let value_location = value.data.ref;
+
+    // copy the value into the destination
+    let value_copy = rvalue.copy(value_location);
+    let assign = ir.assign(dest_location, rvalue.expr_use(value_copy));
+    ctx.push_stmt(&assign);
+
+    // since assignments are expressions in kantan, we need to return either the location or the
+    // value of the result of the assignment
+    if format == ResultFormat.Location {
+        // since we just assigned the value to dest, we can just return dest
+        return ok(dest);
+    }
+
+    // if the caller wants a proper rvalue, we just copy the value out of the memory location
+    // where we just wrote the value
+    let op = rvalue.copy(dest_location);
+    return ok(rvalue.expr_use(op));
+}
+
+def compile(ctx: *IRCtx, expr: *Expr): ExpressionResult {
+    return compile_fmt(ctx, expr, ResultFormat.RValue);
+}
+
+def compile_fmt(ctx: *IRCtx, expr: *Expr, format: ResultFormat): ExpressionResult {
+    if expr.kind == ExprKind.Literal {
+        let literal = compile_literal(ctx, expr);
+        if literal.is_error {
+            return literal;
+        }
+
+        // the caller wants a location, so we copy the value into a temporary and return that temp
+        if format == ResultFormat.Location && literal.value.kind != rvalue.ExpressionKind.Ref {
+            // since you cannot have rvalue references in kantan, we don't need to declare the
+            // temporary. This is only needed if you want a pointer to it
+            let temp = ctx.create_temp_var();
+            let temp_location = temp.as_location();
+
+            let assign = ir.assign(temp_location, literal.value);
+            ctx.push_stmt(&assign);
+
+            literal.value = rvalue.expr_ref(temp_location);
+        }
+
+        return literal;
+    }
+
+    if expr.kind == ExprKind.Assign {
+        return compile_assign(ctx, expr.data.assign.left, expr.data.assign.right, format);
+    }
+
+    if expr.kind == ExprKind.Ident {
+        let local: memory.Local = undefined;
+        if ctx.lookup(expr.data.ident.name, &local).is_error() {
+            return error();
+        }
+
+        let location = local.as_location();
+        if format == ResultFormat.RValue {
+            return ok(rvalue.expr_copy(location));
+        }
+
+        return ok(rvalue.expr_ref(location));
+    }
+
+    // dbg.assert(false, "Unhandled StmtKind");
+    return error();
+}
+
+def compile_literal(ctx: *IRCtx, expr: *Expr): ExpressionResult {
+    let lit = &expr.data.lit;
+    if lit.kind == LiteralKind.Undefined {
+        let undef = rvalue.expr_undefined(expr.ty);
+        return ok(undef);
+    }
+
+    return error();
+}

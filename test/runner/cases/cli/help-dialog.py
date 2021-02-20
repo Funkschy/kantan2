@@ -17,6 +17,7 @@ OPTIONS:
     --dump-ast                dump the ast as json                       (needs --mi)
     --dump-config             dump the compiler config as json           (needs --mi)
     --dump-type-graph         dump the type-graph as json                (needs --mi)
+    --dump-ir                 dump the ir as json                        (needs --mi)
     --parse-only              quit after parsing
     --opt-level / -O <level>  the optimization level                     [possible values: 0, 1, 2, 3]
     --out / -o <file>         the output file                            (end with .s/.o for assembly/obj-file output)
