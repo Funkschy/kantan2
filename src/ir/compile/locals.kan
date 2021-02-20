@@ -61,7 +61,7 @@ def (s: *Scope) bind(original: str.View, local: mem.Local) {
 // In the outer scope, nt.lookup("x") will return Local(1) before line 7 (Local(3) after).
 // In the inner scope, is will return Local(2)
 //
-// TODO: this has a lot of duplicated code with types.scope.ScopeStack
+// TODO(#39): this has a lot of duplicated code with types.scope.ScopeStack
 //  when we have generic types, those 2 should be refactored into a single data structure
 type NameTable struct {
     local_counter: usize,
