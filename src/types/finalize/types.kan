@@ -16,7 +16,7 @@ def move(ctx: *c.TyCtx, ty: *Type): *Type {
     return memory;
 }
 
-// TODO: also add error checks like the scope close
+// TODO(#42): also add error checks like the scope close
 def finalize(ctx: *c.TyCtx, p: **Type, declared_at: span.Span): Result {
     let ty = *p;
 
