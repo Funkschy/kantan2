@@ -6,7 +6,7 @@ import ":types/types" as ty;
 import "memory";
 
 type ExpressionKind enum {
-    Use, Ref, Cast, Binary, Unary, Null, Undefined
+    Use, Ref, Cast, Binary, Unary
 }
 
 type Expression struct {
@@ -23,13 +23,6 @@ type ExpressionData union {
     undef_value: *ty.Type
 }
 
-def expr_undefined(ty: *ty.Type): Expression {
-    return Expression {
-        kind: ExpressionKind.Undefined,
-        data: ExpressionData { undef_value: ty }
-    };
-}
-
 def expr_ref(location: memory.Location): Expression {
     return Expression {
         kind: ExpressionKind.Ref,
@@ -39,6 +32,10 @@ def expr_ref(location: memory.Location): Expression {
 
 def expr_copy(location: memory.Location): Expression {
     return expr_use(copy(location));
+}
+
+def expr_const(constant: Constant): Expression {
+    return expr_use(const(constant));
 }
 
 def expr_use(operand: Operand): Expression {
@@ -66,6 +63,13 @@ def copy(location: memory.Location): Operand {
     return Operand {
         kind: OperandKind.Copy,
         data: OperandData { copy: location }
+    };
+}
+
+def const(constant: Constant): Operand {
+    return Operand {
+        kind: OperandKind.Constant,
+        data: OperandData { constant: constant }
     };
 }
 
@@ -127,17 +131,29 @@ type UnaryOperation struct {
     operand: Operand
 }
 
-type Constant struct {}
+type ConstantKind enum {
+    Null, Undefined
+}
+
+type Constant struct {
+    kind: ConstantKind,
+    ty: *ty.Type,
+    data: ConstantData
+}
+
+type ConstantData union {}
+
+def const_undefined(ty: *ty.Type): Constant {
+    return Constant {
+        kind: ConstantKind.Undefined,
+        ty: ty,
+        data: undefined
+    };
+}
 
 // json generation stuff
 
 def (e: *Expression) to_json(): str.String {
-    if e.kind == ExpressionKind.Undefined {
-        let json = str.from("{\"kind\": \"undefined\"");
-        defer json.push(str.view("}", 1));
-        return json;
-    }
-
     if e.kind == ExpressionKind.Use {
         let json = str.from("{\"kind\": \"use\", \"operand\": ");
         defer json.push(str.view("}", 1));
@@ -155,7 +171,7 @@ def (e: *Expression) to_json(): str.String {
         return json;
     }
 
-    dbg.assert(false, "unhandled expressionkind");
+    dbg.assert(false, "unhandled expression kind");
     return undefined;
 }
 
@@ -169,8 +185,27 @@ def (op: *Operand) to_json(): str.String {
         json.push(location.view());
         location.free();
     } else {
-        json.push(str.view_from("\"constant\""));
+        let c = &op.data.constant;
+        json.push(str.view_from("\"constant\", \"type\": \""));
+        let ty_s = c.ty.to_string();
+        json.push(ty_s.view());
+        ty_s.free();
+        json.push(str.view_from("\", \"value\": "));
+        let value = c.to_json();
+        json.push(value.view());
+        value.free();
     }
 
     return json;
+}
+
+def (c: *Constant) to_json(): str.String {
+    if c.kind == ConstantKind.Undefined {
+        let json = str.from("{\"kind\": \"undefined\"");
+        defer json.push(str.view("}", 1));
+        return json;
+    }
+
+    dbg.assert(false, "unhandled constant kind");
+    return undefined;
 }

@@ -117,7 +117,8 @@ def compile_fmt(ctx: *IRCtx, expr: *Expr, format: ResultFormat): ExpressionResul
 def compile_literal(ctx: *IRCtx, expr: *Expr): ExpressionResult {
     let lit = &expr.data.lit;
     if lit.kind == LiteralKind.Undefined {
-        let undef = rvalue.expr_undefined(expr.ty);
+        let constant = rvalue.const_undefined(expr.ty);
+        let undef = rvalue.expr_const(constant);
         return ok(undef);
     }
 
