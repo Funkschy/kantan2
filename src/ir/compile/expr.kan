@@ -92,7 +92,7 @@ def compile_fmt(ctx: *IRCtx, expr: *Expr, format: ResultFormat): ExpressionResul
     if expr.kind == ExprKind.Ident {
         let name = expr.data.ident.name;
 
-        // FIXME: this will not work properly for function pointers, since those also
+        // FIXME(#44): this will not work properly for function pointers, since those also
         //  have the name set in their types. So we probably have to change how this works, or
         //  change the function type during typechecking whenever it is bound to a name
         if expr.ty.is_function_known_at_compile_time() {
@@ -145,7 +145,7 @@ def compile_fmt(ctx: *IRCtx, expr: *Expr, format: ResultFormat): ExpressionResul
             callee_op = callee.data.use;
         }
 
-        // TODO: compile args
+        // TODO(#45): compile args
 
         let dest = ctx.declare_temp_var(expr.ty).as_location();
         let call = ir.call(callee_op, null, dest);
