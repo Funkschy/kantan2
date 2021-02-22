@@ -57,10 +57,25 @@ type TerminatorData union {
 }
 
 type Call struct {
-    function: rvalue.Operand,
+    callee: rvalue.Operand,
     args_head: *rvalue.OperandNode,
     // the return value of this call will be written to dest
-    dest: *memory.Location
+    dest: memory.Location,
+    next: usize // the id of the next basic block. Only relevant for call/jmp
+}
+
+def call(callee: rvalue.Operand, args_head: *rvalue.OperandNode, dest: memory.Location): Terminator {
+    return Terminator {
+        kind: TerminatorKind.Call,
+        data: TerminatorData {
+            call: Call {
+                callee: callee,
+                args_head: args_head,
+                dest: dest,
+                next: 0 // this is filled when we actually terminate the block
+            }
+        }
+    };
 }
 
 type BasicBlock struct {
@@ -110,6 +125,16 @@ def (f: *Function) current_bb(): *BasicBlock {
     }
 
     return f.body.blocks.get_ptr(f.body.blocks.len - 1) as *BasicBlock;
+}
+
+def (f: *Function) terminate_current(terminator: *Terminator) {
+    if terminator.kind == TerminatorKind.Call {
+        terminator.data.call.next = f.body.blocks.len;
+    }
+
+    f.current_bb().terminate(terminator);
+    let new_bb = basic_block();
+    f.body.blocks.push(&new_bb as *void);
 }
 
 type FunctionBody struct {
@@ -169,16 +194,21 @@ def (f: *Function) to_json(): str.String {
     }
     json.push(str.view("]", 1));
 
-    json.push(str.view_from(", \"blocks\": ["));
+    json.push(str.view_from(", \"blocks\": {"));
     for let i: usize = 0; i < f.body.blocks.len; i += 1 {
         if i > 0 {
             json.push(str.view(", ", 2));
         }
 
+        json.push(str.view_from("\"bb"));
+        let number = str.i64_to_string(i as i64);
+        json.push(number.view());
+        number.free();
+        json.push(str.view_from("\": "));
+
         let bb = f.body.blocks.get_ptr(i) as *BasicBlock;
         json.push(str.view_from("{\"statements\": ["));
         defer json.push(str.view("}", 1));
-        defer json.push(str.view("]", 1));
 
         for let j: usize = 0; j < bb.statements.len; j += 1 {
             if j > 0 {
@@ -190,8 +220,14 @@ def (f: *Function) to_json(): str.String {
             json.push(s_json.view());
             s_json.free();
         }
+        json.push(str.view("]", 1));
+
+        json.push(str.view_from(", \"terminator\": "));
+        let terminator_json = bb.terminator.to_json();
+        json.push(terminator_json.view());
+        terminator_json.free();
     }
-    json.push(str.view("]", 1));
+    json.push(str.view("}", 1));
 
     return json;
 }
@@ -217,4 +253,44 @@ def (s: *Statement) to_json(): str.String {
 
     // dbg.assert(false, "Unhandled StmtKind");
     return str.from("");
+}
+
+def (t: *Terminator) to_json(): str.String {
+    let json = str.from("{\"kind\": ");
+    defer json.push(str.view_from("}"));
+
+    if t.kind == TerminatorKind.Nop {
+        json.push(str.view_from("\"nop\""));
+    } else if t.kind == TerminatorKind.Call {
+        json.push(str.view_from("\"call\", \"callee\": "));
+        let callee = t.data.call.callee.to_json();
+        json.push(callee.view());
+        callee.free();
+
+        json.push(str.view_from(", \"args\": ["));
+        let arg = t.data.call.args_head;
+        while arg != null {
+            if arg != t.data.call.args_head {
+                json.push(str.view(", ", 2));
+            }
+            let arg_json = arg.value.to_json();
+            json.push(arg_json.view());
+            arg_json.free();
+            arg = arg.next;
+        }
+        json.push(str.view("]", 1));
+
+        json.push(str.view_from(", \"dest\": "));
+        let dest = t.data.call.dest.to_json();
+        json.push(dest.view());
+        dest.free();
+
+        json.push(str.view_from(", \"next\": \"bb"));
+        let number = str.i64_to_string(t.data.call.next as i64);
+        json.push(number.view());
+        number.free();
+        json.push(str.view_from("\""));
+    }
+
+    return json;
 }

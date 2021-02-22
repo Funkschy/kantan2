@@ -106,6 +106,10 @@ def (t: *Type) is_template(): bool {
         || t.kind == TypeKind.Variable && t.data.inner.is_template();
 }
 
+def (t: *Type) is_function_known_at_compile_time(): bool {
+    return t.kind == TypeKind.Function && t.data.function.is_known_at_compile_time();
+}
+
 // this assumes that t is in fact a Variable. Otherwise this is undefined behaviour
 def (t: *Type) var_innermost(): **Type {
     let inner = &t.data.inner;
@@ -316,9 +320,10 @@ def (n: *TypeNode) init_ident(ident: ident.Ident, value: *Type): *TypeNode {
     return n;
 }
 
-def (t: *Type) init_func(instances: *InstanceSet): *Type {
+def (t: *Type) init_func(name: ident.Ident, instances: *InstanceSet): *Type {
     t.kind = TypeKind.Function;
     t.width = t.align = info.unsized();
+    t.data.function.name = name;
     t.data.function.num_params = 0;
     t.data.function.abi = function.ABI.Kantan;
     t.data.function.c_variadic = false;

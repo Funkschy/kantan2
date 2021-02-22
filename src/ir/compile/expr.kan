@@ -33,23 +33,18 @@ def compile_assign(ctx: *IRCtx, left: *Expr, right: *Expr, format: ResultFormat)
     if dest.is_error {
         return dest;
     }
+
     let dest = dest.value;
     dbg.assert(dest.kind == rvalue.ExpressionKind.Ref, "compile_fmt ignored format");
     let dest_location = dest.data.ref;
 
-    // try to get the value which should be copied into the destination
-    // we also get the location here and then convert that into a copy
-    let value = compile_fmt(ctx, right, ResultFormat.Location);
+    let value = compile(ctx, right);
     if value.is_error {
         return value;
     }
-    let value = value.value;
-    dbg.assert(value.kind == rvalue.ExpressionKind.Ref, "compile_fmt ignored format");
-    let value_location = value.data.ref;
 
-    // copy the value into the destination
-    let value_copy = rvalue.copy(value_location);
-    let assign = ir.assign(dest_location, rvalue.expr_use(value_copy));
+    let value = value.value;
+    let assign = ir.assign(dest_location, value);
     ctx.push_stmt(&assign);
 
     // since assignments are expressions in kantan, we need to return either the location or the
@@ -78,9 +73,7 @@ def compile_fmt(ctx: *IRCtx, expr: *Expr, format: ResultFormat): ExpressionResul
 
         // the caller wants a location, so we copy the value into a temporary and return that temp
         if format == ResultFormat.Location && literal.value.kind != rvalue.ExpressionKind.Ref {
-            // since you cannot have rvalue references in kantan, we don't need to declare the
-            // temporary. This is only needed if you want a pointer to it
-            let temp = ctx.create_temp_var();
+            let temp = ctx.declare_temp_var(expr.ty);
             let temp_location = temp.as_location();
 
             let assign = ir.assign(temp_location, literal.value);
@@ -97,8 +90,30 @@ def compile_fmt(ctx: *IRCtx, expr: *Expr, format: ResultFormat): ExpressionResul
     }
 
     if expr.kind == ExprKind.Ident {
+        let name = expr.data.ident.name;
+
+        // FIXME: this will not work properly for function pointers, since those also
+        //  have the name set in their types. So we probably have to change how this works, or
+        //  change the function type during typechecking whenever it is bound to a name
+        if expr.ty.is_function_known_at_compile_time() {
+            let function: rvalue.Constant = undefined;
+            if ctx.lookup_function(name, &function).is_error() {
+                return error();
+            }
+
+            if format == ResultFormat.RValue {
+                return ok(rvalue.expr_const(function));
+            }
+
+            let temp = ctx.declare_temp_var(expr.ty).as_location();
+            let assign = ir.assign(temp, rvalue.expr_const(function));
+            ctx.push_stmt(&assign);
+
+            return ok(rvalue.expr_ref(temp));
+        }
+
         let local: memory.Local = undefined;
-        if ctx.lookup(expr.data.ident.name, &local).is_error() {
+        if ctx.lookup_local(name, &local).is_error() {
             return error();
         }
 
@@ -108,6 +123,39 @@ def compile_fmt(ctx: *IRCtx, expr: *Expr, format: ResultFormat): ExpressionResul
         }
 
         return ok(rvalue.expr_ref(location));
+    }
+
+    if expr.kind == ExprKind.Call {
+        let call_expr = &expr.data.call;
+        let callee = compile(ctx, call_expr.callee);
+        if callee.is_error {
+            return callee;
+        }
+
+        let callee = callee.value;
+        dbg.assert(
+            callee.kind == rvalue.ExpressionKind.Ref || callee.kind == rvalue.ExpressionKind.Use,
+            "compile_fmt ignored format"
+        );
+
+        let callee_op: rvalue.Operand = undefined;
+        if callee.kind == rvalue.ExpressionKind.Ref {
+            callee_op = rvalue.copy(callee.data.ref);
+        } else {
+            callee_op = callee.data.use;
+        }
+
+        // TODO: compile args
+
+        let dest = ctx.declare_temp_var(expr.ty).as_location();
+        let call = ir.call(callee_op, null, dest);
+        ctx.push_terminator(&call);
+
+        if format == ResultFormat.RValue {
+            return ok(rvalue.expr_copy(dest));
+        }
+
+        return ok(rvalue.expr_ref(dest));
     }
 
     // dbg.assert(false, "Unhandled StmtKind");

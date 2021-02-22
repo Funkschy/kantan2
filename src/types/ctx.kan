@@ -331,7 +331,7 @@ def (ctx: *TyCtx) get_function(t: *Type): *Type {
         let map = ctx.monomorph_map(&t.data.template);
         defer map.free();
 
-        let monomorphed = ctx.alloc_ty().init_func(t.data.template.instances);
+        let monomorphed = ctx.alloc_ty().init_func(f.data.function.name, t.data.template.instances);
         monomorphed.data.function = f.data.function;
         monomorphed.data.function.params_head = null;
         let monomorphed_f = &monomorphed.data.function;

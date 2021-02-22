@@ -13,8 +13,13 @@ type ABI enum {
 type Function struct {
     c_variadic: bool,
     abi: ABI,
+    name: ident.Ident, // will be empty for function pointers
     instances: *InstanceSet,
     num_params: usize,
     params_head: *TypeNode,
     ret: *Type
+}
+
+def (f: *Function) is_known_at_compile_time(): bool {
+    return !f.name.is_empty();
 }

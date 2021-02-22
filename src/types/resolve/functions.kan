@@ -15,7 +15,7 @@ def resolve(ctx: *TyCtx, item: *Item): Result {
         let signature = &item.data.func_def.sig;
         let instances = &item.data.func_def.instances;
 
-        let func_ty = ctx.alloc_ty().init_func(instances);
+        let func_ty = ctx.alloc_ty().init_func(item.name, instances);
         let function = &func_ty.data.function;
 
         function.num_params = signature.params.len;

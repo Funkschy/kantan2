@@ -3,6 +3,7 @@ import ":std/dbg";
 
 import ":types/types" as ty;
 
+import "ir";
 import "memory";
 
 type ExpressionKind enum {
@@ -132,7 +133,9 @@ type UnaryOperation struct {
 }
 
 type ConstantKind enum {
-    Null, Undefined
+    Null,
+    Undefined,
+    Function // a function that is called by name, so the dispatch is known at compile time
 }
 
 type Constant struct {
@@ -141,13 +144,23 @@ type Constant struct {
     data: ConstantData
 }
 
-type ConstantData union {}
+type ConstantData union {
+    function: *ir.Function
+}
 
 def const_undefined(ty: *ty.Type): Constant {
     return Constant {
         kind: ConstantKind.Undefined,
         ty: ty,
         data: undefined
+    };
+}
+
+def const_function(function: *ir.Function): Constant {
+    return Constant {
+        kind: ConstantKind.Function,
+        ty: function.ty,
+        data: ConstantData { function: function }
     };
 }
 
@@ -202,6 +215,12 @@ def (op: *Operand) to_json(): str.String {
 def (c: *Constant) to_json(): str.String {
     if c.kind == ConstantKind.Undefined {
         let json = str.from("{\"kind\": \"undefined\"");
+        defer json.push(str.view("}", 1));
+        return json;
+    }
+
+    if c.kind == ConstantKind.Function {
+        let json = str.from("{\"kind\": \"function\"");
         defer json.push(str.view("}", 1));
         return json;
     }

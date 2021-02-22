@@ -1,0 +1,15 @@
+def main() {
+    let i = undefined;
+    let j: u32 = undefined;
+    let k = undefined;
+
+    i = j = k;
+
+    let g = f;
+
+    i = g();
+}
+
+def f(): u32 {
+
+}
