@@ -20,7 +20,7 @@ def finalize(ctx: *c.TyCtx, item: *Item): Result {
         let had_errors = false;
         for let i: usize = 0; i < f.instances.len(); i += 1 {
             let instance_ref = f.instances.get_ptr(i);
-            if types.finalize(ctx, instance_ref, item.span).is_error() {
+            if types.finalize(ctx, instance_ref, item.name.span).is_error() {
                 had_errors = true;
             }
             new_instances.push(*instance_ref);

@@ -1,5 +1,6 @@
 import ":std/str";
 import ":error" as e;
+import ":source/ident";
 import ":ast/expr" as _;
 
 import "../ctx";

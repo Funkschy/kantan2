@@ -61,10 +61,10 @@ def (ctx: *IRCtx) free() {
     ctx.functions.free();
 }
 
-def (ctx: *IRCtx) set_current_function(ty: *ty.Type) {
+def (ctx: *IRCtx) set_current_function(name: ident.Ident, ty: *ty.Type) {
     ctx.names.free();
     ctx.names = locals.create();
-    let function = ctx.functions.get(key_from_ident(ty.data.function.name)) as *ir.Function;
+    let function = ctx.functions.get(key_from_ident(name)) as *ir.Function;
     dbg.assert(function != null, "trying to set non existing function");
 
     ctx.current_function = function;

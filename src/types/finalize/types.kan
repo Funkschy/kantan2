@@ -30,7 +30,15 @@ def finalize(ctx: *c.TyCtx, p: **Type, declared_at: span.Span): Result {
     }
 
     if ty.kind == TypeKind.Variable {
+        // this prevents loops in the types from producing a stack overflow. Instead a loop will
+        // just be reported as a non inferable type
+        ty.kind = TypeKind.Any;
+
         let result = finalize(ctx, &ty.data.inner, declared_at);
+        if result.is_error() {
+            return result;
+        }
+
         *p = ty.data.inner;
         ty.kind = TypeKind.Moved;
         ty.data.new_location = ty.data.inner;
@@ -59,21 +67,23 @@ def finalize(ctx: *c.TyCtx, p: **Type, declared_at: span.Span): Result {
 
     if ty.kind == TypeKind.Any {
         util.report_simple(e.ErrorKind.CouldNotInfer, declared_at);
+        // this is done, so that no error will be reported multiple times
+        ty.kind = TypeKind.Error;
         return Result.Error;
     }
 
     if ty.kind == TypeKind.Function {
         let f = &ty.data.function;
 
-        let had_errors = false;
+        let result = Result.OK;
         let current = f.params_head;
         while current != null {
-            had_errors |= finalize(ctx, &current.value, declared_at).is_error();
+            result = result.or(finalize(ctx, &current.value, declared_at));
             current = current.next;
         }
-        had_errors |= finalize(ctx, &f.ret, declared_at).is_error();
+        result = result.or(finalize(ctx, &f.ret, declared_at));
 
-        if had_errors {
+        if result.is_error() {
             return Result.Error;
         }
     }

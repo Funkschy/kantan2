@@ -3,10 +3,8 @@ def main() {
     let j: u32 = undefined;
     let k = undefined;
 
-    i = j = k;
-
     let g = f;
-
+    i = j = k;
     i = g();
 }
 

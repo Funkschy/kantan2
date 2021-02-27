@@ -11,7 +11,7 @@ def compile(ctx: *IRCtx, item: *Item): Result {
         let f = &item.data.func_def;
         let body = f.block();
 
-        ctx.set_current_function(f.instances.get(0));
+        ctx.set_current_function(item.name, f.instances.get(0));
         ctx.open_scope();
         defer ctx.close_scope();
 

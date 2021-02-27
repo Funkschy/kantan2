@@ -92,10 +92,9 @@ def compile_fmt(ctx: *IRCtx, expr: *Expr, format: ResultFormat): ExpressionResul
     if expr.kind == ExprKind.Ident {
         let name = expr.data.ident.name;
 
-        // FIXME(#44): this will not work properly for function pointers, since those also
-        //  have the name set in their types. So we probably have to change how this works, or
-        //  change the function type during typechecking whenever it is bound to a name
-        if expr.ty.is_function_known_at_compile_time() {
+        let local: memory.Local = undefined;
+        if ctx.lookup_local(name, &local).is_error() {
+            // if this is not a local, try looking it up in the global function table
             let function: rvalue.Constant = undefined;
             if ctx.lookup_function(name, &function).is_error() {
                 return error();
@@ -110,11 +109,6 @@ def compile_fmt(ctx: *IRCtx, expr: *Expr, format: ResultFormat): ExpressionResul
             ctx.push_stmt(&assign);
 
             return ok(rvalue.expr_ref(temp));
-        }
-
-        let local: memory.Local = undefined;
-        if ctx.lookup_local(name, &local).is_error() {
-            return error();
         }
 
         let location = local.as_location();

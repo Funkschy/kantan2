@@ -186,7 +186,7 @@ def (f: *Function) to_json(): str.String {
         json.push(name.view());
         name.free();
 
-        json.push(str.view_from("\", \"ty\": \""));
+        json.push(str.view_from("\", \"type\": \""));
         let ty_s = l.ty.to_string();
         json.push(ty_s.view());
         ty_s.free();

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Parse and format the typegraph which can be produces by using the '--mi --dump-typegraph' flags
+# Parse and format the typegraph which can be produced by using the '--mi --dump-typegraph' flags
 # That graph is in json. This Script takes said json and prints the graph in graphviz format
 # dependencies: graphviz
 

@@ -239,6 +239,13 @@ def (ctx: *TyCtx) unify(a: *Type, previous: *Type): *Type {
         return a;
     }
 
+    let left = a.checked_var_innermost();
+    let right = previous.checked_var_innermost();
+
+    if left == right {
+        return left;
+    }
+
     if ctx.is_concrete_version_of(a, previous) {
         dbg.assert(previous.is_variable(), "previous is not a variable");
         // point the innermost variable to a instead
@@ -251,9 +258,6 @@ def (ctx: *TyCtx) unify(a: *Type, previous: *Type): *Type {
         *a.var_innermost() = previous;
         return previous;
     }
-
-    let left = a.checked_var_innermost();
-    let right = previous.checked_var_innermost();
 
     if left.kind == TypeKind.Ptr && right.kind == TypeKind.Ptr {
         let inner = ctx.unify(left.data.ptr_to, right.data.ptr_to);
@@ -331,7 +335,7 @@ def (ctx: *TyCtx) get_function(t: *Type): *Type {
         let map = ctx.monomorph_map(&t.data.template);
         defer map.free();
 
-        let monomorphed = ctx.alloc_ty().init_func(f.data.function.name, t.data.template.instances);
+        let monomorphed = ctx.alloc_ty().init_func(t.data.template.instances);
         monomorphed.data.function = f.data.function;
         monomorphed.data.function.params_head = null;
         let monomorphed_f = &monomorphed.data.function;

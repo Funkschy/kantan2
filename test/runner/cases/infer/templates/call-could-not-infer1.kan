@@ -1,0 +1,10 @@
+def [T] f(t: T): T {
+}
+
+def main() {
+    let x = undefined;
+    let test = f(x);
+
+    x = test;
+    test = x;
+}

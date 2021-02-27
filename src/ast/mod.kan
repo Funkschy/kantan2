@@ -28,9 +28,13 @@ def (m: *Module) free() {
     m.imports.free();
 }
 
+def (m: *Module) absolute_path(): str.View {
+    return m.file.absolute_path().as_view();
+}
+
 def (m: *Module) to_json(): str.String {
     let json = str.from("{\"kind\": \"module\", \"path\": \"");
-    json.push(m.file.absolute_path().as_view());
+    json.push(m.absolute_path());
     json.push(str.view_from("\", \"imports\": ["));
     for let i: usize = 0; i < m.imports.len; i += 1 {
         if i > 0 {

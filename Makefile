@@ -84,6 +84,13 @@ $(BIN_NAME) : Makefile $(K_FILES) $(C_FILES)
 	$(CC) $(C_FLAGS) $(C_FILES) $(BIN_NAME).o -o $(BIN_NAME)
 	rm $(BIN_NAME).o
 
+type-graph.png : $(BIN_NAME) test.kan
+	( \
+		. tools/venv/bin/activate ;\
+		./$(BIN_NAME) test.kan --mi --dump-type-graph | tools/graphformat.py | dot -Tpng > type-graph.png \
+	)
+
+
 # This makes it possible to do stuff like `make test -- --show-skipped`
 # see https://stackoverflow.com/questions/2214575/passing-arguments-to-make-run
 # If the first argument is "test"...
@@ -94,16 +101,21 @@ ifeq (test,$(firstword $(MAKECMDGOALS)))
   $(eval $(TEST_ARGS):;@:)
 endif
 
-type-graph.png : $(BIN_NAME) test.kan
-	( \
-		. tools/venv/bin/activate ;\
-		./$(BIN_NAME) test.kan --mi --dump-type-graph | tools/graphformat.py | dot -Tpng > type-graph.png \
-	)
-
 .PHONY: test
 test : $(BIN_NAME)
 	cd test && \
 	python3 -m runner.main ../$(BIN_NAME) runner/cases $(TEST_ARGS)
+
+
+ifeq (ir,$(firstword $(MAKECMDGOALS)))
+  IR_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+  $(eval $(IR_ARGS):;@:)
+endif
+
+.PHONY: ir
+ir : $(BIN_NAME)
+	./$(BIN_NAME) --mi --dump-ir $(IR_ARGS) | tools/irformat.py
+
 
 .PHONY: clean
 clean :

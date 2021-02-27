@@ -1,0 +1,8 @@
+def main() {
+    let x: i32 = undefined;
+    let test = f(x);
+}
+
+def [T] f(t: T): T {
+}
+

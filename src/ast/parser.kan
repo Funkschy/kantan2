@@ -400,6 +400,7 @@ def (p: *Parser) parse_func_def(memory: *item.Item): Result {
     if p.consume_tok(tok.TokenType.Def, &def_token).is_error() {
         return Result.Error;
     }
+    memory.span = def_token.span;
 
     let signature = &memory.data.func_def.sig;
 
@@ -421,6 +422,7 @@ def (p: *Parser) parse_func_def(memory: *item.Item): Result {
     if p.parse_param_list(params, &end_span).is_error() {
         return Result.Error;
     }
+    memory.span.end = end_span.end;
 
     // the return type must be initialized even if there was no return type, since we might need
     // the span for error messages. In the case of a missing return type declaration, we just

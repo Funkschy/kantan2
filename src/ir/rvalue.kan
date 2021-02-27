@@ -145,6 +145,7 @@ type Constant struct {
 }
 
 type ConstantData union {
+    // null/undefined do not need any additional data
     function: *ir.Function
 }
 
@@ -222,6 +223,9 @@ def (c: *Constant) to_json(): str.String {
     if c.kind == ConstantKind.Function {
         let json = str.from("{\"kind\": \"function\"");
         defer json.push(str.view("}", 1));
+        json.push(str.view_from(", \"name\": \""));
+        json.push(c.data.function.original_name.as_view());
+        json.push(str.view("\"", 1));
         return json;
     }
 
