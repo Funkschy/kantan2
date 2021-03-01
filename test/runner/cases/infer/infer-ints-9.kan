@@ -1,0 +1,9 @@
+def main() {
+    let x = undefined;
+    let test = undefined;
+
+    x = test;
+    test = x;
+
+    x = 1;
+}
