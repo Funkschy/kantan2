@@ -27,6 +27,7 @@ type ResultFormat enum {
     Location // a location in memory. Might create a temporary variable
 }
 
+// TODO: handle different assignment kinds
 def compile_assign(ctx: *IRCtx, left: *Expr, right: *Expr, format: ResultFormat): ExpressionResult {
     // try to get the destination location for this assignment
     let dest = compile_fmt(ctx, left, ResultFormat.Location);
@@ -162,6 +163,21 @@ def compile_literal(ctx: *IRCtx, expr: *Expr): ExpressionResult {
         let constant = rvalue.const_undefined(expr.ty);
         let undef = rvalue.expr_const(constant);
         return ok(undef);
+    }
+
+    if lit.kind == LiteralKind.Null {
+        let constant = rvalue.const_null(expr.ty);
+        let nil = rvalue.expr_const(constant);
+        return ok(nil);
+    }
+
+    if lit.kind == LiteralKind.DecInt || lit.kind == LiteralKind.HexInt {
+        let base = 10 + 6 * ((lit.kind == LiteralKind.HexInt) as u32);
+
+        let value = int_from_view(expr.data.lit.token.span.as_view(), base);
+        let constant = rvalue.const_int(expr.ty, value);
+        let int = rvalue.expr_const(constant);
+        return ok(int);
     }
 
     return error();

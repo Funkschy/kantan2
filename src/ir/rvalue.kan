@@ -135,6 +135,7 @@ type UnaryOperation struct {
 type ConstantKind enum {
     Null,
     Undefined,
+    Int,
     Function // a function that is called by name, so the dispatch is known at compile time
 }
 
@@ -146,6 +147,7 @@ type Constant struct {
 
 type ConstantData union {
     // null/undefined do not need any additional data
+    int: u64,
     function: *ir.Function
 }
 
@@ -154,6 +156,22 @@ def const_undefined(ty: *ty.Type): Constant {
         kind: ConstantKind.Undefined,
         ty: ty,
         data: undefined
+    };
+}
+
+def const_null(ty: *ty.Type): Constant {
+    return Constant {
+        kind: ConstantKind.Null,
+        ty: ty,
+        data: undefined
+    };
+}
+
+def const_int(ty: *ty.Type, value: u64): Constant {
+    return Constant {
+        kind: ConstantKind.Int,
+        ty: ty,
+        data: ConstantData { int: value }
     };
 }
 
@@ -217,6 +235,23 @@ def (c: *Constant) to_json(): str.String {
     if c.kind == ConstantKind.Undefined {
         let json = str.from("{\"kind\": \"undefined\"");
         defer json.push(str.view("}", 1));
+        return json;
+    }
+
+    if c.kind == ConstantKind.Null {
+        let json = str.from("{\"kind\": \"null\"");
+        defer json.push(str.view("}", 1));
+        return json;
+    }
+
+    if c.kind == ConstantKind.Int {
+        let json = str.from("{\"kind\": \"int\", \"value\": ");
+        defer json.push(str.view("}", 1));
+
+        let value = str.i64_to_string(c.data.int);
+        json.push(value.view());
+        value.free();
+
         return json;
     }
 

@@ -77,6 +77,10 @@ def print_operand(operand, indent=12):
 def print_const(const, indent=12):
     if const['kind'] == 'undefined':
         print(' ' * (indent - 1), 'undefined', end='')
+    elif const['kind'] == 'null':
+        print(' ' * (indent - 1), 'null', end='')
+    elif const['kind'] == 'int':
+        print(' ' * (indent - 1), const['value'], end='')
     elif const['kind'] == 'function':
         print(' ' * (indent - 1), const['name'], end='')
     else:
