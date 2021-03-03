@@ -1,3 +1,4 @@
+import "std/str";
 import "std/libc";
 
 // in lib.c
@@ -8,3 +9,8 @@ extern def get_stdlib_directory(): *i8;
 
 extern def assert_fmt(condition: bool, fmt: string, ...);
 
+def f64_to_string(f: f64): str.String {
+    let len: usize = 0;
+    let s = l_format_str(&len, "%f", f);
+    return str.move_l(s, len);
+}

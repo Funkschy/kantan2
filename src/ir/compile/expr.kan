@@ -1,4 +1,5 @@
 import ":std/dbg";
+import ":std/libc";
 
 import ":util" as _;
 import ":ast/expr" as _;
@@ -178,6 +179,13 @@ def compile_literal(ctx: *IRCtx, expr: *Expr): ExpressionResult {
         let constant = rvalue.const_int(expr.ty, value);
         let int = rvalue.expr_const(constant);
         return ok(int);
+    }
+
+    if lit.kind == LiteralKind.Float {
+        let value = libc.strtod(expr.data.lit.token.span.start, null);
+        let constant = rvalue.const_float(expr.ty, value);
+        let float = rvalue.expr_const(constant);
+        return ok(float);
     }
 
     return error();

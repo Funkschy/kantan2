@@ -1,6 +1,8 @@
 import ":std/str";
 import ":std/dbg";
 
+import ":cdeps";
+
 import ":types/types" as ty;
 
 import "ir";
@@ -136,6 +138,7 @@ type ConstantKind enum {
     Null,
     Undefined,
     Int,
+    Float,
     Function // a function that is called by name, so the dispatch is known at compile time
 }
 
@@ -148,6 +151,7 @@ type Constant struct {
 type ConstantData union {
     // null/undefined do not need any additional data
     int: u64,
+    float: f64,
     function: *ir.Function
 }
 
@@ -172,6 +176,14 @@ def const_int(ty: *ty.Type, value: u64): Constant {
         kind: ConstantKind.Int,
         ty: ty,
         data: ConstantData { int: value }
+    };
+}
+
+def const_float(ty: *ty.Type, value: f64): Constant {
+    return Constant {
+        kind: ConstantKind.Float,
+        ty: ty,
+        data: ConstantData { float: value }
     };
 }
 
@@ -249,6 +261,17 @@ def (c: *Constant) to_json(): str.String {
         defer json.push(str.view("}", 1));
 
         let value = str.i64_to_string(c.data.int);
+        json.push(value.view());
+        value.free();
+
+        return json;
+    }
+
+    if c.kind == ConstantKind.Float {
+        let json = str.from("{\"kind\": \"float\", \"value\": ");
+        defer json.push(str.view("}", 1));
+
+        let value = cdeps.f64_to_string(c.data.float);
         json.push(value.view());
         value.free();
 
