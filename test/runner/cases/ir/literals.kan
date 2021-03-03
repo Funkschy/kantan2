@@ -1,0 +1,6 @@
+def main() {
+    let t = "aaaaaaaaaaaaaaate\n\\st\r\t\"\0this part should be gone";
+    let t = '\n';
+    let t = 10;
+    let t = 10.0;
+}

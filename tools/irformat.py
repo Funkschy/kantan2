@@ -79,12 +79,10 @@ def print_const(const, indent=12):
         print(' ' * (indent - 1), 'undefined', end='')
     elif const['kind'] == 'null':
         print(' ' * (indent - 1), 'null', end='')
-    elif const['kind'] == 'char':
+    elif const['kind'] in ('int', 'float', 'char'):
         print(' ' * (indent - 1), const['value'], end='')
-    elif const['kind'] == 'int':
-        print(' ' * (indent - 1), const['value'], end='')
-    elif const['kind'] == 'float':
-        print(' ' * (indent - 1), const['value'], end='')
+    elif const['kind'] == 'string':
+        print(' ' * (indent - 1), '"' + const['value'] + '"', end='')
     elif const['kind'] == 'function':
         print(' ' * (indent - 1), const['name'], end='')
     else:

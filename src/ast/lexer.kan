@@ -278,8 +278,8 @@ def (l: *Lexer) lex_char_sequence(terminator: i32, ty: TokenType): Token {
                     && curr != 'r'
                     && curr != 't'
                     && curr != '\\'
-                    && curr != '\''
-                    && curr != '"' {
+                    && !(curr == '\'' && ty == TokenType.Char)
+                    && !(curr == '"' && ty == TokenType.String) {
 
                     error_start = l.current_code_pos - 1;
                     error_end = l.current_code_pos + 1;

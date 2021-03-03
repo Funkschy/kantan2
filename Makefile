@@ -21,6 +21,7 @@ K_FILES = src/ast/generics.kan \
 		  src/ir/compile/item.kan \
 		  src/ir/compile/locals.kan \
 		  src/ir/compile/stmt.kan \
+		  src/ir/const.kan \
 		  src/ir/ir.kan \
 		  src/ir/memory.kan \
 		  src/ir/rvalue.kan \

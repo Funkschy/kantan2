@@ -1,12 +1,11 @@
 import ":std/str";
 import ":std/dbg";
 
-import ":cdeps";
-
 import ":types/types" as ty;
 
 import "ir";
 import "memory";
+import "const" as c;
 
 type ExpressionKind enum {
     Use, Ref, Cast, Binary, Unary
@@ -37,7 +36,7 @@ def expr_copy(location: memory.Location): Expression {
     return expr_use(copy(location));
 }
 
-def expr_const(constant: Constant): Expression {
+def expr_const(constant: c.Constant): Expression {
     return expr_use(const(constant));
 }
 
@@ -59,7 +58,7 @@ type Operand struct {
 
 type OperandData union {
     copy: memory.Location,
-    constant: Constant
+    constant: c.Constant
 }
 
 def copy(location: memory.Location): Operand {
@@ -69,7 +68,7 @@ def copy(location: memory.Location): Operand {
     };
 }
 
-def const(constant: Constant): Operand {
+def const(constant: c.Constant): Operand {
     return Operand {
         kind: OperandKind.Constant,
         data: OperandData { constant: constant }
@@ -134,77 +133,6 @@ type UnaryOperation struct {
     operand: Operand
 }
 
-type ConstantKind enum {
-    Null,
-    Undefined,
-    Char,
-    Int,
-    Float,
-    Function // a function that is called by name, so the dispatch is known at compile time
-}
-
-type Constant struct {
-    kind: ConstantKind,
-    ty: *ty.Type,
-    data: ConstantData
-}
-
-type ConstantData union {
-    // null/undefined do not need any additional data
-    char: i8,
-    int: u64,
-    float: f64,
-    function: *ir.Function
-}
-
-def const_undefined(ty: *ty.Type): Constant {
-    return Constant {
-        kind: ConstantKind.Undefined,
-        ty: ty,
-        data: undefined
-    };
-}
-
-def const_null(ty: *ty.Type): Constant {
-    return Constant {
-        kind: ConstantKind.Null,
-        ty: ty,
-        data: undefined
-    };
-}
-
-def const_int(ty: *ty.Type, value: u64): Constant {
-    return Constant {
-        kind: ConstantKind.Int,
-        ty: ty,
-        data: ConstantData { int: value }
-    };
-}
-
-def const_float(ty: *ty.Type, value: f64): Constant {
-    return Constant {
-        kind: ConstantKind.Float,
-        ty: ty,
-        data: ConstantData { float: value }
-    };
-}
-
-def const_char(ty: *ty.Type, value: i8): Constant {
-    return Constant {
-        kind: ConstantKind.Char,
-        ty: ty,
-        data: ConstantData { char: value }
-    };
-}
-
-def const_function(function: *ir.Function): Constant {
-    return Constant {
-        kind: ConstantKind.Function,
-        ty: function.ty,
-        data: ConstantData { function: function }
-    };
-}
-
 // json generation stuff
 
 def (e: *Expression) to_json(): str.String {
@@ -251,63 +179,4 @@ def (op: *Operand) to_json(): str.String {
     }
 
     return json;
-}
-
-def (c: *Constant) to_json(): str.String {
-    if c.kind == ConstantKind.Undefined {
-        let json = str.from("{\"kind\": \"undefined\"");
-        defer json.push(str.view("}", 1));
-        return json;
-    }
-
-    if c.kind == ConstantKind.Null {
-        let json = str.from("{\"kind\": \"null\"");
-        defer json.push(str.view("}", 1));
-        return json;
-    }
-
-    if c.kind == ConstantKind.Char {
-        let json = str.from("{\"kind\": \"char\", \"value\": ");
-        defer json.push(str.view("}", 1));
-
-        let value = str.i64_to_string(c.data.char as i64);
-        json.push(value.view());
-        value.free();
-
-        return json;
-    }
-
-    if c.kind == ConstantKind.Int {
-        let json = str.from("{\"kind\": \"int\", \"value\": ");
-        defer json.push(str.view("}", 1));
-
-        let value = str.i64_to_string(c.data.int);
-        json.push(value.view());
-        value.free();
-
-        return json;
-    }
-
-    if c.kind == ConstantKind.Float {
-        let json = str.from("{\"kind\": \"float\", \"value\": ");
-        defer json.push(str.view("}", 1));
-
-        let value = cdeps.f64_to_string(c.data.float);
-        json.push(value.view());
-        value.free();
-
-        return json;
-    }
-
-    if c.kind == ConstantKind.Function {
-        let json = str.from("{\"kind\": \"function\"");
-        defer json.push(str.view("}", 1));
-        json.push(str.view_from(", \"name\": \""));
-        json.push(c.data.function.original_name.as_view());
-        json.push(str.view("\"", 1));
-        return json;
-    }
-
-    dbg.assert(false, "unhandled constant kind");
-    return undefined;
 }

@@ -5,6 +5,7 @@ import ":util" as _;
 import ":ast/expr" as _;
 
 import "../ir";
+import "../const";
 import "../rvalue";
 import "../memory";
 
@@ -98,7 +99,7 @@ def compile_fmt(ctx: *IRCtx, expr: *Expr, format: ResultFormat): ExpressionResul
         let local: memory.Local = undefined;
         if ctx.lookup_local(name, &local).is_error() {
             // if this is not a local, try looking it up in the global function table
-            let function: rvalue.Constant = undefined;
+            let function: const.Constant = undefined;
             if ctx.lookup_function(name, &function).is_error() {
                 return error();
             }
@@ -162,13 +163,13 @@ def compile_fmt(ctx: *IRCtx, expr: *Expr, format: ResultFormat): ExpressionResul
 def compile_literal(ctx: *IRCtx, expr: *Expr): ExpressionResult {
     let lit = &expr.data.lit;
     if lit.kind == LiteralKind.Undefined {
-        let constant = rvalue.const_undefined(expr.ty);
+        let constant = const.undef(expr.ty);
         let undef = rvalue.expr_const(constant);
         return ok(undef);
     }
 
     if lit.kind == LiteralKind.Null {
-        let constant = rvalue.const_null(expr.ty);
+        let constant = const.nil(expr.ty);
         let nil = rvalue.expr_const(constant);
         return ok(nil);
     }
@@ -177,14 +178,14 @@ def compile_literal(ctx: *IRCtx, expr: *Expr): ExpressionResult {
         let base = 10 + 6 * ((lit.kind == LiteralKind.HexInt) as u32);
 
         let value = int_from_view(lit.token.span.as_view(), base);
-        let constant = rvalue.const_int(expr.ty, value);
+        let constant = const.int(expr.ty, value);
         let int = rvalue.expr_const(constant);
         return ok(int);
     }
 
     if lit.kind == LiteralKind.Float {
         let value = libc.strtod(lit.token.span.start, null);
-        let constant = rvalue.const_float(expr.ty, value);
+        let constant = const.float(expr.ty, value);
         let float = rvalue.expr_const(constant);
         return ok(float);
     }
@@ -194,9 +195,16 @@ def compile_literal(ctx: *IRCtx, expr: *Expr): ExpressionResult {
         if value == '\\' {
             value = escape.char_literal(*(lit.token.span.start + 1));
         }
-        let constant = rvalue.const_char(expr.ty, value);
+        let constant = const.char(expr.ty, value);
         let char = rvalue.expr_const(constant);
         return ok(char);
+    }
+
+    if lit.kind == LiteralKind.String {
+        let value = ctx.unescape_string_literal(lit.token.span.as_view());
+        let constant = const.string_lit(expr.ty, value);
+        let str = rvalue.expr_const(constant);
+        return ok(str);
     }
 
     return error();

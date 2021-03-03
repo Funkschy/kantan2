@@ -21,8 +21,36 @@ def char_literal(c: i8): i8 {
     return c;
 }
 
-def string_literal(start: *i8, end: *i8): str.String {
-    let actual_len = (end - start) as usize;
+def json_escape_string(s: str.View): str.String {
+    let escaped = str.from("");
+
+    for let i: usize = 0; i < s.len; i += 1 {
+        let c = s.at(i);
+        if c == '\0' {
+            // the string literal ends here
+            return escaped;
+        } else if c == '\n' {
+            escaped.push(str.view_from("\\n"));
+        } else if c == '\r' {
+            escaped.push(str.view_from("\\r"));
+        } else if c == '\t' {
+            escaped.push(str.view_from("\\t"));
+        } else if c == '\\' {
+            escaped.push(str.view_from("\\\\"));
+        } else if c == '"' {
+            escaped.push(str.view_from("\\\""));
+        } else if c == '\'' {
+            escaped.push(str.view_from("\\'"));
+        } else {
+            escaped.push(str.view(&c, 1));
+        }
+    }
+
+    return escaped;
+}
+
+def unescape_string(s: str.View): str.String {
+    let actual_len = s.len;
     let value = libc.malloc(actual_len + 1) as *i8;
 
     let out_pos: usize = 0;
@@ -31,14 +59,19 @@ def string_literal(start: *i8, end: *i8): str.String {
     // copy, since actual_len is changed inside the loop
     let n = actual_len;
     while in_pos < n {
-        let c = *(start + in_pos);
+        let c = s.at(in_pos);
         let inc: usize = 1;
 
         if c == '\\' {
             // \x are 2 chars, but we replace it with 1 escaped byte
             actual_len -= 1;
-            let next = *(start + in_pos + 1);
+            let next = s.at(in_pos + 1);
             c = char_literal(next);
+            // no point in continuing, since we already encountered the \0
+            if c == '\0' {
+                actual_len = in_pos;
+                break;
+            }
 
             // skip next
             inc = 2;
@@ -50,6 +83,6 @@ def string_literal(start: *i8, end: *i8): str.String {
     }
 
     *(value + actual_len) = '\0';
-    return str.from_l(value, actual_len);
+    return str.move_l(value, actual_len);
 }
 
