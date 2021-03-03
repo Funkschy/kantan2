@@ -137,6 +137,7 @@ type UnaryOperation struct {
 type ConstantKind enum {
     Null,
     Undefined,
+    Char,
     Int,
     Float,
     Function // a function that is called by name, so the dispatch is known at compile time
@@ -150,6 +151,7 @@ type Constant struct {
 
 type ConstantData union {
     // null/undefined do not need any additional data
+    char: i8,
     int: u64,
     float: f64,
     function: *ir.Function
@@ -184,6 +186,14 @@ def const_float(ty: *ty.Type, value: f64): Constant {
         kind: ConstantKind.Float,
         ty: ty,
         data: ConstantData { float: value }
+    };
+}
+
+def const_char(ty: *ty.Type, value: i8): Constant {
+    return Constant {
+        kind: ConstantKind.Char,
+        ty: ty,
+        data: ConstantData { char: value }
     };
 }
 
@@ -253,6 +263,17 @@ def (c: *Constant) to_json(): str.String {
     if c.kind == ConstantKind.Null {
         let json = str.from("{\"kind\": \"null\"");
         defer json.push(str.view("}", 1));
+        return json;
+    }
+
+    if c.kind == ConstantKind.Char {
+        let json = str.from("{\"kind\": \"char\", \"value\": ");
+        defer json.push(str.view("}", 1));
+
+        let value = str.i64_to_string(c.data.char as i64);
+        json.push(value.view());
+        value.free();
+
         return json;
     }
 

@@ -8,6 +8,7 @@ import "../ir";
 import "../rvalue";
 import "../memory";
 
+import "escape";
 import "ctx" as _;
 
 type ExpressionResult struct {
@@ -175,17 +176,27 @@ def compile_literal(ctx: *IRCtx, expr: *Expr): ExpressionResult {
     if lit.kind == LiteralKind.DecInt || lit.kind == LiteralKind.HexInt {
         let base = 10 + 6 * ((lit.kind == LiteralKind.HexInt) as u32);
 
-        let value = int_from_view(expr.data.lit.token.span.as_view(), base);
+        let value = int_from_view(lit.token.span.as_view(), base);
         let constant = rvalue.const_int(expr.ty, value);
         let int = rvalue.expr_const(constant);
         return ok(int);
     }
 
     if lit.kind == LiteralKind.Float {
-        let value = libc.strtod(expr.data.lit.token.span.start, null);
+        let value = libc.strtod(lit.token.span.start, null);
         let constant = rvalue.const_float(expr.ty, value);
         let float = rvalue.expr_const(constant);
         return ok(float);
+    }
+
+    if lit.kind == LiteralKind.Char {
+        let value = *lit.token.span.start;
+        if value == '\\' {
+            value = escape.char_literal(*(lit.token.span.start + 1));
+        }
+        let constant = rvalue.const_char(expr.ty, value);
+        let char = rvalue.expr_const(constant);
+        return ok(char);
     }
 
     return error();

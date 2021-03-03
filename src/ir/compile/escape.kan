@@ -1,0 +1,55 @@
+import ":std/str";
+import ":std/libc";
+
+def char_literal(c: i8): i8 {
+    if c == '0' {
+        return '\0';
+    } else if c == 'n' {
+        return '\n';
+    } else if c == 'r' {
+        return '\r';
+    } else if c == 't' {
+        return '\t';
+    } else if c == '\\' {
+        return '\\';
+    } else if c == '"' {
+        return '"';
+    } else if c == '\'' {
+        return '\'';
+    }
+
+    return c;
+}
+
+def string_literal(start: *i8, end: *i8): str.String {
+    let actual_len = (end - start) as usize;
+    let value = libc.malloc(actual_len + 1) as *i8;
+
+    let out_pos: usize = 0;
+    let in_pos: usize = 0;
+
+    // copy, since actual_len is changed inside the loop
+    let n = actual_len;
+    while in_pos < n {
+        let c = *(start + in_pos);
+        let inc: usize = 1;
+
+        if c == '\\' {
+            // \x are 2 chars, but we replace it with 1 escaped byte
+            actual_len -= 1;
+            let next = *(start + in_pos + 1);
+            c = char_literal(next);
+
+            // skip next
+            inc = 2;
+        }
+
+        *(value + out_pos) = c;
+        in_pos += inc;
+        out_pos += 1;
+    }
+
+    *(value + actual_len) = '\0';
+    return str.from_l(value, actual_len);
+}
+

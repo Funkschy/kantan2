@@ -79,6 +79,8 @@ def print_const(const, indent=12):
         print(' ' * (indent - 1), 'undefined', end='')
     elif const['kind'] == 'null':
         print(' ' * (indent - 1), 'null', end='')
+    elif const['kind'] == 'char':
+        print(' ' * (indent - 1), const['value'], end='')
     elif const['kind'] == 'int':
         print(' ' * (indent - 1), const['value'], end='')
     elif const['kind'] == 'float':
