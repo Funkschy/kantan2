@@ -2,6 +2,7 @@ import ":std/dbg";
 
 import ":util" as _;
 import ":ast/expr" as _;
+import ":types/types" as ty;
 
 import "../ir";
 import "../const";
@@ -34,6 +35,31 @@ def compile(ctx: *IRCtx, expr: *Expr): CompileResult {
     return compile_fmt(ctx, expr, ResultFormat.RValue);
 }
 
+def copy_if_needed(location: memory.Location, format: ResultFormat): CompileResult {
+    if format == ResultFormat.RValue {
+        return ok(rvalue.expr_copy(location));
+    }
+
+    return ok(rvalue.expr_ref(location));
+}
+
+def make_temp_if_needed(
+    ctx: *IRCtx,
+    value: rvalue.Expression,
+    ty: *ty.Type,
+    format: ResultFormat
+): CompileResult {
+    if format == ResultFormat.RValue {
+        return ok(value);
+    }
+
+    let temp = ctx.declare_temp_var(ty).as_location();
+    let assign = ir.assign(temp, value);
+    ctx.push_stmt(&assign);
+
+    return ok(rvalue.expr_ref(temp));
+}
+
 def compile_fmt(ctx: *IRCtx, expr: *Expr, format: ResultFormat): CompileResult {
     if expr.kind == ExprKind.Literal {
         return literal.compile_fmt(ctx, expr, format);
@@ -54,23 +80,10 @@ def compile_fmt(ctx: *IRCtx, expr: *Expr, format: ResultFormat): CompileResult {
                 return error();
             }
 
-            if format == ResultFormat.RValue {
-                return ok(rvalue.expr_const(function));
-            }
-
-            let temp = ctx.declare_temp_var(expr.ty).as_location();
-            let assign = ir.assign(temp, rvalue.expr_const(function));
-            ctx.push_stmt(&assign);
-
-            return ok(rvalue.expr_ref(temp));
+            return make_temp_if_needed(ctx, rvalue.expr_const(function), expr.ty, format);
         }
 
-        let location = local.as_location();
-        if format == ResultFormat.RValue {
-            return ok(rvalue.expr_copy(location));
-        }
-
-        return ok(rvalue.expr_ref(location));
+        return copy_if_needed(local.as_location(), format);
     }
 
     if expr.kind == ExprKind.Call {
@@ -84,23 +97,36 @@ def compile_fmt(ctx: *IRCtx, expr: *Expr, format: ResultFormat): CompileResult {
     if expr.kind == ExprKind.Unary {
         let unary = &expr.data.unary;
 
-        if unary.kind == UnaryKind.Deref {
-            let location = compile_fmt(ctx, unary.right, ResultFormat.Location);
-            if location.is_error {
-                return location;
-            }
-            dbg.assert(location.value.kind == rvalue.ExpressionKind.Ref, "compile_fmt ignored format");
-            let location = location.value.data.ref;
+        let location = compile_fmt(ctx, unary.right, ResultFormat.Location);
+        if location.is_error {
+            return location;
+        }
+        dbg.assert(location.value.kind == rvalue.ExpressionKind.Ref, "compile_fmt ignored format");
+        let location = location.value.data.ref;
 
-            ctx.add_projection(&location.projection_head, memory.deref());
+        if unary.kind == UnaryKind.NumNegate {
+            let value = compile(ctx, unary.right);
+            let negated = rvalue.expr_unary(rvalue.UnaryKind.NumNeg, rvalue.copy(location));
+            return make_temp_if_needed(ctx, negated, expr.ty, format);
+        }
 
-            if format == ResultFormat.RValue {
-                return ok(rvalue.expr_copy(location));
-            }
+        if unary.kind == UnaryKind.BoolNegate {
+            let value = compile(ctx, unary.right);
+            let negated = rvalue.expr_unary(rvalue.UnaryKind.Not, rvalue.copy(location));
+            return make_temp_if_needed(ctx, negated, expr.ty, format);
+        }
 
+        if unary.kind == UnaryKind.AddrOf {
+            dbg.assert(format == ResultFormat.RValue, "trying to get address as lvalue");
             return ok(rvalue.expr_ref(location));
         }
 
+        if unary.kind == UnaryKind.Deref {
+            ctx.add_projection(&location.projection_head, memory.deref());
+            return copy_if_needed(location, format);
+        }
+
+        dbg.assert(false, "Unhandled UnaryKind");
         return error();
     }
 

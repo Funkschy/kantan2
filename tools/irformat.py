@@ -64,12 +64,22 @@ def print_location(location, indent=12):
         if p['kind'] == 'deref':
             string = f'(*{string})'
 
-    print(' ' * (indent - 1), string, end='')
+    print(' ' * max(0, indent - 1), string, end='')
 
 
 def print_value(value, indent=12):
     if value['kind'] == 'use':
         print_operand(value['operand'], indent)
+    elif value['kind'] == 'ref':
+        print(' ' * max(0, indent - 1), '&', end='')
+        print_location(value['location'], indent=0)
+    elif value['kind'] == 'unary':
+        if value['unary-kind'] == 'not':
+            print(' ' * max(0, indent - 1), '!(', end='')
+        else:
+            print(' ' * max(0, indent - 1), '-(', end='')
+        print_operand(value['operand'], indent=0)
+        print(')', end='')
     else:
         assert False, value['kind']
 

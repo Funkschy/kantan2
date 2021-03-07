@@ -20,6 +20,7 @@ type ExpressionData union {
     use: Operand,
     ref: memory.Location,
     cast: Cast,
+    unary: UnaryOperation,
     binary: BinaryOperation,
     null_value: *ty.Type,
     undef_value: *ty.Type
@@ -44,6 +45,18 @@ def expr_use(operand: Operand): Expression {
     return Expression {
         kind: ExpressionKind.Use,
         data: ExpressionData { use: operand }
+    };
+}
+
+def expr_unary(kind: UnaryKind, value: Operand): Expression {
+    return Expression {
+        kind: ExpressionKind.Unary,
+        data: ExpressionData {
+            unary: UnaryOperation {
+                kind: kind,
+                operand: value
+            }
+        }
     };
 }
 
@@ -148,8 +161,34 @@ def (e: *Expression) to_json(): str.String {
     }
 
     if e.kind == ExpressionKind.Ref {
-        let json = str.from("{\"kind\": \"ref\"");
+        let json = str.from("{\"kind\": \"ref\", \"location\": ");
         defer json.push(str.view("}", 1));
+
+        let location = e.data.ref.to_json();
+        json.push(location.view());
+        location.free();
+
+        return json;
+    }
+
+    if e.kind == ExpressionKind.Unary {
+        let unary = &e.data.unary;
+        let json = str.from("{\"kind\": \"unary\", \"unary-kind\": ");
+        defer json.push(str.view("}", 1));
+
+        if unary.kind == UnaryKind.Not {
+            json.push(str.view_from("\"not\""));
+        } else if unary.kind == UnaryKind.NumNeg {
+            json.push(str.view_from("\"negate\""));
+        } else {
+            dbg.assert(false, "unhandled unary kind");
+        }
+
+        json.push(str.view_from(", \"operand\": "));
+        let operand = e.data.unary.operand.to_json();
+        json.push(operand.view());
+        operand.free();
+
         return json;
     }
 
