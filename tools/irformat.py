@@ -52,10 +52,19 @@ def main():
 
 
 def print_location(location, indent=12):
+    string = ''
+
     if location['kind'] == 'local':
-        print(' ' * (indent - 1), location['name'], end='')
+        string = location['name']
     else:
         assert False, location['kind']
+
+    projs = location['projections']
+    for p in projs:
+        if p['kind'] == 'deref':
+            string = f'(*{string})'
+
+    print(' ' * (indent - 1), string, end='')
 
 
 def print_value(value, indent=12):

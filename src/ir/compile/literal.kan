@@ -1,0 +1,85 @@
+import ":std/dbg";
+import ":std/libc";
+
+import ":util" as _;
+import ":ast/expr" as _;
+
+import "../ir";
+import "../const";
+import "../rvalue";
+import "../memory";
+
+import "escape";
+import "ctx" as _;
+import "expr" as super;
+
+def compile_fmt(ctx: *IRCtx, expr: *Expr, format: super.ResultFormat): super.CompileResult {
+    let literal = compile_literal(ctx, expr);
+    if literal.is_error {
+        return literal;
+    }
+
+    // the caller wants a location, so we copy the value into a temporary and return that temp
+    if format == super.ResultFormat.Location && literal.value.kind != rvalue.ExpressionKind.Ref {
+        let temp = ctx.declare_temp_var(expr.ty);
+        let temp_location = temp.as_location();
+
+        let assign = ir.assign(temp_location, literal.value);
+        ctx.push_stmt(&assign);
+
+        literal.value = rvalue.expr_ref(temp_location);
+    }
+
+    return literal;
+}
+
+def compile_literal(ctx: *IRCtx, expr: *Expr): super.CompileResult {
+    let lit = &expr.data.lit;
+    if lit.kind == LiteralKind.Undefined {
+        let constant = const.undef(expr.ty);
+        let undef = rvalue.expr_const(constant);
+        return super.ok(undef);
+    }
+
+    if lit.kind == LiteralKind.Null {
+        let constant = const.nil(expr.ty);
+        let nil = rvalue.expr_const(constant);
+        return super.ok(nil);
+    }
+
+    if lit.kind == LiteralKind.DecInt || lit.kind == LiteralKind.HexInt {
+        let base = 10 + 6 * ((lit.kind == LiteralKind.HexInt) as u32);
+
+        let value = int_from_view(lit.token.span.as_view(), base);
+        let constant = const.int(expr.ty, value);
+        let int = rvalue.expr_const(constant);
+        return super.ok(int);
+    }
+
+    if lit.kind == LiteralKind.Float {
+        let value = libc.strtod(lit.token.span.start, null);
+        let constant = const.float(expr.ty, value);
+        let float = rvalue.expr_const(constant);
+        return super.ok(float);
+    }
+
+    if lit.kind == LiteralKind.Char {
+        let value = *lit.token.span.start;
+        if value == '\\' {
+            value = escape.char_literal(*(lit.token.span.start + 1));
+        }
+        let constant = const.char(expr.ty, value);
+        let char = rvalue.expr_const(constant);
+        return super.ok(char);
+    }
+
+    if lit.kind == LiteralKind.String {
+        let value = ctx.unescape_string_literal(lit.token.span.as_view());
+        let constant = const.string_lit(expr.ty, value);
+        let str = rvalue.expr_const(constant);
+        return super.ok(str);
+    }
+
+    dbg.assert(false, "unhandled literal kind");
+    return super.error();
+}

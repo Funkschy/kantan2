@@ -15,10 +15,12 @@ K_FILES = src/ast/generics.kan \
 		  src/cli/report.kan \
 		  src/compiler.kan \
 		  src/error.kan \
+		  src/ir/compile/call.kan \
 		  src/ir/compile/ctx.kan \
 		  src/ir/compile/escape.kan \
 		  src/ir/compile/expr.kan \
 		  src/ir/compile/item.kan \
+		  src/ir/compile/literal.kan \
 		  src/ir/compile/locals.kan \
 		  src/ir/compile/stmt.kan \
 		  src/ir/const.kan \

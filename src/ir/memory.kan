@@ -37,11 +37,11 @@ def (l: *Location) to_json(): str.String {
             let proj = p.value;
 
             if proj.kind == ProjectionKind.Field {
-                dbg.assert(false, "unhandled projection kind");
+                dbg.assert(false, "unhandled projection kind field");
             } else if proj.kind == ProjectionKind.Index {
-                dbg.assert(false, "unhandled projection kind");
+                dbg.assert(false, "unhandled projection kind index");
             } else if proj.kind == ProjectionKind.Deref {
-                dbg.assert(false, "unhandled projection kind");
+                json.push(str.view_from("{\"kind\": \"deref\"}"));
             }
 
             p = p.next;
@@ -101,6 +101,13 @@ type ProjectionData union {
 type ProjectionNode struct {
     value: Projection,
     next: *ProjectionNode
+}
+
+def deref(): Projection {
+    return Projection {
+        kind: ProjectionKind.Deref,
+        data: undefined
+    };
 }
 
 type Field struct {

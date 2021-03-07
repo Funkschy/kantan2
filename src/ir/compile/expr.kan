@@ -1,5 +1,4 @@
 import ":std/dbg";
-import ":std/libc";
 
 import ":util" as _;
 import ":ast/expr" as _;
@@ -9,20 +8,21 @@ import "../const";
 import "../rvalue";
 import "../memory";
 
-import "escape";
+import "call";
+import "literal";
 import "ctx" as _;
 
-type ExpressionResult struct {
+type CompileResult struct {
     is_error: bool,
     value: rvalue.Expression
 }
 
-def ok(value: rvalue.Expression): ExpressionResult {
-    return ExpressionResult { is_error: false, value: value };
+def ok(value: rvalue.Expression): CompileResult {
+    return CompileResult { is_error: false, value: value };
 }
 
-def error(): ExpressionResult {
-    return ExpressionResult { is_error: true, value: undefined };
+def error(): CompileResult {
+    return CompileResult { is_error: true, value: undefined };
 }
 
 type ResultFormat enum {
@@ -30,63 +30,13 @@ type ResultFormat enum {
     Location // a location in memory. Might create a temporary variable
 }
 
-// TODO: handle different assignment kinds
-def compile_assign(ctx: *IRCtx, left: *Expr, right: *Expr, format: ResultFormat): ExpressionResult {
-    // try to get the destination location for this assignment
-    let dest = compile_fmt(ctx, left, ResultFormat.Location);
-    if dest.is_error {
-        return dest;
-    }
-
-    let dest = dest.value;
-    dbg.assert(dest.kind == rvalue.ExpressionKind.Ref, "compile_fmt ignored format");
-    let dest_location = dest.data.ref;
-
-    let value = compile(ctx, right);
-    if value.is_error {
-        return value;
-    }
-
-    let value = value.value;
-    let assign = ir.assign(dest_location, value);
-    ctx.push_stmt(&assign);
-
-    // since assignments are expressions in kantan, we need to return either the location or the
-    // value of the result of the assignment
-    if format == ResultFormat.Location {
-        // since we just assigned the value to dest, we can just return dest
-        return ok(dest);
-    }
-
-    // if the caller wants a proper rvalue, we just copy the value out of the memory location
-    // where we just wrote the value
-    let op = rvalue.copy(dest_location);
-    return ok(rvalue.expr_use(op));
-}
-
-def compile(ctx: *IRCtx, expr: *Expr): ExpressionResult {
+def compile(ctx: *IRCtx, expr: *Expr): CompileResult {
     return compile_fmt(ctx, expr, ResultFormat.RValue);
 }
 
-def compile_fmt(ctx: *IRCtx, expr: *Expr, format: ResultFormat): ExpressionResult {
+def compile_fmt(ctx: *IRCtx, expr: *Expr, format: ResultFormat): CompileResult {
     if expr.kind == ExprKind.Literal {
-        let literal = compile_literal(ctx, expr);
-        if literal.is_error {
-            return literal;
-        }
-
-        // the caller wants a location, so we copy the value into a temporary and return that temp
-        if format == ResultFormat.Location && literal.value.kind != rvalue.ExpressionKind.Ref {
-            let temp = ctx.declare_temp_var(expr.ty);
-            let temp_location = temp.as_location();
-
-            let assign = ir.assign(temp_location, literal.value);
-            ctx.push_stmt(&assign);
-
-            literal.value = rvalue.expr_ref(temp_location);
-        }
-
-        return literal;
+        return literal.compile_fmt(ctx, expr, format);
     }
 
     if expr.kind == ExprKind.Assign {
@@ -124,88 +74,77 @@ def compile_fmt(ctx: *IRCtx, expr: *Expr, format: ResultFormat): ExpressionResul
     }
 
     if expr.kind == ExprKind.Call {
-        let call_expr = &expr.data.call;
-        let callee = compile(ctx, call_expr.callee);
-        if callee.is_error {
-            return callee;
-        }
-
-        let callee = callee.value;
-        dbg.assert(
-            callee.kind == rvalue.ExpressionKind.Ref || callee.kind == rvalue.ExpressionKind.Use,
-            "compile_fmt ignored format"
-        );
-
-        let callee_op: rvalue.Operand = undefined;
-        if callee.kind == rvalue.ExpressionKind.Ref {
-            callee_op = rvalue.copy(callee.data.ref);
-        } else {
-            callee_op = callee.data.use;
-        }
-
-        // TODO(#45): compile args
-
-        let dest = ctx.declare_temp_var(expr.ty).as_location();
-        let call = ir.call(callee_op, null, dest);
-        ctx.push_terminator(&call);
-
-        if format == ResultFormat.RValue {
-            return ok(rvalue.expr_copy(dest));
-        }
-
-        return ok(rvalue.expr_ref(dest));
+        return call.compile_fmt(ctx, expr, format);
     }
 
-    // dbg.assert(false, "Unhandled StmtKind");
+    if expr.kind == ExprKind.Binary {
+        return compile_binary(ctx, expr, format);
+    }
+
+    if expr.kind == ExprKind.Unary {
+        let unary = &expr.data.unary;
+
+        if unary.kind == UnaryKind.Deref {
+            let location = compile_fmt(ctx, unary.right, ResultFormat.Location);
+            if location.is_error {
+                return location;
+            }
+            dbg.assert(location.value.kind == rvalue.ExpressionKind.Ref, "compile_fmt ignored format");
+            let location = location.value.data.ref;
+
+            ctx.add_projection(&location.projection_head, memory.deref());
+
+            if format == ResultFormat.RValue {
+                return ok(rvalue.expr_copy(location));
+            }
+
+            return ok(rvalue.expr_ref(location));
+        }
+
+        return error();
+    }
+
+    dbg.assert(false, "Unhandled ExprKind");
     return error();
 }
 
-def compile_literal(ctx: *IRCtx, expr: *Expr): ExpressionResult {
-    let lit = &expr.data.lit;
-    if lit.kind == LiteralKind.Undefined {
-        let constant = const.undef(expr.ty);
-        let undef = rvalue.expr_const(constant);
-        return ok(undef);
-    }
-
-    if lit.kind == LiteralKind.Null {
-        let constant = const.nil(expr.ty);
-        let nil = rvalue.expr_const(constant);
-        return ok(nil);
-    }
-
-    if lit.kind == LiteralKind.DecInt || lit.kind == LiteralKind.HexInt {
-        let base = 10 + 6 * ((lit.kind == LiteralKind.HexInt) as u32);
-
-        let value = int_from_view(lit.token.span.as_view(), base);
-        let constant = const.int(expr.ty, value);
-        let int = rvalue.expr_const(constant);
-        return ok(int);
-    }
-
-    if lit.kind == LiteralKind.Float {
-        let value = libc.strtod(lit.token.span.start, null);
-        let constant = const.float(expr.ty, value);
-        let float = rvalue.expr_const(constant);
-        return ok(float);
-    }
-
-    if lit.kind == LiteralKind.Char {
-        let value = *lit.token.span.start;
-        if value == '\\' {
-            value = escape.char_literal(*(lit.token.span.start + 1));
-        }
-        let constant = const.char(expr.ty, value);
-        let char = rvalue.expr_const(constant);
-        return ok(char);
-    }
-
-    if lit.kind == LiteralKind.String {
-        let value = ctx.unescape_string_literal(lit.token.span.as_view());
-        let constant = const.string_lit(expr.ty, value);
-        let str = rvalue.expr_const(constant);
-        return ok(str);
-    }
-
+def compile_binary(ctx: *IRCtx, expr: *Expr, format: ResultFormat): CompileResult {
+    let binary = &expr.data.binary;
+    let left = binary.left;
+    let right = binary.right;
     return error();
+}
+
+// TODO: handle different assignment kinds
+def compile_assign(ctx: *IRCtx, left: *Expr, right: *Expr, format: ResultFormat): CompileResult {
+    // try to get the destination location for this assignment
+    let dest = compile_fmt(ctx, left, ResultFormat.Location);
+    if dest.is_error {
+        return dest;
+    }
+
+    let dest = dest.value;
+    dbg.assert(dest.kind == rvalue.ExpressionKind.Ref, "compile_fmt ignored format");
+    let dest_location = dest.data.ref;
+
+    let value = compile(ctx, right);
+    if value.is_error {
+        return value;
+    }
+
+    let value = value.value;
+    let assign = ir.assign(dest_location, value);
+    ctx.push_stmt(&assign);
+
+    // since assignments are expressions in kantan, we need to return either the location or the
+    // value of the result of the assignment
+    if format == ResultFormat.Location {
+        // since we just assigned the value to dest, we can just return dest
+        return ok(dest);
+    }
+
+    // if the caller wants a proper rvalue, we just copy the value out of the memory location
+    // where we just wrote the value
+    let op = rvalue.copy(dest_location);
+    return ok(rvalue.expr_use(op));
 }

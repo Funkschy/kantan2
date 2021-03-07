@@ -31,19 +31,25 @@ def (lit: *StringLiteral) free() {
 type IRCtx struct {
     names: locals.NameTable,
     current_function: *ir.Function,
+
     functions: map.Map, // map.Map[*ir.Function], the functions are allocated in function_arena
     function_arena: *arena.TypedArena,
+
     string_literal_head: *StringLiteral,
-    string_literal_arena: *arena.TypedArena
+    string_literal_arena: *arena.TypedArena,
+
+    projection_arena: *arena.TypedArena
 }
 
 def create(
     function_arena: *arena.TypedArena,
     string_literal_arena: *arena.TypedArena,
+    proj_arena: *arena.TypedArena,
     mod: *mod.Module
 ): IRCtx {
     dbg.assert(function_arena.elem_size == sizeof ir.Function, "wrong function arena size");
     dbg.assert(string_literal_arena.elem_size == sizeof StringLiteral, "wrong string_literal_arena size");
+    dbg.assert(proj_arena.elem_size == sizeof memory.ProjectionNode, "wrong projection_arena size");
 
     // this is a good guess, since most of the items in a module will be functions
     let functions = map.with_cap(mod.num_items());
@@ -72,7 +78,8 @@ def create(
         functions: functions,
         function_arena: function_arena,
         string_literal_head: null,
-        string_literal_arena: string_literal_arena
+        string_literal_arena: string_literal_arena,
+        projection_arena: proj_arena
     };
 }
 
@@ -152,4 +159,21 @@ def (ctx: *IRCtx) unescape_string_literal(lit: str.View): str.View {
     memory.next = ctx.string_literal_head;
     ctx.string_literal_head = memory;
     return memory.value.view();
+}
+
+def (ctx: *IRCtx) add_projection(
+    tail: **memory.ProjectionNode,
+    proj: memory.Projection
+): **memory.ProjectionNode {
+    let node = ctx.projection_arena.alloc() as *memory.ProjectionNode;
+    node.value = proj;
+
+    if *tail == null {
+        *tail = node;
+        return tail;
+    }
+
+    let tail = *tail;
+    tail.next = node;
+    return &tail.next;
 }

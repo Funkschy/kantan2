@@ -113,6 +113,7 @@ def main(argc: i32, argv: *string): ReturnCode {
         import "memory/arena";
 
         import "ir/ir";
+        import "ir/memory";
         import "ir/compile/item" as ir_item;
         import "ir/compile/ctx" as ir_ctx;
 
@@ -122,6 +123,9 @@ def main(argc: i32, argv: *string): ReturnCode {
         let string_literal_arena = arena.typed(sizeof ir_ctx.StringLiteral);
         defer string_literal_arena.free_destructor(&ir_ctx.StringLiteral.free as arena.Destructor);
 
+        let proj_arena = arena.typed(sizeof memory.ProjectionNode);
+        defer proj_arena.free();
+
         if opts.dump_ir {
             io.printf("\"ir\": [");
         }
@@ -129,7 +133,7 @@ def main(argc: i32, argv: *string): ReturnCode {
         let result = Result.OK;
         for let i: usize = 0; i < compiler.modmap.len(); i += 1 {
             let mod = compiler.modmap.at(i);
-            let ctx = ir_ctx.create(&function_arena, &string_literal_arena, mod);
+            let ctx = ir_ctx.create(&function_arena, &string_literal_arena, &proj_arena, mod);
             defer ctx.free();
 
             for let j: usize = 0; j < mod.num_items(); j += 1 {
