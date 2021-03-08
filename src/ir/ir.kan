@@ -131,6 +131,10 @@ def (f: *Function) return_type(): *ty.Type {
     return f.ty.data.function.ret;
 }
 
+def (f: *Function) num_bbs(): usize {
+    return f.body.blocks.len;
+}
+
 def (f: *Function) current_bb(): *BasicBlock {
     // if there is no block, just open one
     if f.body.blocks.len == 0 {
@@ -211,7 +215,7 @@ def (f: *Function) to_json(): str.String {
     json.push(str.view_from(", \"blocks\": {"));
     for let i: usize = 0; i < f.body.blocks.len; i += 1 {
         let bb = f.body.blocks.get_ptr(i) as *BasicBlock;
-        if bb.statements.len == 0 {
+        if bb.statements.len == 0 && bb.terminator.kind == TerminatorKind.Nop {
             dbg.assert(i == f.body.blocks.len - 1, "empty bb in middle of ir");
             break;
         }

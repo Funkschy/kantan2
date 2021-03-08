@@ -9,5 +9,5 @@ def main() {
 }
 
 def f(): u32 {
-
+    return 0;
 }

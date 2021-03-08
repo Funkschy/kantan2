@@ -8,8 +8,48 @@ expected_ir = [{
     'functions': [
         {
             'original_name': 'f',
-            'locals': [],
-            'blocks': {}
+            'locals': [
+                {
+                    'name': '_1',
+                    'type': 'u32'
+                }
+            ],
+            'blocks': {
+                'bb0': {
+                    'statements': [
+                        {
+                            'kind': 'assignment',
+                            'location': {
+                                'kind': 'local',
+                                'name': '_1',
+                                'projections': []
+                            },
+                            'value': {
+                                'kind': 'use',
+                                'operand': {
+                                    'kind': 'constant',
+                                    'type': 'u32',
+                                    'value': {
+                                        'kind': 'int',
+                                        'value': 0
+                                    }
+                                }
+                            }
+                        }
+                    ],
+                    'terminator': {
+                        'kind': 'return',
+                        'operand': {
+                            'kind': 'copy',
+                            'location': {
+                                'kind': 'local',
+                                'name': '_1',
+                                'projections': []
+                            }
+                        }
+                    }
+                }
+            }
         },
         {
             'original_name': 'main',
@@ -33,7 +73,7 @@ expected_ir = [{
                 {
                     'name': '_5',
                     'type': 'u32'
-                }
+                },
             ],
             'blocks': {
                 'bb0': {
@@ -191,12 +231,12 @@ expected_ir = [{
                             }
                         }
                     ],
-                    "terminator": {
-                        "kind": "return",
-                        "operand": {
-                            "kind": "constant",
-                            "type": "void",
-                            "value": None
+                    'terminator': {
+                        'kind': 'return',
+                        'operand': {
+                            'kind': 'constant',
+                            'type': 'void',
+                            'value': None
                         }
                     }
                 }

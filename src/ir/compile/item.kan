@@ -16,9 +16,9 @@ def compile(ctx: *IRCtx, item: *Item): Result {
         let f = &item.data.func_def;
         let body = f.block();
 
-        if f.instances.len() > 1 {
-            // TODO: this should be an assert, since it should never happen, however that
-            //  would currently ruin a bunch of unrelated test cases
+        if f.sig.is_generic() {
+            // TODO: this should be an assert for the instance length, since that should never be > 1,
+            // however that would currently ruin a bunch of unrelated test cases
             return Result.OK;
         }
 
@@ -35,12 +35,15 @@ def compile(ctx: *IRCtx, item: *Item): Result {
             return Result.Error;
         }
 
+        let empty_body = ctx.current_function.num_bbs() == 0;
+        let current_bb = ctx.current_function.current_bb();
+        let unfinished_bb = current_bb.terminator.kind == ir.TerminatorKind.Nop
+                         && current_bb.statements.len > 0;
+
         // if the last bb is empty, it should only have no terminator if we also return void
         // it's a compiler error otherwise
-        let current_bb = ctx.current_function.current_bb();
-        if current_bb.statements.len > 0 && current_bb.terminator.kind == ir.TerminatorKind.Nop {
+        if empty_body || unfinished_bb {
             let func_ty = &f.instances.get(0).data.function;
-
             dbg.assert(
                 func_ty.ret.kind == ty.TypeKind.Void,
                 "only functions which return nothing should have a nop terminator at this point"

@@ -74,12 +74,14 @@ def print_value(value, indent=12):
         print(' ' * max(0, indent - 1), '&', end='')
         print_location(value['location'], indent=0)
     elif value['kind'] == 'unary':
-        if value['unary-kind'] == 'not':
-            print(' ' * max(0, indent - 1), '!(', end='')
-        else:
-            print(' ' * max(0, indent - 1), '-(', end='')
+        print(' ' * max(0, indent - 1), value['unary-kind'], end='')
+        print('(', end='')
         print_operand(value['operand'], indent=0)
         print(')', end='')
+    elif value['kind'] == 'binary':
+        print_operand(value['left'], indent)
+        print('', value['binary-kind'], end='')
+        print_operand(value['right'], indent=0)
     else:
         assert False, value['kind']
 

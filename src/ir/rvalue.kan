@@ -222,9 +222,9 @@ def (e: *Expression) to_json(): str.String {
         defer json.push(str.view("}", 1));
 
         if unary.kind == UnaryKind.Not {
-            json.push(str.view_from("\"not\""));
+            json.push(str.view_from("\"!\""));
         } else if unary.kind == UnaryKind.NumNeg {
-            json.push(str.view_from("\"negate\""));
+            json.push(str.view_from("\"-\""));
         } else {
             dbg.assert(false, "unhandled unary kind");
         }

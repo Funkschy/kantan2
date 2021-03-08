@@ -2,6 +2,7 @@ import ":std/dbg";
 
 import ":util" as _;
 import ":ast/stmt" as _;
+import ":ast/expr" as e;
 import ":types/types" as ty;
 
 import "../ir";
@@ -31,6 +32,14 @@ def compile(ctx: *IRCtx, stmt: *Stmt): Result {
         let value = expr.compile(ctx, &stmt.data.expr);
         if value.is_error {
             return Result.Error;
+        }
+
+        // every value in the ir must be assigned to something, so if there is no assignment
+        // in the source code, we just assigne the value to a temporary
+        if stmt.data.expr.kind != e.ExprKind.Assign {
+            let temp = ctx.declare_temp_var(stmt.data.expr.ty).as_location();
+            let assign = ir.assign(temp, value.value);
+            ctx.push_stmt(&assign);
         }
 
         return Result.OK;
