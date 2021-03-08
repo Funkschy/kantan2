@@ -42,7 +42,6 @@ type Assign struct {
 
 // Terminators
 
-// TODO: the current test cases actually check for Nop terminator, which is very much wrong
 type TerminatorKind enum {
     Nop, // this should only be set during compilation. It is not a valid Terminator!
     Return, Call, Jmp

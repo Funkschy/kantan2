@@ -2,6 +2,11 @@ import ":std/dbg";
 
 import ":util" as _;
 import ":ast/item" as _;
+import ":types/types" as ty;
+
+import "../ir";
+import "../const";
+import "../rvalue";
 
 import "ctx" as _;
 import "stmt";
@@ -10,6 +15,12 @@ def compile(ctx: *IRCtx, item: *Item): Result {
     if item.kind == ItemKind.FuncDef {
         let f = &item.data.func_def;
         let body = f.block();
+
+        if f.instances.len() > 1 {
+            // TODO: this should be an assert, since it should never happen, however that
+            //  would currently ruin a bunch of unrelated test cases
+            return Result.OK;
+        }
 
         ctx.set_current_function(item.name, f.instances.get(0));
         ctx.open_scope();
@@ -22,6 +33,22 @@ def compile(ctx: *IRCtx, item: *Item): Result {
 
         if had_errors {
             return Result.Error;
+        }
+
+        // if the last bb is empty, it should only have no terminator if we also return void
+        // it's a compiler error otherwise
+        let current_bb = ctx.current_function.current_bb();
+        if current_bb.statements.len > 0 && current_bb.terminator.kind == ir.TerminatorKind.Nop {
+            let func_ty = &f.instances.get(0).data.function;
+
+            dbg.assert(
+                func_ty.ret.kind == ty.TypeKind.Void,
+                "only functions which return nothing should have a nop terminator at this point"
+            );
+
+            let value = rvalue.const(const.nothing(func_ty.ret));
+            let ret = ir.ret(value);
+            ctx.push_terminator(&ret);
         }
 
         return Result.OK;

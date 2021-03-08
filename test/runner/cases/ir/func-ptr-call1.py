@@ -191,8 +191,13 @@ expected_ir = [{
                             }
                         }
                     ],
-                    'terminator': {
-                        'kind': 'nop'
+                    "terminator": {
+                        "kind": "return",
+                        "operand": {
+                            "kind": "constant",
+                            "type": "void",
+                            "value": None
+                        }
                     }
                 }
             }
