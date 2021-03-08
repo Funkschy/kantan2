@@ -2,8 +2,11 @@ import ":std/dbg";
 
 import ":util" as _;
 import ":ast/stmt" as _;
+import ":types/types" as ty;
 
 import "../ir";
+import "../const";
+import "../rvalue";
 
 import "ctx" as _;
 import "expr";
@@ -33,6 +36,45 @@ def compile(ctx: *IRCtx, stmt: *Stmt): Result {
         return Result.OK;
     }
 
-    // dbg.assert(false, "Unhandled StmtKind");
+    if stmt.kind == StmtKind.Block {
+        let block = &stmt.data.block;
+
+        ctx.open_scope();
+        defer ctx.close_scope();
+
+        let had_errors = false;
+        for let i: usize = 0; i < block.len(); i += 1 {
+            had_errors |= compile(ctx, block.at(i)).is_error();
+        }
+
+        if had_errors {
+            return Result.Error;
+        }
+
+        return Result.OK;
+    }
+
+    if stmt.kind == StmtKind.Return {
+        let return_type = ctx.current_function.return_type();
+        let value: rvalue.Operand = undefined;
+
+        if return_type.kind == ty.TypeKind.Void {
+            value = rvalue.const(const.nothing(return_type));
+        } else {
+            let return_value = expr.compile_fmt(ctx, stmt.data.ret, expr.ResultFormat.Location);
+            if return_value.is_error {
+                return Result.Error;
+            }
+            let return_location = return_value.value.data.ref;
+
+            value = rvalue.copy(return_location);
+        }
+
+        let ret = ir.ret(value);
+        ctx.push_terminator(&ret);
+        return Result.OK;
+    }
+
+    dbg.assert(false, "Unhandled StmtKind");
     return Result.Error;
 }

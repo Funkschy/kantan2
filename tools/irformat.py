@@ -111,6 +111,9 @@ def print_const(const, indent=12):
 def print_terminator(terminator, indent=12):
     if terminator['kind'] == 'nop':
         print(' ' * (indent - 1), 'nop', end='')
+    elif terminator['kind'] == 'return':
+        print(' ' * (indent - 1), 'return', end='')
+        print_operand(terminator['operand'], indent=0)
     elif terminator['kind'] == 'call':
         print_location(terminator['dest'], indent)
         print(' =', 'call', end='')

@@ -8,6 +8,7 @@ import "ir";
 import "compile/escape";
 
 type ConstantKind enum {
+    Nothing, // only used for void return values
     Null,
     Undefined,
     Char,
@@ -31,6 +32,15 @@ type ConstantData union {
     str: str.View,
     function: *ir.Function
 }
+
+def nothing(ty: *ty.Type): Constant {
+    return Constant {
+        kind: ConstantKind.Nothing,
+        ty: ty,
+        data: undefined
+    };
+}
+
 
 def undef(ty: *ty.Type): Constant {
     return Constant {
@@ -91,6 +101,10 @@ def function(function: *ir.Function): Constant {
 // json generation stuff
 
 def (c: *Constant) to_json(): str.String {
+    if c.kind == ConstantKind.Nothing {
+        return str.from("null");
+    }
+
     if c.kind == ConstantKind.Undefined {
         let json = str.from("{\"kind\": \"undefined\"");
         defer json.push(str.view("}", 1));

@@ -42,6 +42,7 @@ type Assign struct {
 
 // Terminators
 
+// TODO: the current test cases actually check for Nop terminator, which is very much wrong
 type TerminatorKind enum {
     Nop, // this should only be set during compilation. It is not a valid Terminator!
     Return, Call, Jmp
@@ -53,7 +54,8 @@ type Terminator struct {
 }
 
 type TerminatorData union {
-    call: Call
+    call: Call,
+    ret: rvalue.Operand // the return value. const nothing for void functions
 }
 
 type Call struct {
@@ -61,7 +63,7 @@ type Call struct {
     args_head: *rvalue.OperandNode,
     // the return value of this call will be written to dest
     dest: memory.Location,
-    next: usize // the id of the next basic block. Only relevant for call/jmp
+    next: usize // the id of the next basic block
 }
 
 def call(callee: rvalue.Operand, args_head: *rvalue.OperandNode, dest: memory.Location): Terminator {
@@ -74,6 +76,15 @@ def call(callee: rvalue.Operand, args_head: *rvalue.OperandNode, dest: memory.Lo
                 dest: dest,
                 next: 0 // this is filled when we actually terminate the block
             }
+        }
+    };
+}
+
+def ret(value: rvalue.Operand): Terminator {
+    return Terminator {
+        kind: TerminatorKind.Return,
+        data: TerminatorData {
+            ret: value
         }
     };
 }
@@ -115,6 +126,10 @@ type Function struct {
 def (f: *Function) free() {
     f.mangled_name.free();
     f.body.free();
+}
+
+def (f: *Function) return_type(): *ty.Type {
+    return f.ty.data.function.ret;
 }
 
 def (f: *Function) current_bb(): *BasicBlock {
@@ -196,6 +211,12 @@ def (f: *Function) to_json(): str.String {
 
     json.push(str.view_from(", \"blocks\": {"));
     for let i: usize = 0; i < f.body.blocks.len; i += 1 {
+        let bb = f.body.blocks.get_ptr(i) as *BasicBlock;
+        if bb.statements.len == 0 {
+            dbg.assert(i == f.body.blocks.len - 1, "empty bb in middle of ir");
+            break;
+        }
+
         if i > 0 {
             json.push(str.view(", ", 2));
         }
@@ -206,7 +227,6 @@ def (f: *Function) to_json(): str.String {
         number.free();
         json.push(str.view_from("\": "));
 
-        let bb = f.body.blocks.get_ptr(i) as *BasicBlock;
         json.push(str.view_from("{\"statements\": ["));
         defer json.push(str.view("}", 1));
 
@@ -261,7 +281,20 @@ def (t: *Terminator) to_json(): str.String {
 
     if t.kind == TerminatorKind.Nop {
         json.push(str.view_from("\"nop\""));
-    } else if t.kind == TerminatorKind.Call {
+        return json;
+    }
+
+    if t.kind == TerminatorKind.Return {
+        json.push(str.view_from("\"return\", \"operand\": "));
+
+        let value = t.data.ret.to_json();
+        json.push(value.view());
+        value.free();
+
+        return json;
+    }
+
+    if t.kind == TerminatorKind.Call {
         json.push(str.view_from("\"call\", \"callee\": "));
         let callee = t.data.call.callee.to_json();
         json.push(callee.view());
@@ -290,7 +323,10 @@ def (t: *Terminator) to_json(): str.String {
         json.push(number.view());
         number.free();
         json.push(str.view_from("\""));
+
+        return json;
     }
 
+    dbg.assert(false, "Unhandled TerminatorKind");
     return json;
 }
