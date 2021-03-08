@@ -60,6 +60,19 @@ def expr_unary(kind: UnaryKind, value: Operand): Expression {
     };
 }
 
+def expr_binary(kind: BinaryKind, left: Operand, right: Operand): Expression {
+    return Expression {
+        kind: ExpressionKind.Binary,
+        data: ExpressionData {
+            binary: BinaryOperation {
+                kind: kind,
+                left: left,
+                right: right
+            }
+        }
+    };
+}
+
 type OperandKind enum {
     Copy, Constant
 }
@@ -104,7 +117,7 @@ type Cast struct {
 }
 
 type BinaryKind enum {
-    Add = 1,
+    Add,
     Sub,
     Mul,
     Div,
@@ -137,7 +150,7 @@ type BinaryOperation struct {
 }
 
 type UnaryKind enum {
-    Not = 1,
+    Not,
     NumNeg
 }
 
@@ -147,6 +160,38 @@ type UnaryOperation struct {
 }
 
 // json generation stuff
+
+let _binary_kind_strings: [20]str.View = undefined;
+// TODO: change this to 'false' when global variables work correctly
+let  _binary_kind_strings_initialized: bool = undefined;
+
+def (k: BinaryKind) as_view(): str.View {
+    if !_binary_kind_strings_initialized {
+        _binary_kind_strings[BinaryKind.Add       as i32] = str.view_from("+");
+        _binary_kind_strings[BinaryKind.Sub       as i32] = str.view_from("-");
+        _binary_kind_strings[BinaryKind.Mul       as i32] = str.view_from("*");
+        _binary_kind_strings[BinaryKind.Div       as i32] = str.view_from("/");
+        _binary_kind_strings[BinaryKind.Mod       as i32] = str.view_from("%");
+        _binary_kind_strings[BinaryKind.BitAnd    as i32] = str.view_from("&");
+        _binary_kind_strings[BinaryKind.BitOr     as i32] = str.view_from("|");
+        _binary_kind_strings[BinaryKind.BitXor    as i32] = str.view_from("^");
+        _binary_kind_strings[BinaryKind.ST        as i32] = str.view_from("<");
+        _binary_kind_strings[BinaryKind.SE        as i32] = str.view_from("<=");
+        _binary_kind_strings[BinaryKind.GT        as i32] = str.view_from(">");
+        _binary_kind_strings[BinaryKind.GE        as i32] = str.view_from(">=");
+        _binary_kind_strings[BinaryKind.EQ        as i32] = str.view_from("==");
+        _binary_kind_strings[BinaryKind.NE        as i32] = str.view_from("!=");
+        _binary_kind_strings[BinaryKind.BoolAnd   as i32] = str.view_from("&&");
+        _binary_kind_strings[BinaryKind.BoolOr    as i32] = str.view_from("||");
+        _binary_kind_strings[BinaryKind.LShift    as i32] = str.view_from("<<");
+        _binary_kind_strings[BinaryKind.RShift    as i32] = str.view_from(">>");
+        _binary_kind_strings[BinaryKind.AddScalar as i32] = str.view_from("+");
+        _binary_kind_strings[BinaryKind.SubScalar as i32] = str.view_from("-");
+        _binary_kind_strings_initialized = true;
+    }
+
+    return _binary_kind_strings[k as i32];
+}
 
 def (e: *Expression) to_json(): str.String {
     if e.kind == ExpressionKind.Use {
@@ -185,9 +230,30 @@ def (e: *Expression) to_json(): str.String {
         }
 
         json.push(str.view_from(", \"operand\": "));
-        let operand = e.data.unary.operand.to_json();
+        let operand = unary.operand.to_json();
         json.push(operand.view());
         operand.free();
+
+        return json;
+    }
+
+    if e.kind == ExpressionKind.Binary {
+        let binary = &e.data.binary;
+        let json = str.from("{\"kind\": \"binary\", \"binary-kind\": \"");
+        defer json.push(str.view("}", 1));
+
+        json.push(binary.kind.as_view());
+        json.push(str.view("\"", 1));
+
+        json.push(str.view_from(", \"left\": "));
+        let left = binary.left.to_json();
+        json.push(left.view());
+        left.free();
+
+        json.push(str.view_from(", \"right\": "));
+        let right = binary.right.to_json();
+        json.push(right.view());
+        right.free();
 
         return json;
     }

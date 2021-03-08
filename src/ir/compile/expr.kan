@@ -136,9 +136,74 @@ def compile_fmt(ctx: *IRCtx, expr: *Expr, format: ResultFormat): CompileResult {
 
 def compile_binary(ctx: *IRCtx, expr: *Expr, format: ResultFormat): CompileResult {
     let binary = &expr.data.binary;
+    let left = compile_fmt(ctx, binary.left, ResultFormat.Location);
+    if left.is_error {
+        return left;
+    }
+    dbg.assert(left.value.kind == rvalue.ExpressionKind.Ref, "compile_fmt ignored format");
+    let left = left.value.data.ref;
+
+    let right = compile_fmt(ctx, binary.right, ResultFormat.Location);
+    if right.is_error {
+        return right;
+    }
+    dbg.assert(right.value.kind == rvalue.ExpressionKind.Ref, "compile_fmt ignored format");
+    let right = right.value.data.ref;
+
+    let short_circuit = ShortCircuitKind.None;
+    let kind = binary_ast_to_ir(binary, &short_circuit);
+    let binary_expr = rvalue.expr_binary(kind, rvalue.copy(left), rvalue.copy(right));
+
+    return make_temp_if_needed(ctx, binary_expr, expr.ty, format);
+}
+
+type ShortCircuitKind enum {
+    None, And, Or
+}
+
+def binary_ast_to_ir(binary: *BinaryExpr, short_circuit: *ShortCircuitKind): rvalue.BinaryKind {
+    let k = binary.kind;
     let left = binary.left;
     let right = binary.right;
-    return error();
+
+    // the binary kinds for ast and mir only differ for the scalar addition
+    // and subtraction...
+    if k == BinaryKind.Add {
+        // the following combinations are possible:
+        // left | right
+        //  num |  num
+        //  int |  ptr
+        //  ptr |  int
+
+        if left.ty.kind == right.ty.kind {
+            return rvalue.BinaryKind.Add;
+        }
+
+        return rvalue.BinaryKind.AddScalar;
+    } else if k == BinaryKind.Sub {
+        // the following combinations are possible:
+        // left | right
+        //  num |  num
+        //  int |  ptr
+        //  ptr |  int
+        //  ptr |  ptr   <- this is not allowed for addtion
+
+        if left.ty.kind == right.ty.kind {
+            return rvalue.BinaryKind.Sub;
+        }
+
+        return rvalue.BinaryKind.SubScalar;
+    }
+
+    // TODO: implement short circuiting (and logical operators in general)
+    // if k == BinaryKind.LogAnd {
+    //     *short_circuit = ShortCircuitKind.And;
+    // } else if k == BinaryKind.LogOr {
+    //     *short_circuit = ShortCircuitKind.Or;
+    // }
+
+    // ...everything else is identical
+    return *(&k as *rvalue.BinaryKind);
 }
 
 // TODO: handle different assignment kinds

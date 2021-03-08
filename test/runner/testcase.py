@@ -52,6 +52,9 @@ class SuccessTestCase(TestCase):
         super().__init__(executor, options)
 
     def test_output(self, output: Output) -> Optional[TestError]:
+        if output.rc != 0:
+            return TestError(f'expected 0 as return code, but got {output.rc}')
+
         if len(output.errors) > 0:
             return TestError(f'expected 0 errors, but got {len(output.errors)}')
 

@@ -271,7 +271,7 @@ def (s: *Statement) to_json(): str.String {
         return json;
     }
 
-    // dbg.assert(false, "Unhandled StmtKind");
+    dbg.assert(false, "Unhandled StmtKind");
     return str.from("");
 }
 
