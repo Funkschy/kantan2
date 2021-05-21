@@ -77,6 +77,7 @@ def compile_fmt(ctx: *IRCtx, expr: *Expr, format: ResultFormat): CompileResult {
             // if this is not a local, try looking it up in the global function table
             let function: const.Constant = undefined;
             if ctx.lookup_function(name, &function).is_error() {
+                dbg.assert(false, "undeclared name");
                 return error();
             }
 

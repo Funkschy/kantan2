@@ -96,7 +96,9 @@ def print_operand(operand, indent=12):
 
 
 def print_const(const, indent=12):
-    if const['kind'] == 'undefined':
+    if const is None:
+        pass
+    elif const['kind'] == 'undefined':
         print(' ' * (indent - 1), 'undefined', end='')
     elif const['kind'] == 'null':
         print(' ' * (indent - 1), 'null', end='')

@@ -22,9 +22,19 @@ def compile(ctx: *IRCtx, item: *Item): Result {
             return Result.OK;
         }
 
-        ctx.set_current_function(item.name, f.instances.get(0));
+        let func_ty = f.instances.get(0);
+        ctx.set_current_function(item.name, func_ty);
         ctx.open_scope();
         defer ctx.close_scope();
+
+        // declare function parameters
+        let param = func_ty.data.function.params_head;
+        while param != null {
+            dbg.assert(param.name.kind == ty.NameKind.Ident, "expected ident, not str.View");
+            let name = param.name.data.ident;
+            ctx.declare_local(name, param.value);
+            param = param.next;
+        }
 
         let had_errors = false;
         for let i: usize = 0; i < body.len(); i += 1 {

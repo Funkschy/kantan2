@@ -25,6 +25,15 @@ def check(ctx: *TyCtx, item: *Item): Result {
         }
 
         ctx.open_scope();
+        // bind params
+        let param = func_ty.data.function.params_head;
+        while param != null {
+            dbg.assert(param.name.kind == NameKind.Ident, "expected ident, not str.View");
+            let name = &param.name.data.ident;
+            ctx.bind_value_public(name.as_view(), param.value, &name.span);
+            param = param.next;
+        }
+
         ctx.current_function = func_ty;
         let result = tychk.check(ctx, &item.data.func_def.block_stmt);
         ctx.close_scope();
