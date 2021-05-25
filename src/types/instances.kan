@@ -9,16 +9,24 @@ import "types" as _;
 // For a normal function/struct/union, this will only contain a single type after typechecking,
 // however templates may have an arbitrary amount of instances based on their invocations
 type InstanceSet struct {
+    // The number of checked instances. Since every template can instantiate a range of further
+    // templates, we execute the template pass of the type checker multiple times.
+    // (see Compiler.infer_and_check_types)
+    // This number is needed, so that we don't check the template with the same input types multiple
+    // times, because that would be a waste of time
+    checked: usize,
     _list: ptrvec.Vec // ptrvec.Vec[*Type]
 }
 
 def instance_set(): InstanceSet {
     let i: InstanceSet = undefined;
+    i.checked = 0;
     i.init();
     return i;
 }
 
 def (l: *InstanceSet) init() {
+    l.checked = 0;
     l._list = ptrvec.create();
 }
 
@@ -52,12 +60,11 @@ def (l: *InstanceSet) len(): usize {
 
 def ty_equals(a: *Type, b: *Type): bool {
     // variables are ignored for equality
-    // TODO(#33): should this be an internal error instead?
-    if a.kind == TypeKind.Variable {
-        return ty_equals(a.data.inner, b);
+    while a.kind == TypeKind.Variable {
+        a = a.data.inner;
     }
-    if b.kind == TypeKind.Variable {
-        return ty_equals(a, b.data.inner);
+    while b.kind == TypeKind.Variable {
+        b = b.data.inner;
     }
 
     if a.kind != b.kind {
@@ -92,7 +99,6 @@ def ty_equals(a: *Type, b: *Type): bool {
             return false;
         }
 
-        // TODO(#34): check args/ret
         let a_p = a_f.params_head;
         let b_p = b_f.params_head;
         while a_p != null {
@@ -107,6 +113,6 @@ def ty_equals(a: *Type, b: *Type): bool {
         return ty_equals(a_f.ret, b_f.ret);
     }
 
-    // util.report_internal_error(str.view_from("unhandled or illegal TypeKind"));
-    return false;
+    // because a.kind == b.kind
+    return true;
 }

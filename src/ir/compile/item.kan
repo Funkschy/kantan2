@@ -22,6 +22,8 @@ def compile(ctx: *IRCtx, item: *Item): Result {
             return Result.OK;
         }
 
+        dbg.assert(f.instances.len() == 1, "functions should only have one instance");
+
         let func_ty = f.instances.get(0);
         ctx.set_current_function(item.name, func_ty);
         ctx.open_scope();

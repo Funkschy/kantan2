@@ -20,6 +20,10 @@ import "function";
 import "template";
 import "primitive";
 
+type Pass enum {
+    Functions, Templates
+}
+
 // the context used while type checking
 type TyCtx struct {
     ty_arena: *arena.TypedArena,
@@ -30,6 +34,13 @@ type TyCtx struct {
     values: scope.ScopeStack,
     // this holds declared types, e.g. structs
     types: scope.ScopeStack,
+
+    current_pass: Pass,
+    // the template pass will be repeated, until this is false. This is needed, because templates
+    // can instantiate other templates with different type parameters and there is no way to know
+    // the amount of template we will get at the end
+    // see: Compiler.infer_and_check_types() and InstanceSet.checked for more info
+    had_unchecked_templates: bool,
 
     // the current function or null, if in global scope
     current_function: *Type,
@@ -49,6 +60,8 @@ def create(ty_arena: *arena.TypedArena, node_arena: *arena.TypedArena): TyCtx {
         temp_arena: temp_arena,
         values: scope.scope_stack(),
         types: scope.scope_stack(),
+        current_pass: Pass.Functions,
+        had_unchecked_templates: true,
         current_function: null,
         final_i32_ty: null,
         final_f32_ty: null

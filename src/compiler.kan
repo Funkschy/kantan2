@@ -9,9 +9,9 @@ import "ast/expr";
 import "ast/lexer" as lex;
 import "ast/parser" as parse;
 
-import "types/ctx";
 import "types/types";
 import "types/graph";
+import "types/ctx" as ty_ctx;
 import "types/check/item" as item_check;
 import "types/finalize/item" as item_finalize;
 import "types/resolve/functions" as resolve_functions;
@@ -248,7 +248,7 @@ def (c: *Compiler) resolve_types(): Result {
 }
 
 def (c: *Compiler) infer_and_check_types(): Result {
-    let ctx = ctx.create(&c.type_arena, &c.type_node_arena);
+    let ctx = ty_ctx.create(&c.type_arena, &c.type_node_arena);
     defer ctx.free();
 
     let result = Result.OK;
@@ -269,6 +269,19 @@ def (c: *Compiler) infer_and_check_types(): Result {
         for let j: usize = 0; j < mod.num_items(); j += 1 {
             let item = mod.item_at(j);
             result = result.or(item_check.check(&ctx, item));
+        }
+
+        // check the template bodys
+        ctx.current_pass = ty_ctx.Pass.Templates;
+        while ctx.had_unchecked_templates {
+            ctx.had_unchecked_templates = false;
+
+            // repeat this, until there are no changes left
+            // this is needed to resolve template instantiations from other template instantiations
+            for let j: usize = 0; j < mod.num_items(); j += 1 {
+                let item = mod.item_at(j);
+                result = result.or(item_check.check(&ctx, item));
+            }
         }
     }
 

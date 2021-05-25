@@ -337,6 +337,7 @@ def (t: *Type) init_template(
     t.kind = TypeKind.Template;
     t.width = t.align = info.unsized();
     t.data.template.num_params = num_params;
+    t.data.function.params_head = null;
     t.data.template.inner = inner;
     t.data.template.generics_head = generics_head;
     t.data.template.instances = instances;

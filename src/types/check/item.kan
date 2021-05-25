@@ -19,24 +19,52 @@ def check(ctx: *TyCtx, item: *Item): Result {
             return Result.Error;
         }
 
-        // templates are only checked on invocation
-        if func_ty.is_template() {
+        let is_template = func_ty.is_template();
+        if is_template && ctx.current_pass != Pass.Templates {
+            return Result.OK;
+        } else if !is_template && ctx.current_pass != Pass.Functions {
             return Result.OK;
         }
 
-        ctx.open_scope();
-        // bind params
-        let param = func_ty.data.function.params_head;
-        while param != null {
-            dbg.assert(param.name.kind == NameKind.Ident, "expected ident, not str.View");
-            let name = &param.name.data.ident;
-            ctx.bind_value_public(name.as_view(), param.value, &name.span);
-            param = param.next;
+        let i: usize = 0;
+        let instance = func_ty;
+        if is_template {
+            instance = null;
+            i = func_ty.data.template.instances.checked;
+
+            if i < func_ty.data.template.instances.len() {
+                ctx.had_unchecked_templates = true;
+                instance = func_ty.data.template.instances.get(i);
+            }
         }
 
-        ctx.current_function = func_ty;
-        let result = tychk.check(ctx, &item.data.func_def.block_stmt);
-        ctx.close_scope();
+        let result = Result.OK;
+        while instance != null {
+            ctx.open_scope();
+            // bind params
+            let param = instance.data.function.params_head;
+            while param != null {
+                dbg.assert(param.name.kind == NameKind.Ident, "expected ident, not str.View");
+                let name = &param.name.data.ident;
+                ctx.bind_value_public(name.as_view(), param.value, &name.span);
+                param = param.next;
+            }
+
+            ctx.current_function = instance;
+            result = result.or(tychk.check(ctx, &item.data.func_def.block_stmt));
+            ctx.close_scope();
+
+            i += 1;
+            if is_template && i < func_ty.data.template.instances.len() {
+                instance = func_ty.data.template.instances.get(i);
+            } else {
+                instance = null;
+            }
+        }
+
+        if is_template {
+            func_ty.data.template.instances.checked = i;
+        }
 
         return result;
     }

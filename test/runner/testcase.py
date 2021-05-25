@@ -113,7 +113,14 @@ class ErrorTestCase(TestCase):
 
 
 def expected_but_got(name: str, expected, actual) -> TestError:
-    return TestError(f'wrong {name}, expected "{expected}", but got "{actual}"')
+    expected_str = str(expected)
+    actual_str = str(actual)
+
+    difference_idx = next((i for i in range(min(len(expected_str), len(actual_str))) if expected_str[i] != actual_str[i]), None)
+    expected_snippet = expected_str[difference_idx:difference_idx + 10]
+    actual_snippet = actual_str[difference_idx:difference_idx + 10]
+    return TestError(
+        f'wrong {name}, expected "{expected}", but got "{actual}"\n"{expected_snippet}" vs "{actual_snippet}"')
 
 
 def test_element(expected: OutputElement, actual: OutputElement) -> Optional[TestError]:
