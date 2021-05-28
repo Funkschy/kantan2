@@ -84,11 +84,11 @@ def ty_equals(a: *Type, b: *Type): bool {
         return true;
     }
 
-    if a.kind == TypeKind.Ptr {
-        return b.kind == TypeKind.Ptr && ty_equals(a.data.ptr_to, b.data.ptr_to);
+    if a.is_const_size_indirect_type() {
+        return ty_equals(a.data.ptr_or_slice_to, b.data.ptr_or_slice_to);
     }
 
-    if a.kind == TypeKind.Error || b.kind == TypeKind.Error {
+    if a.kind == TypeKind.Error {
         return false;
     }
 

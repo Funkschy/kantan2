@@ -12,12 +12,12 @@ expected_modules = [{
             "kind": "func_def",
             "name": "f",
             "instances": [
-                "(*i8, i32, i8) -> *i8",
-                "(*i8, i8, i32) -> *i8",
-                "(i32, *i8, i8) -> i32",
-                "(i32, i8, *i8) -> i32",
-                "(i8, *i8, i32) -> i8",
-                "(i8, i32, *i8) -> i8"
+                "([]i8, i32, i8) -> []i8",
+                "([]i8, i8, i32) -> []i8",
+                "(i32, []i8, i8) -> i32",
+                "(i32, i8, []i8) -> i32",
+                "(i8, []i8, i32) -> i8",
+                "(i8, i32, []i8) -> i8"
             ],
             "body": {
                 "kind": "block",
@@ -29,7 +29,7 @@ expected_modules = [{
                             "ty": "i8",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "(i8, i32, *i8) -> i8",
+                                "ty": "(i8, i32, []i8) -> i8",
                                 "value": "f"
                             },
                             "args": [
@@ -45,7 +45,7 @@ expected_modules = [{
                                 },
                                 {
                                     "kind": "identifier",
-                                    "ty": "*i8",
+                                    "ty": "[]i8",
                                     "value": "c"
                                 }
                             ]
@@ -58,7 +58,7 @@ expected_modules = [{
                             "ty": "i8",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "(i8, *i8, i32) -> i8",
+                                "ty": "(i8, []i8, i32) -> i8",
                                 "value": "f"
                             },
                             "args": [
@@ -69,7 +69,7 @@ expected_modules = [{
                                 },
                                 {
                                     "kind": "identifier",
-                                    "ty": "*i8",
+                                    "ty": "[]i8",
                                     "value": "c"
                                 },
                                 {
@@ -87,7 +87,7 @@ expected_modules = [{
                             "ty": "i32",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "(i32, i8, *i8) -> i32",
+                                "ty": "(i32, i8, []i8) -> i32",
                                 "value": "f"
                             },
                             "args": [
@@ -103,7 +103,7 @@ expected_modules = [{
                                 },
                                 {
                                     "kind": "identifier",
-                                    "ty": "*i8",
+                                    "ty": "[]i8",
                                     "value": "c"
                                 }
                             ]
@@ -116,7 +116,7 @@ expected_modules = [{
                             "ty": "i32",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "(i32, *i8, i8) -> i32",
+                                "ty": "(i32, []i8, i8) -> i32",
                                 "value": "f"
                             },
                             "args": [
@@ -127,7 +127,7 @@ expected_modules = [{
                                 },
                                 {
                                     "kind": "identifier",
-                                    "ty": "*i8",
+                                    "ty": "[]i8",
                                     "value": "c"
                                 },
                                 {
@@ -142,16 +142,16 @@ expected_modules = [{
                         "kind": "expr_stmt",
                         "expr": {
                             "kind": "call",
-                            "ty": "*i8",
+                            "ty": "[]i8",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "(*i8, i8, i32) -> *i8",
+                                "ty": "([]i8, i8, i32) -> []i8",
                                 "value": "f"
                             },
                             "args": [
                                 {
                                     "kind": "identifier",
-                                    "ty": "*i8",
+                                    "ty": "[]i8",
                                     "value": "c"
                                 },
                                 {
@@ -171,16 +171,16 @@ expected_modules = [{
                         "kind": "expr_stmt",
                         "expr": {
                             "kind": "call",
-                            "ty": "*i8",
+                            "ty": "[]i8",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "(*i8, i32, i8) -> *i8",
+                                "ty": "([]i8, i32, i8) -> []i8",
                                 "value": "f"
                             },
                             "args": [
                                 {
                                     "kind": "identifier",
-                                    "ty": "*i8",
+                                    "ty": "[]i8",
                                     "value": "c"
                                 },
                                 {
@@ -211,7 +211,7 @@ expected_modules = [{
             "kind": "func_def",
             "name": "f2",
             "instances": [
-                "(*i8, i32, i8) -> *i8"
+                "([]i8, i32, i8) -> []i8"
             ],
             "body": {
                 "kind": "block",
@@ -220,16 +220,16 @@ expected_modules = [{
                         "kind": "expr_stmt",
                         "expr": {
                             "kind": "call",
-                            "ty": "*i8",
+                            "ty": "[]i8",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "(*i8, i32, i8) -> *i8",
+                                "ty": "([]i8, i32, i8) -> []i8",
                                 "value": "f"
                             },
                             "args": [
                                 {
                                     "kind": "identifier",
-                                    "ty": "*i8",
+                                    "ty": "[]i8",
                                     "value": "a"
                                 },
                                 {
@@ -249,16 +249,16 @@ expected_modules = [{
                         "kind": "expr_stmt",
                         "expr": {
                             "kind": "call",
-                            "ty": "*i8",
+                            "ty": "[]i8",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "(*i8, i8, i32) -> *i8",
+                                "ty": "([]i8, i8, i32) -> []i8",
                                 "value": "f"
                             },
                             "args": [
                                 {
                                     "kind": "identifier",
-                                    "ty": "*i8",
+                                    "ty": "[]i8",
                                     "value": "a"
                                 },
                                 {
@@ -270,35 +270,6 @@ expected_modules = [{
                                     "kind": "identifier",
                                     "ty": "i32",
                                     "value": "b"
-                                }
-                            ]
-                        }
-                    },
-                    {
-                        "kind": "expr_stmt",
-                        "expr": {
-                            "kind": "call",
-                            "ty": "i32",
-                            "callee": {
-                                "kind": "identifier",
-                                "ty": "(i32, *i8, i8) -> i32",
-                                "value": "f"
-                            },
-                            "args": [
-                                {
-                                    "kind": "identifier",
-                                    "ty": "i32",
-                                    "value": "b"
-                                },
-                                {
-                                    "kind": "identifier",
-                                    "ty": "*i8",
-                                    "value": "a"
-                                },
-                                {
-                                    "kind": "identifier",
-                                    "ty": "i8",
-                                    "value": "c"
                                 }
                             ]
                         }
@@ -310,7 +281,36 @@ expected_modules = [{
                             "ty": "i32",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "(i32, i8, *i8) -> i32",
+                                "ty": "(i32, []i8, i8) -> i32",
+                                "value": "f"
+                            },
+                            "args": [
+                                {
+                                    "kind": "identifier",
+                                    "ty": "i32",
+                                    "value": "b"
+                                },
+                                {
+                                    "kind": "identifier",
+                                    "ty": "[]i8",
+                                    "value": "a"
+                                },
+                                {
+                                    "kind": "identifier",
+                                    "ty": "i8",
+                                    "value": "c"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "kind": "expr_stmt",
+                        "expr": {
+                            "kind": "call",
+                            "ty": "i32",
+                            "callee": {
+                                "kind": "identifier",
+                                "ty": "(i32, i8, []i8) -> i32",
                                 "value": "f"
                             },
                             "args": [
@@ -326,7 +326,7 @@ expected_modules = [{
                                 },
                                 {
                                     "kind": "identifier",
-                                    "ty": "*i8",
+                                    "ty": "[]i8",
                                     "value": "a"
                                 }
                             ]
@@ -339,7 +339,7 @@ expected_modules = [{
                             "ty": "i8",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "(i8, *i8, i32) -> i8",
+                                "ty": "(i8, []i8, i32) -> i8",
                                 "value": "f"
                             },
                             "args": [
@@ -350,7 +350,7 @@ expected_modules = [{
                                 },
                                 {
                                     "kind": "identifier",
-                                    "ty": "*i8",
+                                    "ty": "[]i8",
                                     "value": "a"
                                 },
                                 {
@@ -368,7 +368,7 @@ expected_modules = [{
                             "ty": "i8",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "(i8, i32, *i8) -> i8",
+                                "ty": "(i8, i32, []i8) -> i8",
                                 "value": "f"
                             },
                             "args": [
@@ -384,7 +384,7 @@ expected_modules = [{
                                 },
                                 {
                                     "kind": "identifier",
-                                    "ty": "*i8",
+                                    "ty": "[]i8",
                                     "value": "a"
                                 }
                             ]
@@ -394,7 +394,7 @@ expected_modules = [{
                         "kind": "return",
                         "value": {
                             "kind": "identifier",
-                            "ty": "*i8",
+                            "ty": "[]i8",
                             "value": "a"
                         }
                     }
@@ -426,16 +426,16 @@ expected_modules = [{
                         "ty": None,
                         "value": {
                             "kind": "call",
-                            "ty": "*i8",
+                            "ty": "[]i8",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "(*i8, i32, i8) -> *i8",
+                                "ty": "([]i8, i32, i8) -> []i8",
                                 "value": "f2"
                             },
                             "args": [
                                 {
                                     "kind": "literal",
-                                    "ty": "*i8",
+                                    "ty": "[]i8",
                                     "value": ""
                                 },
                                 {
@@ -455,16 +455,16 @@ expected_modules = [{
                         "kind": "expr_stmt",
                         "expr": {
                             "kind": "call",
-                            "ty": "*i8",
+                            "ty": "[]i8",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "(*i8, i32, i8) -> *i8",
+                                "ty": "([]i8, i32, i8) -> []i8",
                                 "value": "f2"
                             },
                             "args": [
                                 {
                                     "kind": "literal",
-                                    "ty": "*i8",
+                                    "ty": "[]i8",
                                     "value": ""
                                 },
                                 {
@@ -494,16 +494,16 @@ expected_modules = [{
                         "kind": "expr_stmt",
                         "expr": {
                             "kind": "call",
-                            "ty": "*i8",
+                            "ty": "[]i8",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "(*i8, i32, i8) -> *i8",
+                                "ty": "([]i8, i32, i8) -> []i8",
                                 "value": "f2"
                             },
                             "args": [
                                 {
                                     "kind": "literal",
-                                    "ty": "*i8",
+                                    "ty": "[]i8",
                                     "value": ""
                                 },
                                 {

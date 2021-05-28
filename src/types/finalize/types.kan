@@ -45,8 +45,8 @@ def finalize(ctx: *c.TyCtx, p: **Type, declared_at: span.Span): Result {
         return result;
     }
 
-    if ty.kind == TypeKind.Ptr {
-        let result = finalize(ctx, &ty.data.ptr_to, declared_at);
+    if ty.is_const_size_indirect_type() {
+        let result = finalize(ctx, &ty.data.ptr_or_slice_to, declared_at);
         *p = move(ctx, ty);
         return result;
     }

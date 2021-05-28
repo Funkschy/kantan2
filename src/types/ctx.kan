@@ -97,7 +97,7 @@ def (ctx: *TyCtx) init_global_types() {
     ctx.bind_type_public(str.view_from("isize"), isize_ty, null);
 
     let s_ty = ctx.alloc_ty();
-    s_ty.init_ptr(c_ty);
+    s_ty.init_slice(c_ty);
     ctx.bind_type_public(str.view_from("string"), s_ty, null);
 
     let i32_ty = ctx.alloc_ty();
@@ -213,15 +213,19 @@ def (ctx: *TyCtx) lookup_value(name: str.View): *Type {
 
 def (ctx: *TyCtx) lookup_tyid(ty: *tyid.Type): *Type {
     if ty.kind == tyid.TypeKind.Ptr {
-        let ptr = ctx.alloc_ty();
-        ptr.kind = TypeKind.Ptr;
-
         let inner = ctx.lookup_tyid(ty.inner());
         if inner == null {
             return null;
         }
-        ptr.data.ptr_to = inner;
-        return ptr;
+        return ctx.alloc_ty().init_ptr(inner);
+    }
+
+    if ty.kind == tyid.TypeKind.Slice {
+        let inner = ctx.lookup_tyid(ty.inner());
+        if inner == null {
+            return null;
+        }
+        return ctx.alloc_ty().init_slice(inner);
     }
 
     let p = &ty.data.path;
@@ -272,13 +276,14 @@ def (ctx: *TyCtx) unify(a: *Type, previous: *Type): *Type {
         return previous;
     }
 
-    if left.kind == TypeKind.Ptr && right.kind == TypeKind.Ptr {
-        let inner = ctx.unify(left.data.ptr_to, right.data.ptr_to);
+    // both pointer || both slice
+    if left.kind == right.kind && left.is_const_size_indirect_type() {
+        let inner = ctx.unify(left.data.ptr_or_slice_to, right.data.ptr_or_slice_to);
         if inner == null {
             return null;
         }
 
-        left.data.ptr_to = inner;
+        left.data.ptr_or_slice_to = inner;
         return a;
     }
 
@@ -383,12 +388,15 @@ def (ctx: *TyCtx) replace_param_type(monomorph_map: *map.Map, param: *Type): *Ty
     }
 
     if param.kind == TypeKind.Ptr {
-        let inner = ctx.replace_param_type(monomorph_map, param.data.ptr_to);
-        let ptr = ctx.alloc_ty();
-        ptr.kind = TypeKind.Ptr;
-        ptr.data.ptr_to = inner;
-        return ptr;
+        let inner = ctx.replace_param_type(monomorph_map, param.data.ptr_or_slice_to);
+        return ctx.alloc_ty().init_ptr(inner);
     }
+
+    if param.kind == TypeKind.Slice {
+        let inner = ctx.replace_param_type(monomorph_map, param.data.ptr_or_slice_to);
+        return ctx.alloc_ty().init_slice(inner);
+    }
+
 
     return param;
 }

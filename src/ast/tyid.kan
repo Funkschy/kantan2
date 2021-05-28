@@ -6,7 +6,8 @@ import "../source/ident";
 
 type TypeKind enum {
     Path,
-    Ptr
+    Ptr,
+    Slice
 }
 
 // This represents user supplied type information
@@ -18,9 +19,10 @@ type Type struct {
     data: TypeData
 }
 
-type TypeData struct {
+type TypeData union {
     path: Path,
-    ptr: Ptr
+    ptr: Ptr,
+    slice: Slice
 }
 
 def init_path(memory: *Type) {
@@ -31,6 +33,11 @@ def init_path(memory: *Type) {
 def init_pointer(memory: *Type, inner: *Type) {
     memory.kind = TypeKind.Ptr;
     memory.data.ptr = Ptr { inner: inner };
+}
+
+def init_slice(memory: *Type, inner: *Type) {
+    memory.kind = TypeKind.Slice;
+    memory.data.slice = Slice { inner: inner };
 }
 
 def (t: *Type) free() {
@@ -49,12 +56,24 @@ def (t: *Type) to_string(): str.String {
         return star;
     }
 
+    if t.kind == TypeKind.Slice {
+        let star = str.from("[]");
+
+        let inner = t.data.slice.inner.to_string();
+        defer inner.free();
+        star.push(inner.view());
+        return star;
+    }
+
     return t.data.path.to_string();
 }
 
 def (t: *Type) inner(): *Type {
     if t.kind == TypeKind.Ptr {
         return t.data.ptr.inner;
+    }
+    if t.kind == TypeKind.Slice {
+        return t.data.slice.inner;
     }
     return null;
 }
@@ -86,5 +105,9 @@ def (p: *Path) to_string(): str.String {
 }
 
 type Ptr struct {
+    inner: *Type
+}
+
+type Slice struct {
     inner: *Type
 }

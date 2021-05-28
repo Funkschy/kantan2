@@ -11,7 +11,7 @@ expected_ir = [{
             'locals': [
                 {
                     'name': '_1',
-                    'type': '*i8'
+                    'type': '[]i8'
                 },
                 {
                     'name': '_2',
@@ -40,7 +40,7 @@ expected_ir = [{
                                 'kind': 'use',
                                 'operand': {
                                     'kind': 'constant',
-                                    'type': '*i8',
+                                    'type': '[]i8',
                                     'value': {
                                         'kind': 'string',
                                         'value': 'aaaaaaaaaaaaaaate\n\\st\r\t\"'

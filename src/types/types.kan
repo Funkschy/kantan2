@@ -24,7 +24,7 @@ type TypeKind enum {
     // constraint types, only used to infer types during typechecking and illegal afterwards
     Any, AnyInt, AnyFloat,
     // builtin primitives
-    Int, Float, Ptr, Bool, Void,
+    Int, Float, Ptr, Slice, Bool, Void,
     Template, TemplateParam,
     // Functions are anonymous, while Signatures also have a name
     Function, Signature,
@@ -44,28 +44,40 @@ type TypeData union {
     new_location: *Type, // used when kind == Moved
     int: primitive.Integer,
     float: primitive.Float,
-    ptr_to: *Type, // the inner type
+    ptr_or_slice_to: *Type, // the inner type
+    slice_to: *Type, // the inner type
     template: template.Template,
     template_param: template.Param,
     function: function.Function
 }
 
-def (t: *Type) init_int(signedness: primitive.Signedness, width: info.Size) {
+def (t: *Type) init_int(signedness: primitive.Signedness, width: info.Size): *Type {
     t.kind = TypeKind.Int;
     t.data.int.signedness = signedness;
     t.width = t.align = width;
+    return t;
 }
 
-def (t: *Type) init_float(width: info.Size) {
+def (t: *Type) init_float(width: info.Size): *Type {
     t.kind = TypeKind.Float;
     t.width = t.align = width;
+    return t;
 }
 
-def (t: *Type) init_ptr(inner: *Type) {
+def (t: *Type) init_ptr(inner: *Type): *Type {
     t.kind = TypeKind.Ptr;
-    t.data.ptr_to = inner;
+    t.data.ptr_or_slice_to = inner;
     // TODO(#18): make this platform dependent
     t.width = t.align = info.size_bytes(8);
+    return t;
+}
+
+def (t: *Type) init_slice(inner: *Type): *Type {
+    t.kind = TypeKind.Slice;
+    t.data.ptr_or_slice_to = inner;
+    // TODO(#18): make this platform dependent
+    t.width = t.align = info.size_bytes(16);
+    return t;
 }
 
 def (t: *Type) is_integer(): bool {
@@ -95,6 +107,13 @@ def (t: *Type) is_any(): bool {
 def (t: *Type) is_pointer(): bool {
     return t.kind == TypeKind.Ptr
         || t.kind == TypeKind.Variable && t.data.inner.is_pointer();
+}
+
+// pointer or slice
+def (t: *Type) is_const_size_indirect_type(): bool {
+    return t.kind == TypeKind.Ptr
+        || t.kind == TypeKind.Slice
+        || t.kind == TypeKind.Variable && t.data.inner.is_const_size_indirect_type();
 }
 
 def (t: *Type) is_variable(): bool {
@@ -160,8 +179,8 @@ def (t: *Type) equals(other: *Type): bool {
         return false;
     }
 
-    if t.kind == TypeKind.Ptr {
-        return t.data.ptr_to.equals(other.data.ptr_to);
+    if t.is_const_size_indirect_type() {
+        return t.data.ptr_or_slice_to.equals(other.data.ptr_or_slice_to);
     }
 
     if t.kind == TypeKind.Int {
@@ -243,7 +262,15 @@ def (t: *Type) to_string(): str.String {
 
     if t.kind == TypeKind.Ptr {
         let s = str.from("*");
-        let inner = t.data.ptr_to.to_string();
+        let inner = t.data.ptr_or_slice_to.to_string();
+        defer inner.free();
+        s.push(inner.view());
+        return s;
+    }
+
+    if t.kind == TypeKind.Slice {
+        let s = str.from("[]");
+        let inner = t.data.ptr_or_slice_to.to_string();
         defer inner.free();
         s.push(inner.view());
         return s;

@@ -15,10 +15,7 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
     }
 
     if expr.data.lit.kind == LiteralKind.Null {
-        let ty = ctx.alloc_ty();
-        ty.kind = TypeKind.Ptr;
-        ty.data.ptr_to = ctx.any_var();
-        return ok(ty);
+        return ok(ctx.alloc_ty().init_ptr(ctx.any_var()));
     }
 
     if expr.data.lit.kind == LiteralKind.String {
