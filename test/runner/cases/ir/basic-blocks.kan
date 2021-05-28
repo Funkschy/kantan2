@@ -1,0 +1,12 @@
+def main(): i32 {
+    let i = 0;
+    let j = undefined;
+    {
+        let i = 2;
+        {
+            j = &i;
+        }
+    }
+    *j = i;
+    return *j;
+}
