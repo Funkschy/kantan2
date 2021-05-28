@@ -167,6 +167,7 @@ def (ctx: *IRCtx) add_projection(
 ): **memory.ProjectionNode {
     let node = ctx.projection_arena.alloc() as *memory.ProjectionNode;
     node.value = proj;
+    node.next = null;
 
     if *tail == null {
         *tail = node;
