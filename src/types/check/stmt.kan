@@ -45,10 +45,12 @@ def check(ctx: *TyCtx, stmt: *Stmt): Result {
 
     if stmt.kind == StmtKind.LocalVarDecl {
         let decl = &stmt.data.local;
+        // bind error type by default so that no follow up errors are later reported in case that
+        // one of the following ifs fails
+        ctx.bind_value_public(decl.name.as_view(), ctx.error_type(), &decl.name.span);
 
         let inferred = tychk.infer(ctx, decl.value);
         if inferred.is_error() {
-            ctx.bind_value_public(decl.name.as_view(), ctx.error_type(), &decl.name.span);
             return Result.Error;
         }
 
@@ -57,6 +59,7 @@ def check(ctx: *TyCtx, stmt: *Stmt): Result {
         if decl.ty != null {
             let expected = ctx.lookup_tyid(decl.ty);
             if expected == null {
+                ctx.bind_value_public(decl.name.as_view(), ctx.error_type(), &decl.name.span);
                 util.report_str(e.ErrorKind.UndeclaredType, decl.ty.span, decl.ty.span.as_view());
                 return Result.Error;
             }

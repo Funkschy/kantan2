@@ -176,6 +176,20 @@ def (p: *Parser) consume_tyid(memory: *tyid.Type): Result {
         return Result.OK;
     }
 
+    // if the type starts with '[]', it's a slice. The inner type will be parsed recursively
+    let left_bracket: tok.Token = undefined;
+    if p.consume_optional_tok(tok.TokenType.LBracket, &left_bracket) {
+        p.consume(tok.TokenType.RBracket);
+        let inner = p.alloc_tyid();
+        tyid.init_slice(memory, inner);
+        if p.consume_tyid(inner).is_error() {
+            return Result.Error;
+        }
+
+        memory.span = left_bracket.span.merge(inner.span);
+        return Result.OK;
+    }
+
     tyid.init_path(memory);
     let path = &memory.data.path;
 
