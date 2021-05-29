@@ -248,14 +248,18 @@ def (c: *Compiler) resolve_types(): Result {
 }
 
 def (c: *Compiler) infer_and_check_types(): Result {
-    let ctx = ty_ctx.create(&c.type_arena, &c.type_node_arena);
+    let ctx = ty_ctx.create(&c.type_arena, &c.type_node_arena, c.modmap.len());
     defer ctx.free();
 
     let result = Result.OK;
     for let i: usize = 0; i < c.modmap.len(); i += 1 {
         let mod = c.modmap.at(i);
-        ctx.open_scope();
-        defer ctx.close_scope();
+        ctx.set_module(i);
+
+        ctx.open_scope(); // builtin scope
+        ctx.init_builtin_types();
+
+        ctx.open_scope(); // global scope
 
         // resolve all the functions in the module
         // we need to do this before checking the function bodys in order to be able to call
@@ -265,7 +269,17 @@ def (c: *Compiler) infer_and_check_types(): Result {
             result = result.or(resolve_functions.resolve(&ctx, item));
         }
 
+    }
+
+    for let i: usize = 0; i < c.modmap.len(); i += 1 {
+        let mod = c.modmap.at(i);
+        ctx.set_module(i);
+        // close builtin + global scope
+        defer ctx.close_scope();
+        defer ctx.close_scope();
+
         // actually check the function bodys
+        ctx.current_pass = ty_ctx.Pass.Functions;
         for let j: usize = 0; j < mod.num_items(); j += 1 {
             let item = mod.item_at(j);
             result = result.or(item_check.check(&ctx, item));
@@ -291,12 +305,13 @@ def (c: *Compiler) infer_and_check_types(): Result {
 
     // finalize the types. During typechecking we generate a lot of Type Variables, which are
     // basically just pointers to another type. Since these are an annoying edge case, we want
-    // to remove them. We also collapse anyInt -> i32, anyFloat -> f32 and report uninfered types
+    // to remove them. We also collapse anyInt -> i32, anyFloat -> f32 and report uninferred types
     // in this step
     // FIXME(#43): add missing branches
     // TODO(#40): we need to mark i32 and f32 as moved before finalizing
     for let i: usize = 0; i < c.modmap.len(); i += 1 {
         let mod = c.modmap.at(i);
+        ctx.set_module(i);
 
         for let j: usize = 0; j < mod.num_items(); j += 1 {
             let item = mod.item_at(j);
