@@ -53,6 +53,10 @@ def make_temp_if_needed(
         return ok(value);
     }
 
+    if value.kind == rvalue.ExpressionKind.Ref {
+        return ok(value);
+    }
+
     let temp = ctx.declare_temp_var(ty).as_location();
     let assign = ir.assign(temp, value);
     ctx.push_stmt(&assign);
@@ -129,6 +133,11 @@ def compile_fmt(ctx: *IRCtx, expr: *Expr, format: ResultFormat): CompileResult {
 
         dbg.assert(false, "Unhandled UnaryKind");
         return error();
+    }
+
+    if expr.kind == ExprKind.Sizeof {
+        let value = const.int(expr.ty, expr.data.size_of.resolved.width.bytes());
+        return make_temp_if_needed(ctx, rvalue.expr_const(value), expr.ty, format);
     }
 
     dbg.assert(false, "Unhandled ExprKind");

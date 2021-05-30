@@ -10,8 +10,19 @@ def unsized(): Size {
     return Size { _bit_size: -1 };
 }
 
+def pointer_size_platform(): Size {
+    return pointer_size_multiple_platform(1);
+}
+
+// TODO: makes this actually platform dependent
+let _pointer_width = 8;
+
+def pointer_size_multiple_platform(multiple: i32): Size {
+    return size_bytes_platform_dependent(_pointer_width * multiple);
+}
+
 def size_bytes_platform_dependent(bytes: i32): Size {
-    return Size { _bit_size: (bytes * 8) | (1 << 30) };
+    return Size { _bit_size: (bytes * _pointer_width) | (1 << 30) };
 }
 
 def size_bytes(bytes: i32): Size {
@@ -22,14 +33,14 @@ def (s: Size) is_platform_dependent(): bool {
     return s._bit_size & (1 << 30) > 0;
 }
 
-def (s: Size) bits(): u32 {
-    dbg.assert(s._bit_size> 0, "trying to query size of unsized type");
-    return (s._bit_size as u32) & ~(1 << 30);
+def (s: Size) bits(): u64 {
+    dbg.assert(s._bit_size > 0, "trying to query size of unsized type");
+    return (s._bit_size as u64) & ~(1 << 30);
 }
 
-def (s: Size) bytes(): u32 {
+def (s: Size) bytes(): u64 {
     dbg.assert(s._bit_size > 0, "trying to query size of unsized type");
-    return (s.bits() / 8) as u32;
+    return (s.bits() / 8) as u64;
 }
 
 def (s: Size) equals(other: Size): bool {

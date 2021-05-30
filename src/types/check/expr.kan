@@ -102,6 +102,23 @@ def _infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
         return call.infer(ctx, expr);
     }
 
+    if expr.kind == ExprKind.Sizeof {
+        let tyid = expr.data.size_of.tyid;
+        let ty = ctx.lookup_tyid(tyid);
+        if ty == null {
+            report_str(e.ErrorKind.UndeclaredType, tyid.span, tyid.span.as_view());
+            return error();
+        }
+        expr.data.size_of.resolved = ty;
+
+        if ty.is_unsized() {
+            report_str(e.ErrorKind.SizeofUnsizedType, tyid.span, tyid.span.as_view());
+            return error();
+        }
+
+        return lookup_builtin(ctx, str.view("usize", 5));
+    }
+
     report_internal_error_span(str.view_from("unhandled expr kind"), expr.span);
     return error();
 }

@@ -1,0 +1,4 @@
+def main() {
+    sizeof undeclared;
+    sizeof void;
+}

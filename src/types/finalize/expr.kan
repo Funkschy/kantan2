@@ -46,5 +46,9 @@ def finalize(ctx: *c.TyCtx, expr: *Expr): Result {
         }
     }
 
+    if expr.kind == ExprKind.Sizeof {
+        result = result.or(types.finalize(ctx, &expr.data.size_of.resolved, expr.data.size_of.tyid.span));
+    }
+
     return result.or(types.finalize(ctx, &expr.ty, expr.span));
 }

@@ -64,19 +64,23 @@ def (t: *Type) init_float(width: info.Size): *Type {
     return t;
 }
 
+def (t: *Type) init_bool(): *Type {
+    t.kind = TypeKind.Bool;
+    t.width = t.align = info.size_bytes(1);
+    return t;
+}
+
 def (t: *Type) init_ptr(inner: *Type): *Type {
     t.kind = TypeKind.Ptr;
     t.data.ptr_or_slice_to = inner;
-    // TODO(#18): make this platform dependent
-    t.width = t.align = info.size_bytes(8);
+    t.width = t.align = info.pointer_size_platform();
     return t;
 }
 
 def (t: *Type) init_slice(inner: *Type): *Type {
     t.kind = TypeKind.Slice;
     t.data.ptr_or_slice_to = inner;
-    // TODO(#18): make this platform dependent
-    t.width = t.align = info.size_bytes(16);
+    t.width = t.align = info.pointer_size_multiple_platform(2);
     return t;
 }
 

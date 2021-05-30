@@ -19,18 +19,7 @@ def compile_fmt(ctx: *IRCtx, expr: *Expr, format: super.ResultFormat): super.Com
         return literal;
     }
 
-    // the caller wants a location, so we copy the value into a temporary and return that temp
-    if format == super.ResultFormat.Location && literal.value.kind != rvalue.ExpressionKind.Ref {
-        let temp = ctx.declare_temp_var(expr.ty);
-        let temp_location = temp.as_location();
-
-        let assign = ir.assign(temp_location, literal.value);
-        ctx.push_stmt(&assign);
-
-        literal.value = rvalue.expr_ref(temp_location);
-    }
-
-    return literal;
+    return super.make_temp_if_needed(ctx, literal.value, expr.ty, format);
 }
 
 def compile_literal(ctx: *IRCtx, expr: *Expr): super.CompileResult {

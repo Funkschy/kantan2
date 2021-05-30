@@ -399,60 +399,46 @@ def (ctx: *TyCtx) init_builtin_types() {
     void_ty.kind = TypeKind.Void;
     ctx.bind_type_public(str.view_from("void"), void_ty, null);
 
-    let char_ty = ctx.alloc_ty();
-    char_ty.init_int(primitive.Signedness.Signed, size_bytes(1));
+    let char_ty = ctx.alloc_ty().init_int(primitive.Signedness.Signed, size_bytes(1));
     ctx.bind_type_public(str.view_from("i8"), char_ty, null);
 
-    let i16_ty = ctx.alloc_ty();
-    i16_ty.init_int(primitive.Signedness.Signed, size_bytes(2));
+    let i16_ty = ctx.alloc_ty().init_int(primitive.Signedness.Signed, size_bytes(2));
     ctx.bind_type_public(str.view_from("i16"), i16_ty, null);
 
-    let i32_ty = ctx.alloc_ty();
-    i32_ty.init_int(primitive.Signedness.Signed, size_bytes(4));
+    let i32_ty = ctx.alloc_ty().init_int(primitive.Signedness.Signed, size_bytes(4));
     ctx.bind_type_public(str.view_from("i32"), i32_ty, null);
 
-    let i64_ty = ctx.alloc_ty();
-    i64_ty.init_int(primitive.Signedness.Signed, size_bytes(8));
+    let i64_ty = ctx.alloc_ty().init_int(primitive.Signedness.Signed, size_bytes(8));
     ctx.bind_type_public(str.view_from("i64"), i64_ty, null);
 
-    let isize_ty = ctx.alloc_ty();
-    isize_ty.init_int(primitive.Signedness.Signed, size_bytes_platform_dependent(8));
+    let isize_ty = ctx.alloc_ty().init_int(primitive.Signedness.Signed, pointer_size_platform());
     ctx.bind_type_public(str.view_from("isize"), isize_ty, null);
 
-    let u8_ty = ctx.alloc_ty();
-    u8_ty.init_int(primitive.Signedness.Unsigned, size_bytes(1));
+    let u8_ty = ctx.alloc_ty().init_int(primitive.Signedness.Unsigned, size_bytes(1));
     ctx.bind_type_public(str.view_from("u8"), u8_ty, null);
 
-    let u16_ty = ctx.alloc_ty();
-    u16_ty.init_int(primitive.Signedness.Unsigned, size_bytes(2));
+    let u16_ty = ctx.alloc_ty().init_int(primitive.Signedness.Unsigned, size_bytes(2));
     ctx.bind_type_public(str.view_from("u16"), u16_ty, null);
 
-    let u32_ty = ctx.alloc_ty();
-    u32_ty.init_int(primitive.Signedness.Unsigned, size_bytes(4));
+    let u32_ty = ctx.alloc_ty().init_int(primitive.Signedness.Unsigned, size_bytes(4));
     ctx.bind_type_public(str.view_from("u32"), u32_ty, null);
 
-    let u64_ty = ctx.alloc_ty();
-    u64_ty.init_int(primitive.Signedness.Unsigned, size_bytes(8));
+    let u64_ty = ctx.alloc_ty().init_int(primitive.Signedness.Unsigned, size_bytes(8));
     ctx.bind_type_public(str.view_from("u64"), u64_ty, null);
 
-    let usize_ty = ctx.alloc_ty();
-    usize_ty.init_int(primitive.Signedness.Unsigned, size_bytes_platform_dependent(8));
+    let usize_ty = ctx.alloc_ty().init_int(primitive.Signedness.Unsigned, pointer_size_platform());
     ctx.bind_type_public(str.view_from("usize"), usize_ty, null);
 
-    let f32_ty = ctx.alloc_ty();
-    f32_ty.init_float(size_bytes(4));
+    let f32_ty = ctx.alloc_ty().init_float(size_bytes(4));
     ctx.bind_type_public(str.view_from("f32"), f32_ty, null);
 
-    let f64_ty = ctx.alloc_ty();
-    f64_ty.init_float(size_bytes(8));
+    let f64_ty = ctx.alloc_ty().init_float(size_bytes(8));
     ctx.bind_type_public(str.view_from("f64"), f64_ty, null);
 
-    let bool_ty = ctx.alloc_ty();
-    bool_ty.kind = TypeKind.Bool;
+    let bool_ty = ctx.alloc_ty().init_bool();
     ctx.bind_type_public(str.view_from("bool"), bool_ty, null);
 
-    let string_ty = ctx.alloc_ty();
-    string_ty.init_slice(char_ty);
+    let string_ty = ctx.alloc_ty().init_slice(char_ty);
     ctx.bind_type_public(str.view_from("string"), string_ty, null);
 
     if _final_f32_ty != null {

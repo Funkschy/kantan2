@@ -716,6 +716,16 @@ def (p: *Parser) parse_prefix(memory: *Expr): Result {
         return Result.OK;
     }
 
+    if token.ty == tok.TokenType.Sizeof {
+        let ty = p.alloc_tyid();
+        if p.consume_tyid(ty).is_error() {
+            return Result.Error;
+        }
+
+        memory.init_sizeof(ty);
+        return Result.OK;
+    }
+
     let unary_kind: UnaryKind = undefined;
     if is_unary_token(token.ty, &unary_kind) {
         // TODO(#6): for UnaryKind.AddrOf, check if right is an lvalue
