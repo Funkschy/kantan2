@@ -10,7 +10,7 @@ expected_modules = [
         'imports': [
             {
                 'path': relative_to_base(__file__, '../helper/other-circular-import.kan'),
-                'alias': None
+                'alias': 'other-circular-import'
             }
         ],
         'items': []
@@ -21,7 +21,7 @@ expected_modules = [
         'imports': [
             {
                 'path': kantan_filename(__file__),
-                'alias': None
+                'alias': 'circular-import'
             }
         ],
         'items': []

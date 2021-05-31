@@ -1,6 +1,8 @@
 import ":std/str";
 import ":std/map";
 import ":std/alloc";
+
+import ":ast/mod";
 import ":source/ident";
 
 import "info";
@@ -28,6 +30,10 @@ type TypeKind enum {
     Template, TemplateParam,
     // Functions are anonymous, while Signatures also have a name
     Function, Signature,
+    // this is used for the left side in selector expressions
+    // e.g. import "io";
+    //      io.printf(""); // io has Module type
+    Module,
     // Structs and Unions
     DataType
 }
@@ -48,7 +54,8 @@ type TypeData union {
     slice_to: *Type, // the inner type
     template: template.Template,
     template_param: template.Param,
-    function: function.Function
+    function: function.Function,
+    module: *mod.Module
 }
 
 def (t: *Type) init_int(signedness: primitive.Signedness, width: info.Size): *Type {
@@ -84,6 +91,13 @@ def (t: *Type) init_slice(inner: *Type): *Type {
     return t;
 }
 
+def (t: *Type) init_module(module: *mod.Module): *Type {
+    t.kind = TypeKind.Module;
+    t.data.module = module;
+    t.width = t.align = info.unsized();
+    return t;
+}
+
 def (t: *Type) is_integer(): bool {
     return t.kind == TypeKind.AnyInt
         || t.kind == TypeKind.Int
@@ -100,6 +114,7 @@ def (t: *Type) is_number(): bool {
 
 def (t: *Type) is_unsized(): bool {
     return t.kind == TypeKind.Void
+        || t.kind == TypeKind.Module
         || t.kind == TypeKind.Variable && t.data.inner.is_unsized();
 }
 
@@ -198,6 +213,10 @@ def (t: *Type) equals(other: *Type): bool {
     if t.kind == TypeKind.Any || t.kind == TypeKind.AnyInt
         || t.kind == TypeKind.AnyFloat || t.kind == TypeKind.Bool {
         return true;
+    }
+
+    if t.kind == TypeKind.Module {
+        return t.data.module.index == other.data.module.index;
     }
 
     return false;
@@ -306,6 +325,10 @@ def (t: *Type) to_string(): str.String {
         }
 
         return s;
+    }
+
+    if t.kind == TypeKind.Module {
+        return str.from("module");
     }
 
     let s = str.from("ERROR: ");

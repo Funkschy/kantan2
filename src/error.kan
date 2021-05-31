@@ -3,7 +3,7 @@ import "cdeps";
 
 import "source/span";
 
-let error_strings: [18]string = undefined;
+let error_strings: [20]string = undefined;
 
 type ErrorKind enum {
     // import errors
@@ -26,7 +26,9 @@ type ErrorKind enum {
     InvalidBinaryOperator,
     WrongNumberOfArgs,
     CallingNonFunction,
-    SizeofUnsizedType
+    SizeofUnsizedType,
+    NonAccessibleType,
+    ModuleWithoutSelector
 }
 
 type ErrorDataKind enum {
@@ -203,6 +205,8 @@ def init() {
     error_strings[ErrorKind.WrongNumberOfArgs as i32]  = "Expected %lld arguments, but got %lld";
     error_strings[ErrorKind.CallingNonFunction as i32]  = "The type '%.*s' is not callable";
     error_strings[ErrorKind.SizeofUnsizedType as i32]  = "The type '%.*s' is unsized";
+    error_strings[ErrorKind.NonAccessibleType as i32]  = "The type '%.*s' cannot be accessed with the '.' operator";
+    error_strings[ErrorKind.ModuleWithoutSelector as i32]  = "Use of module without selector";
 }
 
 // A Linked List of additional information regarding an error, e.g. the location of usage

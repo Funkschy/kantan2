@@ -10,6 +10,10 @@ def from_span(span: span.Span): Ident {
     return Ident { span: span };
 }
 
+def from_view(view: str.View): Ident {
+    return Ident { span: span.create(view.data, view.data + view.len) };
+}
+
 def empty(): Ident {
     return from_span(span.empty());
 }

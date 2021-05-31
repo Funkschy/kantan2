@@ -36,6 +36,11 @@ def finalize(ctx: *c.TyCtx, expr: *Expr): Result {
         result = result.or(finalize(ctx, expr.data.binary.right));
     }
 
+    if expr.kind == ExprKind.Access {
+        result = result.or(finalize(ctx, expr.data.access.left));
+        result = result.or(finalize(ctx, expr.data.access.ident));
+    }
+
     if expr.kind == ExprKind.Call {
         let call = &expr.data.call;
         result = result.or(finalize(ctx, call.callee));

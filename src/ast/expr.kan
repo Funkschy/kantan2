@@ -15,6 +15,7 @@ type ExprKind enum {
     Unary,
     Ident,
     Assign,
+    Access,  // something.something
     Call,
     Sizeof
 }
@@ -28,13 +29,14 @@ type Expr struct {
 }
 
 type ExprData union {
-    lit: Literal,
+    lit: LiteralExpr,
     binary: BinaryExpr,
     unary: UnaryExpr,
     ident: IdentExpr,
     assign: AssignExpr,
     call: CallExpr,
-    size_of: Sizeof
+    size_of: SizeofExpr,
+    access: AccessExpr
 }
 
 def (e: *Expr) init_basic(kind: ExprKind) {
@@ -45,7 +47,7 @@ def (e: *Expr) init_basic(kind: ExprKind) {
 def (e: *Expr) init_lit(token: tok.Token) {
     e.init_basic(ExprKind.Literal);
     e.span = token.span;
-    e.data = ExprData { lit: Literal { kind: undefined, token: token } };
+    e.data = ExprData { lit: LiteralExpr { kind: undefined, token: token } };
 
     let kind_value = token.ty as i32 - tok.TokenType.DecInt as i32;
     e.data.lit.kind = *(&kind_value as *LiteralKind);
@@ -64,34 +66,47 @@ def (e: *Expr) init_binary(kind: BinaryKind, left: *Expr, right: *Expr, op: span
     };
 }
 
-def (e: *Expr) init_unary(kind: UnaryKind, tok: tok.Token, right: *Expr) {
+def (e: *Expr) init_unary(kind: UnaryKind, tok: tok.Token, right: *Expr): *Expr {
     e.init_basic(ExprKind.Unary);
     e.span = tok.span.merge(right.span);
     e.data = ExprData { unary: UnaryExpr { kind: kind, right: right } };
+    return e;
 }
 
-def (e: *Expr) init_ident(name: ident.Ident) {
+def (e: *Expr) init_ident(name: ident.Ident): *Expr {
     e.init_basic(ExprKind.Ident);
     e.span = name.span;
     e.data = ExprData { ident: IdentExpr { name: name } };
+    return e;
 }
 
-def (e: *Expr) init_assign(kind: AssignKind, left: *Expr, right: *Expr) {
+def (e: *Expr) init_assign(kind: AssignKind, left: *Expr, right: *Expr): *Expr {
     e.init_basic(ExprKind.Assign);
     e.span = left.span.merge(right.span);
     e.data = ExprData { assign: AssignExpr { kind: kind, left: left, right: right } };
+    return e;
 }
 
-def (e: *Expr) init_call(callee: *Expr) {
+def (e: *Expr) init_call(callee: *Expr): *Expr {
     e.init_basic(ExprKind.Call);
     e.span = callee.span;
     e.data = ExprData { call: CallExpr { callee: callee, num_args: 0, args_head: null } };
+    return e;
 }
 
-def (e: *Expr) init_sizeof(tyid: *tyid.Type) {
+def (e: *Expr) init_sizeof(tyid: *tyid.Type): *Expr {
     e.init_basic(ExprKind.Sizeof);
     e.span = tyid.span;
-    e.data = ExprData { size_of: Sizeof { tyid: tyid, resolved: null } };
+    e.data = ExprData { size_of: SizeofExpr { tyid: tyid, resolved: null } };
+    return e;
+}
+
+def (e: *Expr) init_access(left: *Expr, ident: *Expr): *Expr {
+    dbg.assert(ident.kind == ExprKind.Ident, "the right side of an access can only be an ident");
+    e.init_basic(ExprKind.Access);
+    e.span = left.span.merge(ident.span);
+    e.data = ExprData { access: AccessExpr { left: left, ident: ident } };
+    return e;
 }
 
 // the ExprNode is a Node in a singly linked list. This is needed since each Expr gets allocated
@@ -114,7 +129,7 @@ type LiteralKind enum {
     Undefined
 }
 
-type Literal struct {
+type LiteralExpr struct {
     kind: LiteralKind,
     token: tok.Token // the original token
 }
@@ -200,9 +215,14 @@ type CallExpr struct {
     args_head: *ExprNode
 }
 
-type Sizeof struct {
+type SizeofExpr struct {
     tyid: *tyid.Type,
     resolved: *ty.Type // filled during type checking
+}
+
+type AccessExpr struct {
+    left: *Expr, // could be another access expression
+    ident: *Expr // can only ever be an identifier expression
 }
 
 // ------------ to string/json stuff ------------
@@ -374,6 +394,22 @@ def (e: *Expr) to_json(): str.String {
         defer right.free();
         json.push(str.view_from("\"right\": "));
         json.push(right.view());
+        json.push(str.view_from("}"));
+        return json;
+    }
+
+    if e.kind == ExprKind.Access {
+        let json = str.from("{\"kind\": \"access\"");
+        push_ty(&json, e.ty);
+
+        let left = e.data.access.left.to_json();
+        defer left.free();
+        json.push(str.view_from(", \"left\": "));
+        json.push(left.view());
+        let ident = e.data.access.ident.to_json();
+        defer ident.free();
+        json.push(str.view_from(", \"ident\": "));
+        json.push(ident.view());
         json.push(str.view_from("}"));
         return json;
     }

@@ -21,6 +21,7 @@ import "cli/report";
 
 import "memory/arena";
 import "source/span";
+import "source/ident";
 import "source/modmap" as mods;
 
 import "cdeps";
@@ -82,7 +83,7 @@ def (c: *Compiler) read_files(): Result {
 def (c: *Compiler) add_file(filepath: path.Path, stdlib: bool, note: *e.ErrorNote): Result {
     let cwd = c.cwd.as_path();
     let mod = c.mod_arena.alloc() as *mod.Module;
-    mod.init(stdlib);
+    mod.init(c.modmap.len(), stdlib);
 
     c.modmap.add_file(cwd, filepath, mod);
 
@@ -199,7 +200,14 @@ def (c: *Compiler) resolve_imports(): Result {
                 continue;
             }
 
-            mod.add_import(imported_module, decl.alias);
+            // if the alias is empty, we use the imported filename as an alias
+            let alias = decl.alias;
+            if alias.len() == 0 {
+                let filename = path.from_view(decl.path.as_view()).filename();
+                alias = ident.from_view(filename.as_view());
+            }
+
+            mod.add_import(imported_module, decl.path, alias);
         }
 
         // since the parser is more or less stateless, it's sufficient to save the lexer
@@ -254,7 +262,7 @@ def (c: *Compiler) infer_and_check_types(): Result {
     let result = Result.OK;
     for let i: usize = 0; i < c.modmap.len(); i += 1 {
         let mod = c.modmap.at(i);
-        ctx.set_module(i);
+        ctx.set_module(mod);
 
         ctx.open_scope(); // builtin scope
         ctx.init_builtin_types();
@@ -273,7 +281,7 @@ def (c: *Compiler) infer_and_check_types(): Result {
 
     for let i: usize = 0; i < c.modmap.len(); i += 1 {
         let mod = c.modmap.at(i);
-        ctx.set_module(i);
+        ctx.set_module(mod);
         // close builtin + global scope
         defer ctx.close_scope();
         defer ctx.close_scope();
@@ -311,7 +319,7 @@ def (c: *Compiler) infer_and_check_types(): Result {
     // TODO(#40): we need to mark i32 and f32 as moved before finalizing
     for let i: usize = 0; i < c.modmap.len(); i += 1 {
         let mod = c.modmap.at(i);
-        ctx.set_module(i);
+        ctx.set_module(mod);
 
         for let j: usize = 0; j < mod.num_items(); j += 1 {
             let item = mod.item_at(j);

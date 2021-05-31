@@ -115,6 +115,7 @@ def (bb: *BasicBlock) terminate(terminator: *Terminator) {
     bb.terminator = *terminator;
 }
 
+// TODO: allow extern function definitions and use those to compile the module access case
 type Function struct {
     original_name: ident.Ident,
     mangled_name: str.String,

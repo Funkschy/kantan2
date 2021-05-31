@@ -778,6 +778,18 @@ def (p: *Parser) parse_infix(memory: *Expr, left: *Expr): Result {
         return Result.OK;
     }
 
+    // access expression
+    if token.ty == tok.TokenType.Dot {
+        let identifier: ident.Ident = undefined;
+        if p.consume_ident(&identifier).is_error() {
+            return Result.Error;
+        }
+
+        let right = p.alloc_expr().init_ident(identifier);
+        memory.init_access(left, right);
+        return Result.OK;
+    }
+
     // call expression
     if token.ty == tok.TokenType.LParen {
         memory.init_call(left);

@@ -3,6 +3,7 @@ import ":std/map";
 import ":std/str";
 import ":std/vec";
 
+import ":ast/mod";
 import ":ast/tyid";
 import ":util" as _;
 import ":source/span";
@@ -26,15 +27,19 @@ type Pass enum {
 }
 
 type ModuleContext struct {
+    module: *mod.Module,
     // this holds the types of lvalues, for later lookup by name
     values: scope.ScopeStack,
     // this holds declared types, e.g. structs
-    types: scope.ScopeStack
+    types: scope.ScopeStack,
+    // this holds the imported modules with the alias as key
+    imports: map.Map // map.Map[str.View, *mod.Module]
 }
 
 def (ctx: *ModuleContext) free() {
     ctx.values.free();
     ctx.types.free();
+    ctx.imports.free();
 }
 
 // the context used while type checking
@@ -88,18 +93,29 @@ def (ctx: *TyCtx) free() {
     ctx.temp_arena.free();
 }
 
-def (ctx: *TyCtx) set_module(modmap_idx: usize) {
+def (ctx: *TyCtx) set_module(module: *mod.Module) {
     // module already in map
-    if modmap_idx < ctx.module_contexts.len {
-        ctx.current_module = ctx.module_contexts.get_ptr(modmap_idx) as *ModuleContext;
+    if module.index < ctx.module_contexts.len {
+        ctx.current_module = ctx.module_contexts.get_ptr(module.index) as *ModuleContext;
         return;
     }
 
-    dbg.assert(modmap_idx == ctx.module_contexts.len, "modules are not iterated sequentially");
+    dbg.assert(module.index == ctx.module_contexts.len, "modules are not iterated sequentially");
 
-    let mod_ctx = ModuleContext { values: scope.scope_stack(), types: scope.scope_stack() };
+    let imports = map.with_cap(module.imports.len);
+    for let i: usize = 0; i < module.imports.len; i += 1 {
+        let imported = module.import_at(i);
+        imports.insert(map.key(imported.alias.as_view()), imported.mod as *void);
+    }
+
+    let mod_ctx = ModuleContext {
+        module: module,
+        values: scope.scope_stack(),
+        types: scope.scope_stack(),
+        imports: imports
+    };
     ctx.module_contexts.push(&mod_ctx as *void);
-    ctx.current_module = ctx.module_contexts.get_ptr(modmap_idx) as *ModuleContext;
+    ctx.current_module = ctx.module_contexts.get_ptr(module.index) as *ModuleContext;
 }
 
 def (ctx: *TyCtx) open_scope() {
@@ -184,6 +200,10 @@ def (ctx: *TyCtx) lookup_type(name: str.View): *Type {
 
 def (ctx: *TyCtx) lookup_value(name: str.View): *Type {
     return lookup_in(name, &ctx.current_module.values);
+}
+
+def (ctx: *TyCtx) lookup_module(name: str.View): *mod.Module {
+    return ctx.current_module.imports.get(map.key(name)) as *mod.Module;
 }
 
 def (ctx: *TyCtx) lookup_tyid(ty: *tyid.Type): *Type {

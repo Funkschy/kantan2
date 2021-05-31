@@ -1,4 +1,6 @@
 import ":std/str";
+import ":std/dbg";
+
 import ":error" as e;
 import ":source/ident";
 import ":ast/expr" as _;
@@ -70,6 +72,15 @@ def _infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
             return ok(ty);
         }
 
+        // check if this is an imported module
+        // since imports are a special case in the branch fro AccessExpr, this just needs to
+        // give an error
+        let module = ctx.lookup_module(name);
+        if module != null {
+            report_simple(e.ErrorKind.ModuleWithoutSelector, expr.span);
+            return error();
+        }
+
         report_str(e.ErrorKind.UndeclaredIdentifier, expr.span, name);
         return error();
     }
@@ -88,6 +99,57 @@ def _infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
         }
 
         return ok(right.ty);
+    }
+
+    if expr.kind == ExprKind.Access {
+        let access = &expr.data.access;
+
+        // the left side is a complex expression (e.g. another AccessExpr)
+        if access.left.kind != ExprKind.Ident {
+            let left = infer(ctx, access.left);
+            if left.is_error() {
+                return left;
+            }
+
+            dbg.assert(false, "implement lookup in type here");
+            return error();
+        }
+
+        let name = access.left.data.ident.name.as_view();
+
+        // the left side is an identifier to some value (e.g. an instance of a struct)
+        let ty = ctx.lookup_value(name);
+        if ty != null {
+            if ty.kind == TypeKind.Error {
+                // swallow the error without reporting
+                return error();
+            }
+
+            dbg.assert(false, "implement lookup in type here");
+            return error();
+        }
+
+        // the left side is an imported module instead
+        let module = ctx.lookup_module(name);
+        if module != null {
+            // switch the module context, to perform the lookup
+            let current_module = ctx.current_module.module;
+            defer ctx.set_module(current_module);
+
+            ctx.set_module(module);
+
+            let right = infer(ctx, access.ident);
+            if right.is_error() {
+                return right;
+            }
+
+            access.left.ty = ctx.alloc_ty().init_module(module);
+            expr.ty = right.ty;
+            return right;
+        }
+
+        report_str(e.ErrorKind.UndeclaredIdentifier, access.left.span, name);
+        return error();
     }
 
     if expr.kind == ExprKind.Unary {

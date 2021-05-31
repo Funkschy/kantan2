@@ -10,12 +10,15 @@ import ":source/file" as sf;
 type Module struct {
     // the stdlib may sometimes behave differently
     is_std_lib: bool,
+    // the modmap index serves as a unique identifier for a given module
+    index: usize,
     file: sf.SourceFile,
     items: ptrvec.Vec, // ptrvec.Vec[*item.Item]
     imports: vec.Vec   // vec.Vec[ImportedModule]
 }
 
-def (memory: *Module) init(is_std_lib: bool) {
+def (memory: *Module) init(index: usize, is_std_lib: bool) {
+    memory.index = index;
     memory.is_std_lib = false;
     memory.items = ptrvec.create();
     memory.imports = vec.create(sizeof ImportedModule);
@@ -86,12 +89,17 @@ def (m: *Module) import_at(idx: usize): ImportedModule {
     return imported;
 }
 
-def (m: *Module) add_import(mod: *Module, alias: ident.Ident) {
-    let imported = ImportedModule { mod: mod, alias: alias };
+def (m: *Module) add_import(mod: *Module, import_path: ident.Ident, alias: ident.Ident) {
+    let imported = ImportedModule { mod: mod, import_path: import_path, alias: alias };
     m.imports.push(&imported as *void);
 }
 
 type ImportedModule struct {
     mod: *Module,
+    // the actual path used to import this module
+    // e.g: for 'import "../test" as t' this would be '../test'
+    import_path: ident.Ident,
+    // only present, if an explicit alias was provided
+    // e.g: for 'import "../test" as t' this would be 't'
     alias: ident.Ident
 }
