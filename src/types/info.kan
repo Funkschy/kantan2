@@ -14,8 +14,10 @@ def pointer_size_platform(): Size {
     return pointer_size_multiple_platform(1);
 }
 
-// TODO: makes this actually platform dependent
 let _pointer_width = 8;
+def set_target_pointer_width(width_bytes: i32) {
+    _pointer_width = width_bytes;
+}
 
 def pointer_size_multiple_platform(multiple: i32): Size {
     return size_bytes_platform_dependent(_pointer_width * multiple);

@@ -12,6 +12,7 @@ import "compiler" as _;
 // for table initialization
 import "target/parse" as ptarget;
 import "ast/token";
+import "types/info";
 import "error";
 
 type ReturnCode enum {
@@ -44,6 +45,7 @@ def main(argc: i32, argv: *string): ReturnCode {
         return ReturnCode.CliOptionError;
     }
     defer config.free();
+    info.set_target_pointer_width(config.target.ptr_width_bytes as i32);
 
     let compiler = compiler(&config);
     defer compiler.free();
