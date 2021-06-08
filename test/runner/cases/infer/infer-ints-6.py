@@ -11,7 +11,7 @@ expected_modules = [{
         {
             'kind': 'func_def',
             'name': 'main',
-            'instances': ['() -> void'],
+            'instances': ['def main() -> void'],
             'body': {
                 'kind': 'block',
                 'stmts': [

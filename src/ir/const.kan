@@ -30,7 +30,7 @@ type ConstantData union {
     int: u64,
     float: f64,
     str: str.View,
-    function: *ir.Function
+    function: *ty.Type
 }
 
 def nothing(ty: *ty.Type): Constant {
@@ -90,10 +90,10 @@ def string_lit(ty: *ty.Type, value: str.View): Constant {
     };
 }
 
-def function(function: *ir.Function): Constant {
+def function(function: *ty.Type): Constant {
     return Constant {
         kind: ConstantKind.Function,
-        ty: function.ty,
+        ty: function.data.signature.func,
         data: ConstantData { function: function }
     };
 }
@@ -164,9 +164,15 @@ def (c: *Constant) to_json(): str.String {
     if c.kind == ConstantKind.Function {
         let json = str.from("{\"kind\": \"function\"");
         defer json.push(str.view("}", 1));
+
+        let sig = &c.data.function.data.signature;
         json.push(str.view_from(", \"name\": \""));
-        json.push(c.data.function.original_name.as_view());
+        json.push(sig.name.as_view());
         json.push(str.view("\"", 1));
+        json.push(str.view_from(", \"declared_in\": \""));
+        json.push(sig.declared_in.absolute_path());
+        json.push(str.view("\"", 1));
+
         return json;
     }
 

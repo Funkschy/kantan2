@@ -8,8 +8,8 @@ import ":types/types" as ty;
 import "../ir";
 import "../const";
 import "../rvalue";
+import "../ctx" as _;
 
-import "ctx" as _;
 import "expr";
 
 def compile(ctx: *IRCtx, stmt: *Stmt): Result {

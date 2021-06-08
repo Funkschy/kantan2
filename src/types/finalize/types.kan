@@ -72,6 +72,12 @@ def finalize(ctx: *c.TyCtx, p: **Type, declared_at: span.Span): Result {
         return Result.Error;
     }
 
+    if ty.kind == TypeKind.Signature {
+        let result = finalize(ctx, &ty.data.signature.func, declared_at);
+        *p = move(ctx, ty);
+        return result;
+    }
+
     if ty.kind == TypeKind.Function {
         let f = &ty.data.function;
 

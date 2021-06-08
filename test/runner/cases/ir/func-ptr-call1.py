@@ -7,7 +7,10 @@ expected_ir = [{
     'path': kantan_filename(__file__),
     'functions': [
         {
+            'kind': 'definition',
             'original_name': 'f',
+            'mangled_name': '',
+            'ty': 'def f() -> u32',
             'locals': [
                 {
                     'name': '_1',
@@ -52,7 +55,10 @@ expected_ir = [{
             }
         },
         {
+            'kind': 'definition',
             'original_name': 'main',
+            'mangled_name': '',
+            'ty': 'def main() -> void',
             'locals': [
                 {
                     'name': '_1',
@@ -146,7 +152,8 @@ expected_ir = [{
                                     'type': '() -> u32',
                                     'value': {
                                         'kind': 'function',
-                                        'name': 'f'
+                                        'name': 'f',
+                                        'declared_in': kantan_filename(__file__)
                                     }
                                 }
                             }

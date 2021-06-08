@@ -12,9 +12,9 @@ expected_modules = [{
             'kind': 'func_def',
             'name': 'f',
             'instances': [
-                '(*i32) -> i32',
-                '(**i32) -> *i32',
-                '(*u32) -> u32'
+                'def f(*i32) -> i32',
+                'def f(**i32) -> *i32',
+                'def f(*u32) -> u32'
             ],
             'body': {
                 'kind': 'block',
@@ -25,7 +25,7 @@ expected_modules = [{
             'kind': 'func_def',
             'name': 'main',
             'instances': [
-                '() -> void'
+                'def main() -> void'
             ],
             'body': {
                 'kind': 'block',
@@ -47,7 +47,7 @@ expected_modules = [{
                             'ty': 'i32',
                             'callee': {
                                 'kind': 'identifier',
-                                'ty': '(*i32) -> i32',
+                                'ty': 'def f(*i32) -> i32',
                                 'value': 'f',
                             },
                             'args': [
@@ -101,7 +101,7 @@ expected_modules = [{
                             'ty': 'i32',
                             'callee': {
                                 'kind': 'identifier',
-                                'ty': '(*i32) -> i32',
+                                'ty': 'def f(*i32) -> i32',
                                 'value': 'f',
                             },
                             'args': [
@@ -132,7 +132,7 @@ expected_modules = [{
                             'ty': '*i32',
                             'callee': {
                                 'kind': 'identifier',
-                                'ty': '(**i32) -> *i32',
+                                'ty': 'def f(**i32) -> *i32',
                                 'value': 'f',
                             },
                             'args': [
@@ -163,7 +163,7 @@ expected_modules = [{
                             'ty': '*i32',
                             'callee': {
                                 'kind': 'identifier',
-                                'ty': '(**i32) -> *i32',
+                                'ty': 'def f(**i32) -> *i32',
                                 'value': 'f',
                             },
                             'args': [
@@ -199,7 +199,7 @@ expected_modules = [{
                             'ty': 'u32',
                             'callee': {
                                 'kind': 'identifier',
-                                'ty': '(*u32) -> u32',
+                                'ty': 'def f(*u32) -> u32',
                                 'value': 'f',
                             },
                             'args': [

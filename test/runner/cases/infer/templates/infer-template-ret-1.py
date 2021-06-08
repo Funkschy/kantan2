@@ -12,8 +12,8 @@ expected_modules = [{
             'kind': 'func_def',
             'name': 'f',
             'instances': [
-                '() -> bool',
-                '() -> u32'
+                'def f() -> bool',
+                'def f() -> u32'
             ],
             'body': {
                 'kind': 'block',
@@ -24,7 +24,7 @@ expected_modules = [{
             'kind': 'func_def',
             'name': 'g',
             'instances': [
-                '(u32) -> u32'
+                'def g(u32) -> u32'
             ],
             'body': {
                 'kind': 'block',
@@ -35,7 +35,7 @@ expected_modules = [{
             'kind': 'func_def',
             'name': 'main',
             'instances': [
-                '() -> void'
+                'def main() -> void'
             ],
             'body': {
                 'kind': 'block',
@@ -49,7 +49,7 @@ expected_modules = [{
                             'ty': 'bool',
                             'callee': {
                                 'kind': 'identifier',
-                                'ty': '() -> bool',
+                                'ty': 'def f() -> bool',
                                 'value': 'f',
                             },
                             'args': []
@@ -77,7 +77,7 @@ expected_modules = [{
                             'ty': 'u32',
                             'callee': {
                                 'kind': 'identifier',
-                                'ty': '(u32) -> u32',
+                                'ty': 'def g(u32) -> u32',
                                 'value': 'g',
                             },
                             'args': [
@@ -86,7 +86,7 @@ expected_modules = [{
                                     'ty': 'u32',
                                     'callee': {
                                         'kind': 'identifier',
-                                        'ty': '() -> u32',
+                                        'ty': 'def f() -> u32',
                                         'value': 'f',
                                     },
                                     'args': []

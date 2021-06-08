@@ -1,0 +1,8 @@
+def f(i: i32): i32 {
+    return i;
+}
+
+def main() {
+    let func = f;
+    f = func;
+}

@@ -7,15 +7,15 @@ import "../types" as _;
 
 def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
     if expr.data.lit.kind == LiteralKind.DecInt || expr.data.lit.kind == LiteralKind.HexInt {
-        return ok(ctx.any_var_int());
+        return ok(FoundIn.None, ctx.any_var_int());
     }
 
     if expr.data.lit.kind == LiteralKind.Float {
-        return ok(ctx.any_var_float());
+        return ok(FoundIn.None, ctx.any_var_float());
     }
 
     if expr.data.lit.kind == LiteralKind.Null {
-        return ok(ctx.alloc_ty().init_ptr(ctx.any_var()));
+        return ok(FoundIn.None, ctx.alloc_ty().init_ptr(ctx.any_var()));
     }
 
     if expr.data.lit.kind == LiteralKind.String {
@@ -28,7 +28,7 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
 
     if expr.data.lit.kind == LiteralKind.Undefined {
         // undefined can be anything
-        return ok(ctx.any_var());
+        return ok(FoundIn.None, ctx.any_var());
     }
 
     report_internal_error(str.view_from("unhandled literal kind"));

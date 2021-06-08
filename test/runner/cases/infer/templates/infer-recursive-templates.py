@@ -12,12 +12,12 @@ expected_modules = [{
             "kind": "func_def",
             "name": "f",
             "instances": [
-                "([]i8, i32, i8) -> []i8",
-                "([]i8, i8, i32) -> []i8",
-                "(i32, []i8, i8) -> i32",
-                "(i32, i8, []i8) -> i32",
-                "(i8, []i8, i32) -> i8",
-                "(i8, i32, []i8) -> i8"
+                "def f([]i8, i32, i8) -> []i8",
+                "def f([]i8, i8, i32) -> []i8",
+                "def f(i32, []i8, i8) -> i32",
+                "def f(i32, i8, []i8) -> i32",
+                "def f(i8, []i8, i32) -> i8",
+                "def f(i8, i32, []i8) -> i8"
             ],
             "body": {
                 "kind": "block",
@@ -29,7 +29,7 @@ expected_modules = [{
                             "ty": "i8",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "(i8, i32, []i8) -> i8",
+                                "ty": "def f(i8, i32, []i8) -> i8",
                                 "value": "f"
                             },
                             "args": [
@@ -58,7 +58,7 @@ expected_modules = [{
                             "ty": "i8",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "(i8, []i8, i32) -> i8",
+                                "ty": "def f(i8, []i8, i32) -> i8",
                                 "value": "f"
                             },
                             "args": [
@@ -87,7 +87,7 @@ expected_modules = [{
                             "ty": "i32",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "(i32, i8, []i8) -> i32",
+                                "ty": "def f(i32, i8, []i8) -> i32",
                                 "value": "f"
                             },
                             "args": [
@@ -116,7 +116,7 @@ expected_modules = [{
                             "ty": "i32",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "(i32, []i8, i8) -> i32",
+                                "ty": "def f(i32, []i8, i8) -> i32",
                                 "value": "f"
                             },
                             "args": [
@@ -145,7 +145,7 @@ expected_modules = [{
                             "ty": "[]i8",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "([]i8, i8, i32) -> []i8",
+                                "ty": "def f([]i8, i8, i32) -> []i8",
                                 "value": "f"
                             },
                             "args": [
@@ -174,7 +174,7 @@ expected_modules = [{
                             "ty": "[]i8",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "([]i8, i32, i8) -> []i8",
+                                "ty": "def f([]i8, i32, i8) -> []i8",
                                 "value": "f"
                             },
                             "args": [
@@ -211,7 +211,7 @@ expected_modules = [{
             "kind": "func_def",
             "name": "f2",
             "instances": [
-                "([]i8, i32, i8) -> []i8"
+                "def f2([]i8, i32, i8) -> []i8"
             ],
             "body": {
                 "kind": "block",
@@ -223,7 +223,7 @@ expected_modules = [{
                             "ty": "[]i8",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "([]i8, i32, i8) -> []i8",
+                                "ty": "def f([]i8, i32, i8) -> []i8",
                                 "value": "f"
                             },
                             "args": [
@@ -252,7 +252,7 @@ expected_modules = [{
                             "ty": "[]i8",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "([]i8, i8, i32) -> []i8",
+                                "ty": "def f([]i8, i8, i32) -> []i8",
                                 "value": "f"
                             },
                             "args": [
@@ -281,7 +281,7 @@ expected_modules = [{
                             "ty": "i32",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "(i32, []i8, i8) -> i32",
+                                "ty": "def f(i32, []i8, i8) -> i32",
                                 "value": "f"
                             },
                             "args": [
@@ -310,7 +310,7 @@ expected_modules = [{
                             "ty": "i32",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "(i32, i8, []i8) -> i32",
+                                "ty": "def f(i32, i8, []i8) -> i32",
                                 "value": "f"
                             },
                             "args": [
@@ -339,7 +339,7 @@ expected_modules = [{
                             "ty": "i8",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "(i8, []i8, i32) -> i8",
+                                "ty": "def f(i8, []i8, i32) -> i8",
                                 "value": "f"
                             },
                             "args": [
@@ -368,7 +368,7 @@ expected_modules = [{
                             "ty": "i8",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "(i8, i32, []i8) -> i8",
+                                "ty": "def f(i8, i32, []i8) -> i8",
                                 "value": "f"
                             },
                             "args": [
@@ -405,7 +405,7 @@ expected_modules = [{
             "kind": "func_def",
             "name": "main",
             "instances": [
-                "() -> void"
+                "def main() -> void"
             ],
             "body": {
                 "kind": "block",
@@ -429,7 +429,7 @@ expected_modules = [{
                             "ty": "[]i8",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "([]i8, i32, i8) -> []i8",
+                                "ty": "def f2([]i8, i32, i8) -> []i8",
                                 "value": "f2"
                             },
                             "args": [
@@ -458,7 +458,7 @@ expected_modules = [{
                             "ty": "[]i8",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "([]i8, i32, i8) -> []i8",
+                                "ty": "def f2([]i8, i32, i8) -> []i8",
                                 "value": "f2"
                             },
                             "args": [
@@ -497,7 +497,7 @@ expected_modules = [{
                             "ty": "[]i8",
                             "callee": {
                                 "kind": "identifier",
-                                "ty": "([]i8, i32, i8) -> []i8",
+                                "ty": "def f2([]i8, i32, i8) -> []i8",
                                 "value": "f2"
                             },
                             "args": [

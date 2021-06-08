@@ -1,0 +1,17 @@
+def f(i: i32): i32 {
+    return i;
+}
+
+def g(i: i32): i32 {
+    return i + 1;
+}
+
+def [T] k(i: T): u32 {
+    return i + 1;
+}
+
+def main() {
+    let func = f;
+    func = g;
+    func = k;
+}

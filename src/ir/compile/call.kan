@@ -3,8 +3,8 @@ import ":ast/expr" as _;
 
 import "../ir";
 import "../rvalue";
+import "../ctx" as _;
 
-import "ctx" as _;
 import "expr" as super;
 
 def compile_fmt(ctx: *IRCtx, expr: *Expr, format: super.ResultFormat): super.CompileResult {

@@ -10,17 +10,33 @@ import ":ast/expr" as ast;
 import "ctx";
 import "types" as ty;
 
+// this is relevant for the lookup of Ident and Access expressions
+// after successfully inferring the type of such an expression, the TyResult will contain the
+// type of scope, that the ident was resolved in
+type FoundIn enum {
+    // Stuff that wasn't found in any scope, e.g. literals
+    None,
+    // an imported item
+    AnotherModule,
+    // types declared in the current module
+    Types,
+    // declarations in the current module (signature or template)
+    Declarations,
+    // a local variable
+    LocalVariables
+}
 
 type TyResult struct {
+    found_in: FoundIn,
     ty: *ty.Type
 }
 
-def ok(ty: *ty.Type): TyResult {
-    return TyResult { ty: ty };
+def ok(found_in: FoundIn, ty: *ty.Type): TyResult {
+    return TyResult { found_in: found_in, ty: ty };
 }
 
 def error(): TyResult {
-    return TyResult { ty: null };
+    return TyResult { found_in: FoundIn.None, ty: null };
 }
 
 def (r: TyResult) is_ok(): bool {
@@ -39,7 +55,7 @@ def lookup_builtin(ctx: *ctx.TyCtx, name: str.View): TyResult {
         report_internal_error_note(str.view_from("builtin type not found"), &note);
         return error();
     }
-    return ok(ty);
+    return ok(FoundIn.Types, ty);
 }
 
 def report_simple(kind: e.ErrorKind, span: span.Span) {

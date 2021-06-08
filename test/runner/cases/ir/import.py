@@ -10,7 +10,10 @@ expected_ir = [
         'path': kantan_filename(__file__),
         'functions': [
             {
+                'kind': 'definition',
                 'original_name': 'main',
+                'mangled_name': '',
+                'ty': 'def main() -> void',
                 'locals': [],
                 'blocks': {
                     'bb0': {
@@ -32,7 +35,10 @@ expected_ir = [
         'path': realpath(Path(dirname(Path(kantan_filename(__file__)))).joinpath(Path('../helper/some-function.kan'))),
         'functions': [
             {
+                'kind': 'definition',
                 'original_name': 'some_function',
+                'mangled_name': '',
+                'ty': 'def some_function() -> i32',
                 'locals': [
                     {
                         'name': '_1',

@@ -7,8 +7,8 @@ import ":types/types" as ty;
 import "../ir";
 import "../const";
 import "../rvalue";
+import "../ctx" as _;
 
-import "ctx" as _;
 import "stmt";
 
 def compile(ctx: *IRCtx, item: *Item): Result {
@@ -24,8 +24,11 @@ def compile(ctx: *IRCtx, item: *Item): Result {
 
         dbg.assert(f.instances.len() == 1, "functions should only have one instance");
 
-        let func_ty = f.instances.get(0);
-        ctx.set_current_function(item.name, func_ty);
+        let sig_ty = f.instances.get(0);
+        dbg.assert(sig_ty.kind == ty.TypeKind.Signature, "expected signature");
+
+        let func_ty = sig_ty.data.signature.func;
+        ctx.set_current_function(item.name, sig_ty);
         ctx.open_scope();
         defer ctx.close_scope();
 
@@ -55,7 +58,7 @@ def compile(ctx: *IRCtx, item: *Item): Result {
         // if the last bb is empty, it should only have no terminator if we also return void
         // it's a compiler error otherwise
         if empty_body || unfinished_bb {
-            let func_ty = &f.instances.get(0).data.function;
+            let func_ty = &f.instances.get(0).data.signature.func.data.function;
             dbg.assert(
                 func_ty.ret.kind == ty.TypeKind.Void,
                 "only functions which return nothing should have a nop terminator at this point"

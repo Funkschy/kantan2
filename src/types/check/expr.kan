@@ -47,10 +47,17 @@ def _infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
         return literal.infer(ctx, expr);
     }
 
-    // TODO(#9): find some way to propagate context upwards. e.g. a span inside TyResult
     if expr.kind == ExprKind.Ident {
         let name = expr.data.ident.name.as_view();
         let ty = ctx.lookup_value(name);
+        let found_in = FoundIn.LocalVariables;
+
+        // if this is not a local variable, try looking it up as a function instead
+        if ty == null {
+            ty = ctx.lookup_decl(name);
+            found_in = FoundIn.Declarations;
+        }
+
         if ty != null {
             if ty.kind == TypeKind.Error {
                 // swallow the error without reporting
@@ -69,7 +76,7 @@ def _infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
             }
 
             expr.ty = ty;
-            return ok(ty);
+            return ok(found_in, ty);
         }
 
         // check if this is an imported module
@@ -93,12 +100,21 @@ def _infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
             return left;
         }
 
+        // TODO: add global variables
+        if left.found_in != FoundIn.LocalVariables {
+            report_str(e.ErrorKind.IllegalAssignmentTarget, expr.span, assign.left.span.as_view());
+            return error();
+        }
+
         let right = check(ctx, assign.right, left.ty);
         if right.is_error() {
             return right;
         }
 
-        return ok(right.ty);
+        // it's important to return the left type here, for making function pointers work
+        // in the case of a function pointer, the right side will be a signature, but the type
+        // of the entire expression should be a function
+        return ok(FoundIn.None, left.ty);
     }
 
     if expr.kind == ExprKind.Access {
@@ -192,10 +208,40 @@ def check(ctx: *ctx.TyCtx, expr: *Expr, expected: *Type): TyResult {
         return error();
     }
 
-    return try_unify(ctx, expr, inferred.ty, expected);
+    if inferred.found_in == FoundIn.Declarations {
+        if inferred.ty.is_template() {
+            // TODO: custom error for templates here
+            report_simple(e.ErrorKind.TemplatePointer, expr.span);
+            return error();
+        }
+
+        // it's important not to unify signatures with function types, since that would bring
+        // imbalance to the force. Doing that could change the function instance type from a
+        // signature to a plain function and then crash the ir compiler in the future, since it
+        // expects identifiers which refer to statically known functions to have a signature type
+        if !inferred.ty.equals(expected) {
+            let expected = expected.to_string();
+            defer expected.free();
+
+            let actual = inferred.ty;
+            if actual.kind == TypeKind.Signature {
+                // this just looks nicer in the error message
+                actual = actual.data.signature.func;
+            }
+            let actual = actual.to_string();
+            defer actual.free();
+            report_str2(e.ErrorKind.WrongType, expr.span, expected.view(), actual.view());
+            return error();
+        }
+
+        expr.ty = inferred.ty;
+        return inferred;
+    }
+
+    return try_unify(ctx, expr, inferred.ty, inferred.found_in, expected);
 }
 
-def try_unify(ctx: *ctx.TyCtx, expr: *Expr, inferred: *Type, expected: *Type): TyResult {
+def try_unify(ctx: *ctx.TyCtx, expr: *Expr, inferred: *Type, found_in: FoundIn, expected: *Type): TyResult {
     // TODO(#27): implement proper errors for unsized types
     if inferred.is_unsized() {
         report_internal_error_span(str.view_from("unsized inferred"), expr.span);
@@ -218,5 +264,5 @@ def try_unify(ctx: *ctx.TyCtx, expr: *Expr, inferred: *Type, expected: *Type): T
     }
 
     expr.ty = instance;
-    return ok(instance);
+    return ok(found_in, instance);
 }

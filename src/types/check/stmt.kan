@@ -55,6 +55,22 @@ def check(ctx: *TyCtx, stmt: *Stmt): Result {
         }
 
         let ty = inferred.ty;
+        if inferred.found_in == util.FoundIn.Declarations {
+            if ty.kind != TypeKind.Signature {
+                ctx.bind_value_public(decl.name.as_view(), ctx.error_type(), &decl.name.span);
+                // TODO: implement a custom error for template assignments
+                util.report_internal_error_span(
+                    str.view_from("trying to assign template to variable"), decl.value.span
+                );
+                return Result.Error;
+            }
+
+            // convert from a signature into a function type
+            // if the user assigns a signature to a variable, we convert from a signature type
+            // to a simple function pointer, to allow reassigning the variable to another function
+            // of the same type
+            ty = ty.data.signature.func;
+        }
 
         if decl.ty != null {
             let expected = ctx.lookup_tyid(decl.ty);
@@ -64,7 +80,7 @@ def check(ctx: *TyCtx, stmt: *Stmt): Result {
                 return Result.Error;
             }
 
-            let instance = tychk.try_unify(ctx, decl.value, inferred.ty, expected);
+            let instance = tychk.try_unify(ctx, decl.value, ty, inferred.found_in, expected);
             if instance.is_error() {
                 return Result.Error;
             }
@@ -76,15 +92,18 @@ def check(ctx: *TyCtx, stmt: *Stmt): Result {
     }
 
     if stmt.kind == StmtKind.Return {
-        if ctx.current_function == null {
+        let current_signature = ctx.get_current_signature();
+        if current_signature == null {
             let msg = "a return statement outside a fuction should be a parse error";
             util.report_internal_error(str.view_from(msg));
             return Result.Error;
         }
 
+        let current_function = &current_signature.func.data.function;
+
         if stmt.data.ret == null {
-            if ctx.get_current_function().ret.kind != TypeKind.Void {
-                let expected = ctx.get_current_function().ret.to_string();
+            if current_function.ret.kind != TypeKind.Void {
+                let expected = current_function.ret.to_string();
                 defer expected.free();
                 util.report_str2(
                     e.ErrorKind.WrongType,
@@ -98,12 +117,6 @@ def check(ctx: *TyCtx, stmt: *Stmt): Result {
             }
         }
 
-        let current_function = ctx.get_current_function();
-        if current_function == null {
-            let msg = "return outside of function should be a parse error";
-            util.report_internal_error(str.view_from(msg));
-        }
-
         if current_function.ret.kind == TypeKind.Void {
             util.report_str2(
                 e.ErrorKind.WrongType,
@@ -114,7 +127,7 @@ def check(ctx: *TyCtx, stmt: *Stmt): Result {
             return Result.Error;
         }
 
-        let value = tychk.check(ctx, stmt.data.ret, ctx.get_current_function().ret);
+        let value = tychk.check(ctx, stmt.data.ret, current_function.ret);
         if value.is_error() {
             return Result.Error;
         }

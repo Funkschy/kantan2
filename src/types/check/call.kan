@@ -1,4 +1,6 @@
 import ":std/str";
+import ":std/dbg";
+
 import ":error" as e;
 import ":ast/expr" as _;
 
@@ -52,14 +54,21 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
     // we wrap the actual template type in another type variable, just so we are able to do this.
     // Here we change the inferred callee type from the template type to the actual function type
     if callee.ty.kind == TypeKind.Variable && callee.ty.data.inner.kind == TypeKind.Template {
-        callee.ty.data.inner = func_ty;
-        // push the initialized function type into the original instance list
+        let inner_template = &callee.ty.data.inner.data.template;
+        dbg.assert(inner_template.inner.kind == TypeKind.Signature, "expected signature");
+
+        let template_signature = &inner_template.inner.data.signature;
+        let signature = ctx.alloc_ty()
+            .init_sig(template_signature.name, template_signature.declared_in, func_ty);
+
+        callee.ty.data.inner = signature;
+        // push the initialized signature type into the original instance list
         // this might look confusing at first, but each function definition has a list of
         // instances. For normal functions, this list will only contain a single entry, but
         // for templated functions (generic function) this list might have an arbitrary
         // amount of different instances. The instance list internally works like a set
-        function.instances.push(func_ty);
+        function.instances.push(signature);
     }
 
-    return ok(function.ret);
+    return ok(FoundIn.None, function.ret);
 }

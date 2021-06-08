@@ -1,10 +1,19 @@
 import ":std/vec";
+import ":std/str";
+
+import ":ast/mod";
 import ":source/ident";
 
 import "scope";
 import "ctx" as _;
 import "types" as _;
 import "instances" as _;
+
+type Signature struct {
+    name: ident.Ident,
+    declared_in: *mod.Module,
+    func: *Type
+}
 
 type ABI enum {
     C, Kantan
@@ -17,4 +26,29 @@ type Function struct {
     num_params: usize,
     params_head: *TypeNode,
     ret: *Type
+}
+
+def (f: *Function) to_string(s: *str.String) {
+    s.push(str.view("(", 1));
+    let param = f.params_head;
+    while param != null {
+        defer param = param.next;
+        if param != f.params_head {
+            s.push(str.view(", ", 2));
+        }
+
+        let param_s = param.value.to_string();
+        s.push(param_s.view());
+        param_s.free();
+    }
+    s.push(str.view(")", 1));
+
+    s.push(str.view(" -> ", 4));
+    if f.ret != null {
+        let ret_s = f.ret.to_string();
+        s.push(ret_s.view());
+        ret_s.free();
+    } else {
+        s.push(str.view("void", 4));
+    }
 }

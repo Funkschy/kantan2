@@ -92,6 +92,18 @@ def ty_equals(a: *Type, b: *Type): bool {
         return false;
     }
 
+    if a.kind == TypeKind.Signature {
+        let a_sig = &a.data.signature;
+        let b_sig = &b.data.signature;
+        if !a_sig.name.equals(b_sig.name) {
+            return false;
+        }
+        if a_sig.declared_in.index != b_sig.declared_in.index {
+            return false;
+        }
+        return ty_equals(a_sig.func, b_sig.func);
+    }
+
     if a.kind == TypeKind.Function {
         let a_f = &a.data.function;
         let b_f = &b.data.function;

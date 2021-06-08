@@ -3,7 +3,7 @@ import "cdeps";
 
 import "source/span";
 
-let error_strings: [20]string = undefined;
+let error_strings: [22]string = undefined;
 
 type ErrorKind enum {
     // import errors
@@ -28,7 +28,9 @@ type ErrorKind enum {
     CallingNonFunction,
     SizeofUnsizedType,
     NonAccessibleType,
-    ModuleWithoutSelector
+    ModuleWithoutSelector,
+    TemplatePointer,
+    IllegalAssignmentTarget
 }
 
 type ErrorDataKind enum {
@@ -207,6 +209,8 @@ def init() {
     error_strings[ErrorKind.SizeofUnsizedType as i32]  = "The type '%.*s' is unsized";
     error_strings[ErrorKind.NonAccessibleType as i32]  = "The type '%.*s' cannot be accessed with the '.' operator";
     error_strings[ErrorKind.ModuleWithoutSelector as i32]  = "Use of module without selector";
+    error_strings[ErrorKind.TemplatePointer as i32]  = "Cannot get pointer to a templated function";
+    error_strings[ErrorKind.IllegalAssignmentTarget as i32]  = "Cannot assign to '%.*s'";
 }
 
 // A Linked List of additional information regarding an error, e.g. the location of usage

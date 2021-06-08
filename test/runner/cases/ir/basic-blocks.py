@@ -7,7 +7,10 @@ expected_ir = [{
     'path': kantan_filename(__file__),
     'functions': [
         {
+            'kind': 'definition',
             'original_name': 'main',
+            'mangled_name': '',
+            'ty': 'def main() -> i32',
             'locals': [
                 {
                     'name': '_1',

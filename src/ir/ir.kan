@@ -115,21 +115,66 @@ def (bb: *BasicBlock) terminate(terminator: *Terminator) {
     bb.terminator = *terminator;
 }
 
-// TODO: allow extern function definitions and use those to compile the module access case
-type Function struct {
+type FunctionDecl struct {
     original_name: ident.Ident,
     mangled_name: str.String,
-    ty: *ty.Type,
-    body: FunctionBody
+    ty: *ty.Type
+}
+
+def (f: *FunctionDecl) free() {
+    f.mangled_name.free();
+}
+
+def (f: *FunctionDecl) return_type(): *ty.Type {
+    return f.ty.data.signature.func.data.function.ret;
+}
+
+type FunctionKind enum {
+    Declaration, Definition
+}
+
+def (kind: FunctionKind) as_view(): str.View {
+    if kind == FunctionKind.Declaration {
+        return str.view("declaration", 11);
+    }
+    return str.view("definition", 10);
+}
+
+type Function struct {
+    kind: FunctionKind,
+    decl: FunctionDecl,
+    body: FunctionBody // only relevant if kind == FunctionKind.Definition
+}
+
+def (f: *Function) init(kind: FunctionKind, original_name: ident.Ident, f_ty: *ty.Type): *Function {
+    // TODO: FIXME: rewrite this later
+    dbg.assert(f_ty.kind == ty.TypeKind.Signature, "f_ty was not a signature");
+    f.kind = kind;
+    f.decl = FunctionDecl {
+        original_name: original_name,
+        // TODO: implement name mangling
+        mangled_name: str.from(""),
+        ty: f_ty
+    };
+    f.body.init();
+    return f;
+}
+
+def (f: *Function) init_decl(original_name: ident.Ident, ty: *ty.Type): *Function {
+    return f.init(FunctionKind.Declaration, original_name, ty);
+}
+
+def (f: *Function) init_def(original_name: ident.Ident, ty: *ty.Type): *Function {
+    return f.init(FunctionKind.Definition, original_name, ty);
 }
 
 def (f: *Function) free() {
-    f.mangled_name.free();
+    f.decl.free();
     f.body.free();
 }
 
 def (f: *Function) return_type(): *ty.Type {
-    return f.ty.data.function.ret;
+    return f.decl.return_type();
 }
 
 def (f: *Function) num_bbs(): usize {
@@ -161,6 +206,12 @@ type FunctionBody struct {
     locals: vec.Vec  // vec.Vec[LocalVarDecl] (indexed by memory.Local)
 }
 
+def (b: *FunctionBody) init(): *FunctionBody {
+    b.blocks = vec.create(sizeof BasicBlock);
+    b.locals = vec.create(sizeof LocalVarDecl);
+    return b;
+}
+
 def (b: *FunctionBody) free() {
     for let i: usize = 0; i < b.blocks.len; i += 1 {
         let bb = b.blocks.get_ptr(i) as *BasicBlock;
@@ -186,9 +237,27 @@ def (f: *Function) to_json(): str.String {
     let json = str.from("{");
     defer json.push(str.view("}", 1));
 
-    json.push(str.view_from("\"original_name\": \""));
-    json.push(f.original_name.as_view());
+    json.push(str.view_from("\"kind\": \""));
+    json.push(f.kind.as_view());
     json.push(str.view_from("\""));
+
+    json.push(str.view_from(", \"original_name\": \""));
+    json.push(f.decl.original_name.as_view());
+    json.push(str.view_from("\""));
+
+    json.push(str.view_from(", \"mangled_name\": \""));
+    json.push(f.decl.mangled_name.view());
+    json.push(str.view_from("\""));
+
+    json.push(str.view_from(", \"ty\": \""));
+    let ty_s = f.decl.ty.to_string();
+    json.push(ty_s.view());
+    ty_s.free();
+    json.push(str.view_from("\""));
+
+    if f.kind == FunctionKind.Declaration {
+        return json;
+    }
 
     json.push(str.view_from(", \"locals\": ["));
     for let i: usize = 0; i < f.body.locals.len; i += 1 {

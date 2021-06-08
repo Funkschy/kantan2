@@ -11,7 +11,7 @@ expected_modules = [{
         {
             'kind': 'func_def',
             'name': 'first',
-            'instances': ['() -> void'],
+            'instances': ['def first() -> void'],
             'body': {
                 'kind': 'block',
                 'stmts': [
@@ -97,7 +97,7 @@ expected_modules = [{
         {
             'kind': 'func_def',
             'name': 'second',
-            'instances': ['() -> void'],
+            'instances': ['def second() -> void'],
             'body': {
                 'kind': 'block',
                 'stmts': [
@@ -183,7 +183,7 @@ expected_modules = [{
         {
             'kind': 'func_def',
             'name': 'third',
-            'instances': ['() -> void'],
+            'instances': ['def third() -> void'],
             'body': {
                 'kind': 'block',
                 'stmts': [

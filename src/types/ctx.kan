@@ -32,6 +32,8 @@ type ModuleContext struct {
     values: scope.ScopeStack,
     // this holds declared types, e.g. structs
     types: scope.ScopeStack,
+    // this holds declared declarations, so signatures or templates
+    decls: scope.ScopeStack,
     // this holds the imported modules with the alias as key
     imports: map.Map // map.Map[str.View, *mod.Module]
 }
@@ -39,6 +41,7 @@ type ModuleContext struct {
 def (ctx: *ModuleContext) free() {
     ctx.values.free();
     ctx.types.free();
+    ctx.decls.free();
     ctx.imports.free();
 }
 
@@ -59,8 +62,8 @@ type TyCtx struct {
     // see: Compiler.infer_and_check_types() and InstanceSet.checked for more info
     had_unchecked_templates: bool,
 
-    // the current function or null, if in global scope
-    current_function: *Type,
+    // the current functions signature or null, if in global scope
+    current_signature: *Type,
     final_i32_ty: *Type,
     final_f32_ty: *Type
 }
@@ -79,7 +82,7 @@ def create(ty_arena: *arena.TypedArena, node_arena: *arena.TypedArena, num_mods:
         current_module: null,
         current_pass: Pass.Functions,
         had_unchecked_templates: true,
-        current_function: null,
+        current_signature: null,
         final_i32_ty: null,
         final_f32_ty: null
     };
@@ -112,6 +115,7 @@ def (ctx: *TyCtx) set_module(module: *mod.Module) {
         module: module,
         values: scope.scope_stack(),
         types: scope.scope_stack(),
+        decls: scope.scope_stack(),
         imports: imports
     };
     ctx.module_contexts.push(&mod_ctx as *void);
@@ -121,11 +125,13 @@ def (ctx: *TyCtx) set_module(module: *mod.Module) {
 def (ctx: *TyCtx) open_scope() {
     ctx.current_module.values.open();
     ctx.current_module.types.open();
+    ctx.current_module.decls.open();
 }
 
 def (ctx: *TyCtx) close_scope() {
     ctx.current_module.values.close();
     ctx.current_module.types.close();
+    ctx.current_module.decls.close();
 }
 
 def (ctx: *TyCtx) alloc_final_ty(): *Type {
@@ -178,11 +184,11 @@ def (ctx: *TyCtx) error_type(): *Type {
     return error;
 }
 
-def (ctx: *TyCtx) get_current_function(): *function.Function {
-    if ctx.current_function == null {
+def (ctx: *TyCtx) get_current_signature(): *function.Signature {
+    if ctx.current_signature == null {
         return null;
     }
-    return &ctx.current_function.data.function;
+    return &ctx.current_signature.data.signature;
 }
 
 def lookup_in(name: str.View, stack: *scope.ScopeStack): *Type {
@@ -200,6 +206,10 @@ def (ctx: *TyCtx) lookup_type(name: str.View): *Type {
 
 def (ctx: *TyCtx) lookup_value(name: str.View): *Type {
     return lookup_in(name, &ctx.current_module.values);
+}
+
+def (ctx: *TyCtx) lookup_decl(name: str.View): *Type {
+    return lookup_in(name, &ctx.current_module.decls);
 }
 
 def (ctx: *TyCtx) lookup_module(name: str.View): *mod.Module {
@@ -236,6 +246,14 @@ def bind_in(name: str.View, ty: *Type, vis: Visibility, stack: *scope.ScopeStack
         declared_at: declared_at
     };
     stack.bind(name, item);
+}
+
+def (ctx: *TyCtx) bind_decl_public(name: str.View, ty: *Type, declared_at: *span.Span) {
+    dbg.assert(
+        ty.kind == TypeKind.Signature || ty.kind == TypeKind.Template,
+        "expected signature or template"
+    );
+    bind_in(name, ty, Visibility.Public, &ctx.current_module.decls, declared_at);
 }
 
 def (ctx: *TyCtx) bind_value_public(name: str.View, ty: *Type, declared_at: *span.Span) {
@@ -337,6 +355,10 @@ def (ctx: *TyCtx) get_function(t: *Type): *Type {
 
     if t.kind == TypeKind.Function {
         return t;
+    }
+
+    if t.kind == TypeKind.Signature {
+        return t.data.signature.func;
     }
 
     if t.kind == TypeKind.Template {

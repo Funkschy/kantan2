@@ -12,8 +12,8 @@ expected_modules = [{
             'kind': 'func_def',
             'name': 'f',
             'instances': [
-                '(*i32) -> void',
-                '(*i8) -> void'
+                'def f(*i32) -> void',
+                'def f(*i8) -> void'
             ],
             'body': {
                 'kind': 'block',
@@ -24,7 +24,7 @@ expected_modules = [{
             'kind': 'func_def',
             'name': 'main',
             'instances': [
-                '() -> void'
+                'def main() -> void'
             ],
             'body': {
                 'kind': 'block',
@@ -47,7 +47,7 @@ expected_modules = [{
                             'ty': 'void',
                             'callee': {
                                 'kind': 'identifier',
-                                'ty': '(*i32) -> void',
+                                'ty': 'def f(*i32) -> void',
                                 'value': 'f',
                             },
                             'args': [
@@ -76,7 +76,7 @@ expected_modules = [{
                             'ty': 'void',
                             'callee': {
                                 'kind': 'identifier',
-                                'ty': '(*i8) -> void',
+                                'ty': 'def f(*i8) -> void',
                                 'value': 'f',
                             },
                             'args': [
@@ -156,7 +156,7 @@ expected_modules = [{
                             'ty': 'void',
                             'callee': {
                                 'kind': 'identifier',
-                                'ty': '(*i8) -> void',
+                                'ty': 'def f(*i8) -> void',
                                 'value': 'f',
                             },
                             'args': [

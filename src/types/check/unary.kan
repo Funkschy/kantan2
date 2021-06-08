@@ -37,11 +37,11 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
             return error();
         }
 
-        return ok(right.ty.checked_var_innermost().data.ptr_or_slice_to);
+        return ok(right.found_in, right.ty.checked_var_innermost().data.ptr_or_slice_to);
     }
 
     if expr.data.unary.kind == UnaryKind.AddrOf {
-        return ok(ctx.alloc_ty().init_ptr(right.ty));
+        return ok(right.found_in, ctx.alloc_ty().init_ptr(right.ty));
     }
 
     if expr.data.unary.kind == UnaryKind.NumNegate {
@@ -54,7 +54,7 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
             return error();
         }
 
-        return ok(right.ty);
+        return right;
     }
 
     report_internal_error(str.view_from("unhandled unary kind"));

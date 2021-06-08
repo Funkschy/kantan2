@@ -41,7 +41,7 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
             return error();
         }
 
-        return ok(left.ty);
+        return left;
     }
 
     // addition and subtraction are more complicated since they are 'overloaded' for pointers

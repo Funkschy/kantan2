@@ -116,8 +116,8 @@ def main(argc: i32, argv: *string): ReturnCode {
 
         import "ir/ir";
         import "ir/memory";
+        import "ir/ctx" as ir_ctx;
         import "ir/compile/item" as ir_item;
-        import "ir/compile/ctx" as ir_ctx;
 
         let function_arena = arena.typed(sizeof ir.Function);
         defer function_arena.free_destructor(&ir.Function.free as arena.Destructor);

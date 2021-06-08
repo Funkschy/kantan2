@@ -1,4 +1,5 @@
 import ":std/str";
+import ":std/dbg";
 import ":std/map";
 import ":std/alloc";
 
@@ -54,6 +55,7 @@ type TypeData union {
     slice_to: *Type, // the inner type
     template: template.Template,
     template_param: template.Param,
+    signature: function.Signature,
     function: function.Function,
     module: *mod.Module
 }
@@ -144,6 +146,11 @@ def (t: *Type) is_template(): bool {
         || t.kind == TypeKind.Variable && t.data.inner.is_template();
 }
 
+def (t: *Type) is_signature(): bool {
+    return t.kind == TypeKind.Signature
+        || t.kind == TypeKind.Variable && t.data.inner.is_signature();
+}
+
 // this assumes that t is in fact a Variable. Otherwise this is undefined behaviour
 def (t: *Type) var_innermost(): **Type {
     let inner = &t.data.inner;
@@ -193,6 +200,12 @@ def (t: *Type) equals(other: *Type): bool {
         other = other.data.inner;
     }
 
+    if t.kind == TypeKind.Signature {
+        t = t.data.signature.func;
+    }
+    if other.kind == TypeKind.Signature {
+        other = other.data.signature.func;
+    }
 
     if t.kind != other.kind {
         return false;
@@ -217,6 +230,28 @@ def (t: *Type) equals(other: *Type): bool {
 
     if t.kind == TypeKind.Module {
         return t.data.module.index == other.data.module.index;
+    }
+
+    if t.kind == TypeKind.Function {
+        let f1 = &t.data.function;
+        let f2 = &other.data.function;
+
+        if f1.num_params != f2.num_params {
+            return false;
+        }
+
+        let f1_arg = f1.params_head;
+        let f2_arg = f2.params_head;
+        while f1_arg != null {
+            if !f1_arg.value.equals(f2_arg.value) {
+                return false;
+            }
+
+            f1_arg = f1_arg.next;
+            f2_arg = f2_arg.next;
+        }
+
+        return f1.ret.equals(f2.ret);
     }
 
     return false;
@@ -299,31 +334,17 @@ def (t: *Type) to_string(): str.String {
         return s;
     }
 
+    if t.kind == TypeKind.Signature {
+        let signature = &t.data.signature;
+        let s = str.from("def ");
+        s.push(signature.name.as_view());
+        signature.func.data.function.to_string(&s);
+        return s;
+    }
+
     if t.kind == TypeKind.Function {
-        let s = str.from("(");
-
-        let param = t.data.function.params_head;
-        while param != null {
-            defer param = param.next;
-            if param != t.data.function.params_head {
-                s.push(str.view(", ", 2));
-            }
-
-            let param_s = param.value.to_string();
-            s.push(param_s.view());
-            param_s.free();
-        }
-        s.push(str.view(")", 1));
-
-        s.push(str.view(" -> ", 4));
-        if t.data.function.ret != null {
-            let ret_s = t.data.function.ret.to_string();
-            s.push(ret_s.view());
-            ret_s.free();
-        } else {
-            s.push(str.view("void", 4));
-        }
-
+        let s = str.from("");
+        t.data.function.to_string(&s);
         return s;
     }
 
@@ -370,6 +391,16 @@ def (n: *TypeNode) init_ident(ident: ident.Ident, value: *Type): *TypeNode {
     return n;
 }
 
+def (t: *Type) init_sig(name: ident.Ident, declared_in: *mod.Module, function: *Type): *Type {
+    dbg.assert(function.kind == TypeKind.Function, "expected function");
+    t.kind = TypeKind.Signature;
+    t.width = t.align = info.unsized();
+    t.data.signature.name = name;
+    t.data.signature.declared_in = declared_in;
+    t.data.signature.func = function;
+    return t;
+}
+
 def (t: *Type) init_func(instances: *InstanceSet): *Type {
     t.kind = TypeKind.Function;
     t.width = t.align = info.unsized();
@@ -388,6 +419,7 @@ def (t: *Type) init_template(
     generics_head: *TypeNode,
     instances: *InstanceSet
 ): *Type {
+    dbg.assert(inner.kind == TypeKind.Signature, "expected signature as inner kind");
     t.kind = TypeKind.Template;
     t.width = t.align = info.unsized();
     t.data.template.num_params = num_params;

@@ -8,10 +8,10 @@ import "../ir";
 import "../const";
 import "../rvalue";
 import "../memory";
+import "../ctx" as _;
 
 import "call";
 import "literal";
-import "ctx" as _;
 
 type CompileResult struct {
     is_error: bool,
@@ -76,16 +76,15 @@ def compile_fmt(ctx: *IRCtx, expr: *Expr, format: ResultFormat): CompileResult {
     if expr.kind == ExprKind.Ident {
         let name = expr.data.ident.name;
 
+        if expr.ty.kind == ty.TypeKind.Signature {
+            let function = const.function(expr.ty);
+            return make_temp_if_needed(ctx, rvalue.expr_const(function), expr.ty, format);
+        }
+
         let local: memory.Local = undefined;
         if ctx.lookup_local(name, &local).is_error() {
-            // if this is not a local, try looking it up in the global function table
-            let function: const.Constant = undefined;
-            if ctx.lookup_function(name, &function).is_error() {
-                dbg.assert(false, "undeclared name");
-                return error();
-            }
-
-            return make_temp_if_needed(ctx, rvalue.expr_const(function), expr.ty, format);
+            dbg.assert(false, "undeclared name");
+            return error();
         }
 
         return copy_if_needed(local.as_location(), format);

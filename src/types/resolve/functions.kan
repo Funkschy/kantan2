@@ -16,6 +16,7 @@ def resolve(ctx: *TyCtx, item: *Item): Result {
         let instances = &item.data.func_def.instances;
 
         let func_ty = ctx.alloc_ty().init_func(instances);
+        let sig_ty = ctx.alloc_ty().init_sig(item.name, ctx.current_module.module, func_ty);
         let function = &func_ty.data.function;
 
         function.num_params = signature.params.len;
@@ -92,12 +93,12 @@ def resolve(ctx: *TyCtx, item: *Item): Result {
         }
 
         if signature.is_generic() {
-            func_ty = ctx.alloc_ty().init_template(func_ty, num_generics, generics_head, instances);
+            sig_ty = ctx.alloc_ty().init_template(sig_ty, num_generics, generics_head, instances);
         } else {
-            instances.push(func_ty);
+            instances.push(sig_ty);
         }
 
-        ctx.bind_value_public(item.name.as_view(), func_ty, &item.span);
+        ctx.bind_decl_public(item.name.as_view(), sig_ty, &item.span);
         return Result.OK;
     }
 

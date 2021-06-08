@@ -8,9 +8,9 @@ import "../ir";
 import "../const";
 import "../rvalue";
 import "../memory";
+import "../ctx" as _;
 
 import "escape";
-import "ctx" as _;
 import "expr" as super;
 
 def compile_fmt(ctx: *IRCtx, expr: *Expr, format: super.ResultFormat): super.CompileResult {
