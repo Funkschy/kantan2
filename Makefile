@@ -3,7 +3,7 @@ K_FILES = $(shell find src -name '*.kan')
 CC ?= gcc
 BIN_NAME ?= kantan
 STDLIB_DIR ?= src/std
-KANTAN_STABLE ?= /usr/local/bin/kantan
+KANTAN_STABLE ?= kantan
 
 KANTAN_STABLE_FLAGS := -g
 C_DEFINES := -DSTDLIB_DIR=\"$(STDLIB_DIR)\"
