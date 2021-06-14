@@ -1,0 +1,9 @@
+import "../helper/function";
+
+def main(): i32 {
+    return function.some_function() + some_function();
+}
+
+def some_function(): i32 {
+    return 0;
+}

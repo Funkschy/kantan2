@@ -1,9 +1,7 @@
-from os.path import realpath, dirname
-from pathlib import Path
 from typing import Optional
 
 from runner.output import Output
-from runner.testcase import SuccessTestCase, TestError, expected_but_got, kantan_filename
+from runner.testcase import SuccessTestCase, TestError, expected_but_got, kantan_filename, relative_filename
 
 expected_ir = [
     {
@@ -32,7 +30,7 @@ expected_ir = [
         ]
     },
     {
-        'path': realpath(Path(dirname(Path(kantan_filename(__file__)))).joinpath(Path('../helper/some-function.kan'))),
+        'path': relative_filename(__file__, '../helper/some-function.kan'),
         'functions': [
             {
                 'kind': 'definition',

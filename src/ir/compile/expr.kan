@@ -117,8 +117,13 @@ def compile_fmt(ctx: *IRCtx, expr: *Expr, format: ResultFormat): CompileResult {
 
 def compile_access(ctx: *IRCtx, expr: *Expr, format: ResultFormat): CompileResult {
     let left = expr.data.access.left;
-    if left.ty.kind == ty.TypeKind.Module {
+    let right = expr.data.access.ident;
 
+    if left.ty.kind == ty.TypeKind.Module {
+        if right.ty.kind == ty.TypeKind.Signature {
+            let function = const.function(expr.ty);
+            return make_temp_if_needed(ctx, rvalue.expr_const(function), expr.ty, format);
+        }
     }
 
     dbg.assert(false, "Unhandled Access kind");

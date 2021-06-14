@@ -1,5 +1,5 @@
 import sys
-from os.path import splitext
+from os.path import splitext, realpath, dirname
 from pathlib import Path
 from typing import Optional, List, Union
 
@@ -22,6 +22,10 @@ def relative_to_base(file, relative) -> str:
 
 def kantan_filename(file) -> str:
     return base_filename(file) + '.kan'
+
+
+def relative_filename(file, relative) -> str:
+    return str(realpath(Path(dirname(Path(kantan_filename(file)))).joinpath(Path(relative))))
 
 
 class TestCase(object):

@@ -192,11 +192,13 @@ def (f: *Function) current_bb(): *BasicBlock {
 }
 
 def (f: *Function) terminate_current(terminator: *Terminator) {
+    let current = f.current_bb();
+
     if terminator.kind == TerminatorKind.Call {
         terminator.data.call.next = f.body.blocks.len;
     }
 
-    f.current_bb().terminate(terminator);
+    current.terminate(terminator);
     let new_bb = basic_block();
     f.body.blocks.push(&new_bb as *void);
 }
