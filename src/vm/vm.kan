@@ -1,0 +1,140 @@
+import ":std/io";
+import ":std/dbg";
+
+import "inst" as _;
+
+type Value union {
+    u8: u8,
+    u16: u16,
+    u32: u32,
+    u64: u64,
+    usize: usize,
+
+    i8: i8,
+    i16: i16,
+    i32: i32,
+    i64: i64,
+    isize: isize,
+
+    ptr: *void
+}
+
+def byte(b: i8): Value {
+    // stretch the value to 8 bytes width, to 0 init the non set bytes
+    return Value { i64: b as i64 };
+}
+
+type VM struct {
+    sp: usize,
+    pc: usize,
+    bp: usize, // base pointer <=> start of local variables
+    stack: [1024]Value,
+    num_instr: usize,
+    // too safe space, we represent the Inst values as a single byte
+    program: *u8
+}
+
+def (vm: *VM) init(): *VM {
+    vm.sp = vm.pc = vm.bp = 0;
+    return vm;
+}
+
+def (vm: *VM) load(program: *u8, program_len: usize) {
+    vm.init();
+    vm.program = program;
+    vm.num_instr = program_len;
+}
+
+def (vm: *VM) read_inst(): Inst {
+    let inst = *(vm.program + vm.pc) as i32;
+    vm.pc += 1;
+    return *(&inst as *Inst);
+}
+
+def (vm: *VM) read_operand(): i8 {
+    let op = (vm.program + vm.pc) as *i8;
+    vm.pc += 1;
+    return *op;
+}
+
+def (vm: *VM) push_value(v: Value) {
+    // TODO: replace this with an error
+    dbg.assert(vm.sp < 1024, "stackoverflow");
+    vm.stack[vm.sp] = v;
+    vm.sp += 1;
+}
+
+def (vm: *VM) pop_value(): Value {
+    // TODO: replace this with an error
+    dbg.assert(vm.sp >= 1, "stackunderflow");
+    vm.sp -= 1;
+    return vm.stack[vm.sp];
+}
+
+def (vm: *VM) execute() {
+    while vm.pc < vm.num_instr {
+        let inst = vm.read_inst();
+
+        if inst < Inst.OneOperandMarker {
+            if inst == Inst.Halt {
+                break;
+            } else if inst == Inst.Ret {
+                dbg.not_implemented();
+            } else if inst == Inst.Pop {
+                vm.pop_value();
+            } else if inst == Inst.IAdd {
+                vm.sp -= 1;
+                vm.stack[vm.sp - 1].i64 += vm.stack[vm.sp].i64;
+            } else if inst == Inst.Dup {
+                // TODO: replace this with an error
+                dbg.assert(vm.sp < 1024, "stackoverflow");
+                vm.stack[vm.sp] = vm.stack[vm.sp - 1];
+                vm.sp += 1;
+            } else {
+                dbg.not_implemented();
+            }
+        } else if inst < Inst.TwoOperandMarker {
+            let op = byte(vm.read_operand());
+
+            if inst == Inst.Read64 {
+                dbg.not_implemented();
+            } else if inst == Inst.Write64 {
+                dbg.not_implemented();
+            } else if inst == Inst.PushByte {
+                vm.push_value(op);
+            } else if inst == Inst.PushLocal {
+                vm.push_value(vm.stack[vm.bp + op.usize]);
+            } else if inst == Inst.WriteLocal {
+                vm.stack[vm.bp + op.usize] = vm.pop_value();
+            } else {
+                dbg.not_implemented();
+            }
+        } else {
+            let op = (vm.read_operand() as usize << 8) | (vm.read_operand() as usize);
+
+            if inst == Inst.Jmp {
+                vm.pc += op;
+            } else if inst == Inst.Jeq {
+                let condition = vm.pop_value();
+                if condition.i64 == 0 {
+                    vm.pc += op;
+                }
+            } else if inst == Inst.Jne {
+                let condition = vm.pop_value();
+                if condition.i64 != 0 {
+                    vm.pc += op;
+                }
+            } else {
+                dbg.not_implemented();
+            }
+        }
+    }
+}
+
+def (vm: *VM) dbg_dump_stack() {
+    for let i: usize = 0; i < vm.sp; i += 1 {
+        let value = vm.stack[i].usize;
+        io.printf("%016x\n", value);
+    }
+    io.printf("-----\n");
+}

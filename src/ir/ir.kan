@@ -115,6 +115,14 @@ def (bb: *BasicBlock) terminate(terminator: *Terminator) {
     bb.terminator = *terminator;
 }
 
+def (bb: *BasicBlock) num_statements(): usize {
+    return bb.statements.len;
+}
+
+def (bb: *BasicBlock) statement_at(i: usize): *Statement {
+    return bb.statements.get_ptr(i) as *Statement;
+}
+
 type FunctionDecl struct {
     original_name: ident.Ident,
     mangled_name: str.String,

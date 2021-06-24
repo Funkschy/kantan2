@@ -13,6 +13,7 @@ USAGE:
 OPTIONS:
     --help / -h               print this help text
     --debug-symbols / -g      enable debug symbols in the output
+    --interpret / -i          interpret the compiled code
     --mi                      enable the machine interface               (output everything as json)
     --dump-ast                dump the ast as json                       (needs --mi)
     --dump-config             dump the compiler config as json           (needs --mi)

@@ -16,6 +16,8 @@ type Options struct {
     had_errors: bool,
     exit_immediately: bool,
     debug_info: bool,
+    // temporary flag to enable bytecode interpretation
+    interpret: bool,
     // output all errors and warnings in json
     output_json: bool,
     dump_ast: bool,
@@ -30,7 +32,7 @@ type Options struct {
     target_triple: str.View
 }
 
-let available_options: [12]p.Option = undefined;
+let available_options: [13]p.Option = undefined;
 def num_options(): usize {
     return util.sizeof_val(&available_options) / sizeof p.Option;
 }
@@ -40,6 +42,7 @@ def parse(argc: i32, argv: **i8): Options {
         had_errors: false,
         exit_immediately: false,
         debug_info: false,
+        interpret: false,
         output_json: false,
         dump_ast: false,
         dump_config: false,
@@ -64,6 +67,10 @@ def parse(argc: i32, argv: **i8): Options {
     available_options[i += 1] = *p.option(v("debug-symbols"), p.val_bool(&options.debug_info))
         .short(v("g"))
         .help(v("enable debug symbols in the output"));
+
+    available_options[i += 1] = *p.option(v("interpret"), p.val_bool(&options.interpret))
+        .short(v("i"))
+        .help(v("interpret the compiled code"));
 
     available_options[i += 1] = *p.option(v("mi"), p.val_bool(&options.output_json))
         .help(v("enable the machine interface"))
@@ -149,6 +156,11 @@ def error_in_config_values(options: *Options): bool {
 
     if options.dump_ir && !options.output_json {
         report.print_simple(str.view("--dump-ir can only be used in combination with --mi", 51));
+        return true;
+    }
+
+    if options.interpret && options.output_json {
+        report.print_simple(str.view("--interpret can not be used in combination with --mi", 52));
         return true;
     }
 

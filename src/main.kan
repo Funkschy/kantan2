@@ -143,6 +143,40 @@ def main(argc: i32, argv: *string): ReturnCode {
                 result = result.or(ir_item.compile(&ctx, item));
             }
 
+            if opts.interpret {
+                // TODO: this is temporary code to test the bytecode compilation
+
+                import "std/map";
+
+                import "ir/ir";
+
+                import "vm/vm";
+                import "vm/compiler";
+                import "vm/inst" as _;
+                import "vm/dbg" as vm_dbg;
+
+                let main_f = ctx.functions.get(map.key(str.view_from("main"))) as *ir.Function;
+                let ir_compiler = compiler.compiler();
+
+                // make space for locals
+                for let local: usize = 0; local < main_f.body.locals.len; local += 1 {
+                    ir_compiler.emit_with_op(Inst.PushByte, 0);
+                }
+
+                ir_compiler.compile_bb(main_f.body.blocks.get_ptr(0) as *ir.BasicBlock);
+
+                let program = ir_compiler.code.get_ptr(0) as *i8;
+                let len = ir_compiler.code.len;
+
+                let vm: vm.VM = undefined;
+                vm.load(program, len);
+                vm.execute();
+                vm.dbg_dump_stack();
+
+                vm_dbg.dump_bytecode_dbg(program, len);
+                ir_compiler.free();
+            }
+
             if !opts.dump_ir {
                 continue;
             }

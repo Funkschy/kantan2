@@ -1,0 +1,107 @@
+import ":std/vec";
+import ":std/dbg";
+
+import ":ir/ir";
+import ":ir/const";
+import ":ir/rvalue";
+import ":ir/memory";
+
+import "vm";
+import "inst" as _;
+
+type IRCompiler struct {
+    code: vec.Vec // vec.Vec[i8]
+}
+
+def compiler(): IRCompiler {
+    return IRCompiler {
+        code: vec.create(sizeof i8)
+    };
+}
+
+def (c: *IRCompiler) free() {
+    c.code.free();
+}
+
+def (c: *IRCompiler) emit(i: Inst) {
+    let byte = i as i32 as i8;
+    c.code.push(&byte as *void);
+}
+
+def (c: *IRCompiler) emit_with_op(i: Inst, operand: i8) {
+    c.emit(i);
+    c.code.push(&operand as *void);
+}
+
+def (c: *IRCompiler) write_to_location(location: *memory.Location) {
+    dbg.assert(location.kind == memory.LocationKind.Local, "globals are not implemented");
+    dbg.assert(location.projection_head == null, "projections are not implemented");
+    let local = location.data.local;
+
+    // TODO: this only supports 127 local variables, which is not enough
+    dbg.assert(local.idx <= 127, "local variable offset too big");
+    c.emit_with_op(Inst.WriteLocal, local.idx as i8 - 1);
+}
+
+def (c: *IRCompiler) load_location(location: *memory.Location) {
+    dbg.assert(location.kind == memory.LocationKind.Local, "globals are not implemented");
+    dbg.assert(location.projection_head == null, "projections are not implemented");
+    let local = location.data.local;
+
+    // TODO: this only supports 127 local variables, which is not enough
+    dbg.assert(local.idx <= 127, "local variable offset too big");
+    c.emit_with_op(Inst.PushLocal, local.idx as i8 - 1);
+}
+
+def (c: *IRCompiler) load_constant(constant: *const.Constant) {
+    if constant.kind == const.ConstantKind.Int {
+        let value = constant.data.int;
+        // TODO: implement a proper constand pool
+        dbg.assert(value < 256, "const value too big");
+        c.emit_with_op(Inst.PushByte, value as i8);
+        return;
+    }
+
+    dbg.not_implemented();
+}
+
+def (c: *IRCompiler) load_operand(operand: *rvalue.Operand) {
+    if operand.kind == rvalue.OperandKind.Constant {
+        c.load_constant(&operand.data.constant);
+    } else {
+        c.load_location(&operand.data.copy);
+    }
+}
+
+def (c: *IRCompiler) load_value_from_expr(expr: *rvalue.Expression) {
+    if expr.kind == rvalue.ExpressionKind.Use {
+        c.load_operand(&expr.data.use);
+        return;
+    } else if expr.kind == rvalue.ExpressionKind.Binary {
+        let binary = &expr.data.binary;
+        c.load_operand(&binary.left);
+        c.load_operand(&binary.right);
+
+        if binary.kind == rvalue.BinaryKind.Add {
+            c.emit(Inst.IAdd);
+        } else {
+            dbg.not_implemented();
+        }
+
+        return;
+    }
+
+    dbg.not_implemented();
+}
+
+def (c: *IRCompiler) compile_bb(bb: *ir.BasicBlock) {
+    for let i: usize = 0; i < bb.num_statements(); i += 1 {
+        let stmt = bb.statement_at(i);
+
+        if stmt.kind == ir.StatementKind.Assign {
+            let assign = &stmt.data.assign;
+            c.load_value_from_expr(&assign.value);
+            c.write_to_location(&assign.location);
+        }
+    }
+}

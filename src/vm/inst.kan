@@ -1,0 +1,39 @@
+type Inst enum {
+    Nop,
+    Halt,
+    Ret,
+
+    Dup,     // duplicate the top of the stack
+    Pop,     // discard the top of the stack
+    IAdd,    // push(pop() + pop())
+
+    // pop an address from the stack and the write the value at that address to the stack
+    // push(*pop())
+    Read64,
+    // pop a value and an address from the stack and write that value to that address
+    // value = pop()
+    // *pop() = value;
+    Write64,
+
+    // everything below this takes at least one operand
+    OneOperandMarker,
+
+    // push the operand byte to the stack
+    PushByte,
+
+    // push a local variable with the given index
+    PushLocal,
+    // pop into the specified local
+    // locals[operand] = pop()
+    WriteLocal,
+
+    // everything below this takes at least two operands
+    TwoOperandMarker,
+
+    // goto pc + ((operand1 << 8) | operand2)
+    Jmp,
+    // jmp if the stack top is  = 0
+    Jeq,
+    // jmp if the stack top is != 0
+    Jne
+}
