@@ -24,6 +24,14 @@ def byte(b: i8): Value {
     return Value { i64: b as i64 };
 }
 
+def ptr(p: *void): Value {
+    return Value { ptr: p };
+}
+
+def data(u: u64): Value {
+    return Value { u64: u };
+}
+
 type VM struct {
     sp: usize,
     pc: usize,
@@ -82,32 +90,37 @@ def (vm: *VM) execute() {
                 dbg.not_implemented();
             } else if inst == Inst.Pop {
                 vm.pop_value();
-            } else if inst == Inst.IAdd {
-                vm.sp -= 1;
-                vm.stack[vm.sp - 1].i64 += vm.stack[vm.sp].i64;
             } else if inst == Inst.Dup {
                 // TODO: replace this with an error
                 dbg.assert(vm.sp < 1024, "stackoverflow");
                 vm.stack[vm.sp] = vm.stack[vm.sp - 1];
                 vm.sp += 1;
+            } else if inst == Inst.IAdd {
+                vm.sp -= 1;
+                vm.stack[vm.sp - 1].i64 += vm.stack[vm.sp].i64;
+            } else if inst == Inst.IMul {
+                vm.sp -= 1;
+                vm.stack[vm.sp - 1].i64 *= vm.stack[vm.sp].i64;
+            } else if inst == Inst.Read {
+                let pointer = vm.pop_value().ptr as *u64;
+                vm.push_value(data(*pointer));
+            } else if inst == Inst.Write {
+                let pointer = vm.pop_value().ptr as *u64;
+                *pointer = vm.pop_value().u64;
+            } else if inst == Inst.PushLocal {
+                let local = vm.pop_value().usize;
+                vm.push_value(vm.stack[vm.bp + local]);
+            } else if inst == Inst.PushLocalAddress {
+                let local = vm.pop_value().usize;
+                vm.push_value(ptr(&vm.stack[vm.bp + local] as *void));
             } else {
                 dbg.not_implemented();
             }
         } else if inst < Inst.TwoOperandMarker {
             let op = byte(vm.read_operand());
 
-            if inst == Inst.Read64 {
-                dbg.not_implemented();
-            } else if inst == Inst.Write64 {
-                dbg.not_implemented();
-            } else if inst == Inst.PushByte {
+            if inst == Inst.PushByte {
                 vm.push_value(op);
-            } else if inst == Inst.PushLocal {
-                vm.push_value(vm.stack[vm.bp + op.usize]);
-            } else if inst == Inst.WriteLocal {
-                vm.stack[vm.bp + op.usize] = vm.pop_value();
-            } else {
-                dbg.not_implemented();
             }
         } else {
             let op = (vm.read_operand() as usize << 8) | (vm.read_operand() as usize);
@@ -136,5 +149,4 @@ def (vm: *VM) dbg_dump_stack() {
         let value = vm.stack[i].usize;
         io.printf("%016x\n", value);
     }
-    io.printf("-----\n");
 }

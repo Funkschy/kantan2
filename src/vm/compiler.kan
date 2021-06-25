@@ -33,33 +33,71 @@ def (c: *IRCompiler) emit_with_op(i: Inst, operand: i8) {
     c.code.push(&operand as *void);
 }
 
-def (c: *IRCompiler) write_to_location(location: *memory.Location) {
+def (c: *IRCompiler) load_location_address(location: *memory.Location) {
     dbg.assert(location.kind == memory.LocationKind.Local, "globals are not implemented");
-    dbg.assert(location.projection_head == null, "projections are not implemented");
+
     let local = location.data.local;
 
     // TODO: this only supports 127 local variables, which is not enough
     dbg.assert(local.idx <= 127, "local variable offset too big");
-    c.emit_with_op(Inst.WriteLocal, local.idx as i8 - 1);
+    c.emit_with_op(Inst.PushByte, local.idx as i8 - 1);
+    c.emit(Inst.PushLocalAddress);
+
+    let proj_node = location.projection_head;
+    while proj_node != null {
+        let proj = proj_node.value;
+        if proj.kind == memory.ProjectionKind.Deref {
+            c.emit(Inst.Read);
+        } else {
+            dbg.not_implemented();
+        }
+
+        proj_node = proj_node.next;
+    }
+
+
+}
+
+def (c: *IRCompiler) write_to_location(location: *memory.Location) {
+    dbg.assert(location.kind == memory.LocationKind.Local, "globals are not implemented");
+    let local = location.data.local;
+
+    // if this has projections, we first need the address of the memory location
+    c.load_location_address(location);
+    c.emit(Inst.Write);
 }
 
 def (c: *IRCompiler) load_location(location: *memory.Location) {
-    dbg.assert(location.kind == memory.LocationKind.Local, "globals are not implemented");
-    dbg.assert(location.projection_head == null, "projections are not implemented");
-    let local = location.data.local;
-
-    // TODO: this only supports 127 local variables, which is not enough
-    dbg.assert(local.idx <= 127, "local variable offset too big");
-    c.emit_with_op(Inst.PushLocal, local.idx as i8 - 1);
+    c.load_location_address(location);
+    c.emit(Inst.Read);
 }
 
 def (c: *IRCompiler) load_constant(constant: *const.Constant) {
-    if constant.kind == const.ConstantKind.Int {
+    if constant.kind == const.ConstantKind.Nothing {
+        return;
+    } else if constant.kind == const.ConstantKind.Null {
+        c.emit_with_op(Inst.PushByte, 0);
+        return;
+    } else if constant.kind == const.ConstantKind.Undefined {
+        // TODO: push each field separately for structs
+        c.emit_with_op(Inst.PushByte, 0);
+        return;
+    } else if constant.kind == const.ConstantKind.Char {
+        let value = constant.data.char;
+        c.emit_with_op(Inst.PushByte, value);
+        return;
+    } else if constant.kind == const.ConstantKind.Int {
         let value = constant.data.int;
         // TODO: implement a proper constand pool
         dbg.assert(value < 256, "const value too big");
         c.emit_with_op(Inst.PushByte, value as i8);
         return;
+    } else if constant.kind == const.ConstantKind.Float {
+        // TODO
+    } else if constant.kind == const.ConstantKind.String {
+        // TODO
+    } else if constant.kind == const.ConstantKind.Function {
+        // TODO
     }
 
     dbg.not_implemented();
@@ -77,12 +115,26 @@ def (c: *IRCompiler) load_value_from_expr(expr: *rvalue.Expression) {
     if expr.kind == rvalue.ExpressionKind.Use {
         c.load_operand(&expr.data.use);
         return;
+    } else if expr.kind == rvalue.ExpressionKind.Ref {
+        c.load_location_address(&expr.data.ref);
+        return;
+    } else if expr.kind == rvalue.ExpressionKind.Cast {
+        // TODO
+    } else if expr.kind == rvalue.ExpressionKind.Unary {
+        // TODO
     } else if expr.kind == rvalue.ExpressionKind.Binary {
         let binary = &expr.data.binary;
         c.load_operand(&binary.left);
         c.load_operand(&binary.right);
 
         if binary.kind == rvalue.BinaryKind.Add {
+            c.emit(Inst.IAdd);
+        } else if binary.kind == rvalue.BinaryKind.AddScalar {
+            // since every value in the vm mode must have an alignment of 8, we just multiply
+            // the value by those 8 bytes
+            c.emit_with_op(Inst.PushByte, 8);
+            c.emit(Inst.IMul);
+
             c.emit(Inst.IAdd);
         } else {
             dbg.not_implemented();
@@ -92,6 +144,10 @@ def (c: *IRCompiler) load_value_from_expr(expr: *rvalue.Expression) {
     }
 
     dbg.not_implemented();
+}
+
+def (c: *IRCompiler) compile_terminator(terminator: *ir.Terminator) {
+    // TODO
 }
 
 def (c: *IRCompiler) compile_bb(bb: *ir.BasicBlock) {
@@ -104,4 +160,6 @@ def (c: *IRCompiler) compile_bb(bb: *ir.BasicBlock) {
             c.write_to_location(&assign.location);
         }
     }
+
+    c.compile_terminator(&bb.terminator);
 }

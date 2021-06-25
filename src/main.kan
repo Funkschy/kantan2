@@ -168,12 +168,14 @@ def main(argc: i32, argv: *string): ReturnCode {
                 let program = ir_compiler.code.get_ptr(0) as *i8;
                 let len = ir_compiler.code.len;
 
+                vm_dbg.dump_bytecode_dbg(program, len);
+                io.printf("-----\n");
+
                 let vm: vm.VM = undefined;
                 vm.load(program, len);
                 vm.execute();
                 vm.dbg_dump_stack();
 
-                vm_dbg.dump_bytecode_dbg(program, len);
                 ir_compiler.free();
             }
 

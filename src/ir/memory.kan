@@ -36,6 +36,10 @@ def (l: *Location) to_json(): str.String {
         while p != null {
             let proj = p.value;
 
+            if p != l.projection_head {
+                json.push(str.view(", ", 2));
+            }
+
             if proj.kind == ProjectionKind.Field {
                 dbg.assert(false, "unhandled projection kind field");
             } else if proj.kind == ProjectionKind.Index {

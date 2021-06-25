@@ -53,10 +53,6 @@ def make_temp_if_needed(
         return ok(value);
     }
 
-    if value.kind == rvalue.ExpressionKind.Ref {
-        return ok(value);
-    }
-
     let temp = ctx.declare_temp_var(ty).as_location();
     let assign = ir.assign(temp, value);
     ctx.push_stmt(&assign);
@@ -153,8 +149,7 @@ def compile_unary(ctx: *IRCtx, expr: *Expr, format: ResultFormat): CompileResult
     }
 
     if unary.kind == UnaryKind.AddrOf {
-        dbg.assert(format == ResultFormat.RValue, "trying to get address as lvalue");
-        return ok(rvalue.expr_ref(location));
+        return make_temp_if_needed(ctx, rvalue.expr_ref(location), expr.ty, format);
     }
 
     if unary.kind == UnaryKind.Deref {
