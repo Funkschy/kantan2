@@ -6,21 +6,73 @@ import ":ir/const";
 import ":ir/rvalue";
 import ":ir/memory";
 
+import ":util";
+import ":types/types" as ty;
+
 import "vm";
 import "inst" as _;
 
 type IRCompiler struct {
+    current_function: *ir.Function,
+    // the offset from the base pointer of all local variables of the current_function
+    local_offsets: vec.Vec, // vec.Vec[u64]
     code: vec.Vec // vec.Vec[i8]
 }
 
 def compiler(): IRCompiler {
     return IRCompiler {
+        current_function: null,
+        local_offsets: vec.create(sizeof u64),
         code: vec.create(sizeof i8)
     };
 }
 
 def (c: *IRCompiler) free() {
+    c.local_offsets.free();
     c.code.free();
+}
+
+def (c: *IRCompiler) width_bits(location: *memory.Location): usize {
+    return c.typeof(location).width.bits() as usize;
+}
+
+def (c: *IRCompiler) typeof(location: *memory.Location): *ty.Type {
+    return c.current_function.location_type(location);
+}
+
+def (c: *IRCompiler) width_bits_op(op: *rvalue.Operand): usize {
+    return c.typeof_op(op).width.bits() as usize;
+}
+
+def (c: *IRCompiler) typeof_op(op: *rvalue.Operand): *ty.Type {
+    if op.kind == rvalue.OperandKind.Copy {
+        return c.typeof(&op.data.copy);
+    } else {
+        return op.data.constant.ty;
+    }
+}
+
+def (c: *IRCompiler) fill_local_offsets(): u64 {
+    c.local_offsets.clear();
+
+    let offset: u64 = 0;
+    for let l: u64 = 0; l < c.current_function.body.locals.len as u64; l += 1 {
+        let location = memory.local(l as usize + 1).as_location();
+        let ty = c.current_function.location_type(&location);
+        let align = ty.align.bytes();
+        let width = ty.width.bytes();
+        offset = (offset + align - 1) & -align;
+
+        c.local_offsets.push(&offset as *void);
+
+        offset += width;
+    }
+
+    return util.next_multiple_of_8(offset);
+}
+
+def (c: *IRCompiler) local_offset(local: memory.Local): u64 {
+    return *(c.local_offsets.get_ptr(local.idx - 1) as *u64);
 }
 
 def (c: *IRCompiler) emit(i: Inst) {
@@ -28,34 +80,42 @@ def (c: *IRCompiler) emit(i: Inst) {
     c.code.push(&byte as *void);
 }
 
-def (c: *IRCompiler) emit_with_op(i: Inst, operand: i8) {
+def (c: *IRCompiler) emit_with_op(i: Inst, operand: u64, operand_bits: usize) {
     c.emit(i);
-    c.code.push(&operand as *void);
+
+    let n = 1;
+    if operand_bits == 16 {
+        n = 2;
+    } else if operand_bits == 32 {
+        n = 4;
+    } else if operand_bits == 64 {
+        n = 8;
+    }
+
+    for let i = 0; i < n; i += 1 {
+        c.code.push(&operand as *void + i);
+    }
 }
 
 def (c: *IRCompiler) load_location_address(location: *memory.Location) {
     dbg.assert(location.kind == memory.LocationKind.Local, "globals are not implemented");
 
+    let width = c.width_bits(location);
     let local = location.data.local;
 
-    // TODO: this only supports 127 local variables, which is not enough
-    dbg.assert(local.idx <= 127, "local variable offset too big");
-    c.emit_with_op(Inst.PushByte, local.idx as i8 - 1);
-    c.emit(Inst.PushLocalAddress);
+    c.emit_with_op(Inst.LocalPtr, c.local_offset(local), 32);
 
     let proj_node = location.projection_head;
     while proj_node != null {
         let proj = proj_node.value;
         if proj.kind == memory.ProjectionKind.Deref {
-            c.emit(Inst.Read);
+            c.emit(with_size(Inst.Load8, width));
         } else {
             dbg.not_implemented();
         }
 
         proj_node = proj_node.next;
     }
-
-
 }
 
 def (c: *IRCompiler) write_to_location(location: *memory.Location) {
@@ -64,33 +124,31 @@ def (c: *IRCompiler) write_to_location(location: *memory.Location) {
 
     // if this has projections, we first need the address of the memory location
     c.load_location_address(location);
-    c.emit(Inst.Write);
+    c.emit(with_size(Inst.Store8, c.width_bits(location)));
 }
 
 def (c: *IRCompiler) load_location(location: *memory.Location) {
     c.load_location_address(location);
-    c.emit(Inst.Read);
+    c.emit(with_size(Inst.Load8, c.width_bits(location)));
 }
 
 def (c: *IRCompiler) load_constant(constant: *const.Constant) {
+    let size = constant.ty.width.bits() as usize;
+
     if constant.kind == const.ConstantKind.Nothing {
         return;
     } else if constant.kind == const.ConstantKind.Null {
-        c.emit_with_op(Inst.PushByte, 0);
+        c.emit_with_op(with_size(Inst.ConstI8, size), 0, size);
         return;
     } else if constant.kind == const.ConstantKind.Undefined {
         // TODO: push each field separately for structs
-        c.emit_with_op(Inst.PushByte, 0);
+        c.emit_with_op(with_size(Inst.ConstI8, size), 0, size);
         return;
     } else if constant.kind == const.ConstantKind.Char {
-        let value = constant.data.char;
-        c.emit_with_op(Inst.PushByte, value);
-        return;
+        // TODO
     } else if constant.kind == const.ConstantKind.Int {
         let value = constant.data.int;
-        // TODO: implement a proper constand pool
-        dbg.assert(value < 256, "const value too big");
-        c.emit_with_op(Inst.PushByte, value as i8);
+        c.emit_with_op(with_size(Inst.ConstI8, size), value, size);
         return;
     } else if constant.kind == const.ConstantKind.Float {
         // TODO
@@ -130,12 +188,6 @@ def (c: *IRCompiler) load_value_from_expr(expr: *rvalue.Expression) {
         if binary.kind == rvalue.BinaryKind.Add {
             c.emit(Inst.IAdd);
         } else if binary.kind == rvalue.BinaryKind.AddScalar {
-            // since every value in the vm mode must have an alignment of 8, we just multiply
-            // the value by those 8 bytes
-            c.emit_with_op(Inst.PushByte, 8);
-            c.emit(Inst.IMul);
-
-            c.emit(Inst.IAdd);
         } else {
             dbg.not_implemented();
         }
@@ -150,16 +202,28 @@ def (c: *IRCompiler) compile_terminator(terminator: *ir.Terminator) {
     // TODO
 }
 
-def (c: *IRCompiler) compile_bb(bb: *ir.BasicBlock) {
-    for let i: usize = 0; i < bb.num_statements(); i += 1 {
-        let stmt = bb.statement_at(i);
+def (c: *IRCompiler) compile_function(f: *ir.Function) {
+    c.current_function = f;
+    let operand_stack_start = c.fill_local_offsets() as u32 as u64; // only use 4 bytes
+    c.emit_with_op(Inst.AllocLocals, operand_stack_start, 32);
 
-        if stmt.kind == ir.StatementKind.Assign {
-            let assign = &stmt.data.assign;
-            c.load_value_from_expr(&assign.value);
-            c.write_to_location(&assign.location);
+    for let b: usize = 0; b < f.num_bbs(); b += 1 {
+        let bb = f.bb_at(b);
+
+        for let s: usize = 0; s < bb.num_statements(); s += 1 {
+            let stmt = bb.statement_at(s);
+
+            if stmt.kind == ir.StatementKind.Assign {
+                let assign = &stmt.data.assign;
+                c.load_value_from_expr(&assign.value);
+
+                dbg.assert(assign.location.kind == memory.LocationKind.Local, "globals not implemented");
+                let local = assign.location.data.local;
+                c.write_to_location(&assign.location);
+            }
         }
-    }
 
-    c.compile_terminator(&bb.terminator);
+        c.compile_terminator(&bb.terminator);
+    }
 }
+

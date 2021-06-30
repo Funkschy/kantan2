@@ -1,40 +1,69 @@
 type Inst enum {
     Nop,
     Halt,
-    Ret,
 
-    Dup,      // duplicate the top of the stack
-    Pop,      // discard the top of the stack
-    IAdd,     // push(pop() + pop())
-    IMul,     // push(pop() * pop())
+    // alloclocals space
+    // allocates stackspace for local variables, which work differently from the operand stack,
+    // because they need to be aligned to their respective variable sizes while the operand stack
+    // is always aligned to 8 bytes
+    // e.g. if we have the locals: i32, *i32, i32
+    // this will allocate 24 bytes, since the *i32 needs padding to be 8 aligned and there needs
+    // to be padding after the last i32, to ensure the operand stack is 8 byte aligned
+    AllocLocals,
+    // localptr offset
+    // push(vm.bp + offset)
+    LocalPtr,
 
-    // pop an address from the stack and the write the value at that address to the stack
-    // push(*pop())
-    Read,
-    // pop a value and an address from the stack and write that value to that address
-    // value = pop()
-    // *pop() = value;
-    Write,
-    // pop and index from the stack and push the local variable with that index
-    // push(locals[pop()])
-    PushLocal,
-    // push a pointer to a local to the stack
-    // push(&locals[pop()])
-    PushLocalAddress,
+    // constww constant
+    // push a iww following this instruction onto the stack
+    ConstI8,
+    ConstI16,
+    ConstI32,
+    ConstI64,
 
-    // everything below this takes at least one operand
-    OneOperandMarker,
+    // push_i64(pop_i64() + pop_i64())
+    IAdd,
 
-    // push the operand byte to the stack
-    PushByte,
+    // loadww
+    // push_uww(*pop_usize())
+    Load8,
+    Load16,
+    Load32,
+    Load64,
 
-    // everything below this takes at least two operands
-    TwoOperandMarker,
+    // storeww
+    // *pop_ptr() = pop_uww()
+    Store8,
+    Store16,
+    Store32,
+    Store64
+}
 
-    // goto pc + ((operand1 << 8) | operand2)
-    Jmp,
-    // jmp if the stack top is  = 0
-    Jeq,
-    // jmp if the stack top is != 0
-    Jne
+def with_size(start: Inst, bits: usize): Inst {
+    let i_start = start as i32;
+    if bits == 16 {
+        i_start += 1;
+    } else if bits == 32 {
+        i_start += 2;
+    } else if bits == 64 {
+        i_start += 3;
+    }
+
+    return *(&i_start as *Inst);
+}
+
+def (i: Inst) _param_size_bytes(start: Inst, end: Inst): usize {
+    if i >= start && i <= end {
+        return 4 << (1 + i as i32 as usize - start as i32 as usize) >> 3;
+    }
+
+    return 0;
+}
+
+def (i: Inst) width_bytes(): usize {
+    let w: usize = 1;
+    w += i._param_size_bytes(Inst.ConstI8, Inst.ConstI64);
+    w += (i == Inst.AllocLocals) as usize * 4;
+    w += (i == Inst.LocalPtr) as usize * 4;
+    return w;
 }

@@ -1,43 +1,49 @@
-import "io";
+import ":std/io";
 
+import ":util";
 import "inst";
 
 def dump_bytecode_dbg(program: *u8, program_len: usize) {
     let human_readable: [17]*i8 = undefined;
     human_readable[ 0] = "nop";
     human_readable[ 1] = "halt";
-    human_readable[ 2] = "ret";
-    human_readable[ 3] = "dup";
-    human_readable[ 4] = "pop";
-    human_readable[ 5] = "iadd";
-    human_readable[ 6] = "imul";
-    human_readable[ 7] = "read";
-    human_readable[ 8] = "write";
-    human_readable[ 9] = "pushlocal";
-    human_readable[10] = "pushlocalptr";
-    human_readable[11] = "";
-    human_readable[12] = "pushb";
-    human_readable[13] = "";
-    human_readable[14] = "jmp";
-    human_readable[15] = "jeq";
-    human_readable[16] = "jne";
+    human_readable[ 2] = "alloclocals";
+    human_readable[ 3] = "localptr";
 
-    for let i: usize = 0; i < program_len; i += 1 {
+    human_readable[ 4] = "i8.const";
+    human_readable[ 5] = "i16.const";
+    human_readable[ 6] = "i32.const";
+    human_readable[ 7] = "i64.const";
+
+    human_readable[ 8] = "iadd";
+
+    human_readable[ 9] = "load8";
+    human_readable[10] = "load16";
+    human_readable[11] = "load32";
+    human_readable[12] = "load64";
+
+    human_readable[13] = "store8";
+    human_readable[14] = "store16";
+    human_readable[15] = "store32";
+    human_readable[16] = "store64";
+
+
+    for let i: usize = 0; i < program_len; {
         let instruction = *(program + i) as i32;
         let mnemonic = human_readable[instruction];
 
         let instruction = *(&instruction as *inst.Inst);
-        if instruction < inst.Inst.OneOperandMarker {
+        let width_bytes = instruction.width_bytes();
+        let param_size = instruction.width_bytes() - 1;
+
+        if param_size == 0 {
             io.printf("%5d%15s\n", i, mnemonic);
-        } else if instruction < inst.Inst.TwoOperandMarker  {
-            let operand = *(program + i + 1);
-            io.printf("%5d%15s%5d\n", i, mnemonic, operand as i32);
-            i += 1; // skip operand
         } else {
-            let operand1 = *(program + i + 1);
-            let operand2 = *(program + i + 2);
-            io.printf("%5d%15s%5d%5d\n", i, mnemonic, operand1 as i32, operand2 as i32);
-            i += 2; // skip operands
+            let operand = util.read_int(program + i + 1, param_size);
+            io.printf("%5d%15s%10x\n", i, mnemonic, operand);
         }
+
+
+        i += instruction.width_bytes();
     }
 }

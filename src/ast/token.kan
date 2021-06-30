@@ -16,6 +16,7 @@ type TokenType enum {
     Float,
     String,
     Char,
+    // TODO: implement true and false as keywords
     Null,
     Undefined,
 

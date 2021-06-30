@@ -178,6 +178,7 @@ def compile_binary(ctx: *IRCtx, expr: *Expr, format: ResultFormat): CompileResul
     let right = right.value.data.ref;
 
     let short_circuit = ShortCircuitKind.None;
+    // TODO: in the case of add scalar, the scalar should always be the right operand
     let kind = binary_ast_to_ir(binary, &short_circuit);
     let binary_expr = rvalue.expr_binary(kind, rvalue.copy(left), rvalue.copy(right));
 

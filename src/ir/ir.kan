@@ -181,12 +181,21 @@ def (f: *Function) free() {
     f.body.free();
 }
 
+def (f: *Function) location_type(location: *memory.Location): *ty.Type {
+    dbg.assert(location.kind == memory.LocationKind.Local, "globals not implemented");
+    return f.body.local_at(location.data.local.idx - 1).ty;
+}
+
 def (f: *Function) return_type(): *ty.Type {
     return f.decl.return_type();
 }
 
 def (f: *Function) num_bbs(): usize {
     return f.body.blocks.len;
+}
+
+def (f: *Function) bb_at(i: usize): *BasicBlock {
+    return f.body.blocks.get_ptr(i) as *BasicBlock;
 }
 
 def (f: *Function) current_bb(): *BasicBlock {
@@ -196,7 +205,7 @@ def (f: *Function) current_bb(): *BasicBlock {
         f.body.blocks.push(&bb as *void);
     }
 
-    return f.body.blocks.get_ptr(f.body.blocks.len - 1) as *BasicBlock;
+    return f.bb_at(f.body.blocks.len - 1);
 }
 
 def (f: *Function) terminate_current(terminator: *Terminator) {
@@ -235,6 +244,11 @@ def (b: *FunctionBody) add_local(local: memory.Local, ty: *ty.Type) {
     let decl = LocalVarDecl { ty: ty };
     b.locals.push(&decl as *void);
     dbg.assert(b.locals.len == local.idx, "inconsistent locals");
+}
+
+def (b: *FunctionBody) local_at(i: usize): LocalVarDecl {
+    dbg.assert(i < b.locals.len, "out of bounds local access");
+    return *(b.locals.get_ptr(i) as *LocalVarDecl);
 }
 
 type LocalVarDecl struct {

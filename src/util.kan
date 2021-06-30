@@ -28,6 +28,20 @@ def (r: Result) or(other: Result): Result {
     return Result.OK;
 }
 
+def read_int(bytes: *u8, width_bytes: usize): u64 {
+    dbg.assert(width_bytes <= 8, "trying to read more than 8 bytes into an u64");
+
+    let value: u64 = 0;
+    for let i = width_bytes; i > 0; i -= 1 {
+        value = (value << 8) | (*(bytes + i - 1) as u64);
+    }
+    return value;
+}
+
+def next_multiple_of_8(value: u64): u64 {
+    return (value + 7) & -8;
+}
+
 def key_from_ident(i: ident.Ident): map.Key {
     return map.create_key(i.len(), i.start());
 }
