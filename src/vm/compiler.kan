@@ -59,6 +59,13 @@ def (c: *IRCompiler) fill_local_offsets(): u64 {
     for let l: u64 = 0; l < c.current_function.body.locals.len as u64; l += 1 {
         let location = memory.local(l as usize + 1).as_location();
         let ty = c.current_function.location_type(&location);
+        if ty.is_unsized() {
+            // there are actually locals with type void in the mir, since every expression
+            // (calls to void functions in this case) must be assigned to a variable
+            c.local_offsets.push(&offset as *void);
+            continue;
+        }
+
         let align = ty.align.bytes();
         let width = ty.width.bytes();
         offset = (offset + align - 1) & -align;
@@ -119,6 +126,10 @@ def (c: *IRCompiler) load_location_address(location: *memory.Location) {
 }
 
 def (c: *IRCompiler) write_to_location(location: *memory.Location) {
+    if c.typeof(location).is_unsized() {
+        return;
+    }
+
     dbg.assert(location.kind == memory.LocationKind.Local, "globals are not implemented");
     let local = location.data.local;
 
@@ -128,6 +139,10 @@ def (c: *IRCompiler) write_to_location(location: *memory.Location) {
 }
 
 def (c: *IRCompiler) load_location(location: *memory.Location) {
+    if c.typeof(location).is_unsized() {
+        return;
+    }
+
     c.load_location_address(location);
     c.emit(with_size(Inst.Load8, c.width_bits(location)));
 }
@@ -188,6 +203,21 @@ def (c: *IRCompiler) load_value_from_expr(expr: *rvalue.Expression) {
         if binary.kind == rvalue.BinaryKind.Add {
             c.emit(Inst.IAdd);
         } else if binary.kind == rvalue.BinaryKind.AddScalar {
+            // this assumes, that the left part of the expression is always the pointer
+            // that constraint should be enforced by the ir compiler
+            let ptr_ty = c.typeof_op(&binary.left);
+            dbg.assert(ptr_ty.kind == ty.TypeKind.Ptr, "left side of AddScalar should be ptr");
+
+            // multiply the scalar with the pointee size
+            let pointee_type = ptr_ty.inner_type();
+            let pointee_size: u64 = 1;
+            if !pointee_type.is_unsized() {
+                pointee_size = pointee_type.width.bytes();
+            }
+
+            c.emit_with_op(Inst.ConstI64, pointee_size, 64);
+            c.emit(Inst.IMul);
+            c.emit(Inst.IAdd);
         } else {
             dbg.not_implemented();
         }
@@ -218,8 +248,9 @@ def (c: *IRCompiler) compile_function(f: *ir.Function) {
                 c.load_value_from_expr(&assign.value);
 
                 dbg.assert(assign.location.kind == memory.LocationKind.Local, "globals not implemented");
-                let local = assign.location.data.local;
-                c.write_to_location(&assign.location);
+                if !c.typeof(&assign.location).is_unsized() {
+                    c.write_to_location(&assign.location);
+                }
             }
         }
 

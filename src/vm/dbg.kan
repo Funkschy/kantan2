@@ -4,7 +4,7 @@ import ":util";
 import "inst";
 
 def dump_bytecode_dbg(program: *u8, program_len: usize) {
-    let human_readable: [17]*i8 = undefined;
+    let human_readable: [18]*i8 = undefined;
     human_readable[ 0] = "nop";
     human_readable[ 1] = "halt";
     human_readable[ 2] = "alloclocals";
@@ -16,16 +16,17 @@ def dump_bytecode_dbg(program: *u8, program_len: usize) {
     human_readable[ 7] = "i64.const";
 
     human_readable[ 8] = "iadd";
+    human_readable[ 9] = "imul";
 
-    human_readable[ 9] = "load8";
-    human_readable[10] = "load16";
-    human_readable[11] = "load32";
-    human_readable[12] = "load64";
+    human_readable[10] = "load8";
+    human_readable[11] = "load16";
+    human_readable[12] = "load32";
+    human_readable[13] = "load64";
 
-    human_readable[13] = "store8";
-    human_readable[14] = "store16";
-    human_readable[15] = "store32";
-    human_readable[16] = "store64";
+    human_readable[14] = "store8";
+    human_readable[15] = "store16";
+    human_readable[16] = "store32";
+    human_readable[17] = "store64";
 
 
     for let i: usize = 0; i < program_len; {

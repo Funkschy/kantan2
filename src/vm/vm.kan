@@ -111,37 +111,30 @@ def (vm: *VM) execute() {
             let value = Value { ptr: vm.stack as *void + vm.bp + operand };
             vm.push(value);
 
-        } else if inst == Inst.ConstI8 {
-            let operand = vm.read_operand(1) as u8;
-            vm.push(Value { u8: operand });
-        } else if inst == Inst.ConstI16 {
-            let operand = vm.read_operand(2) as u16;
-            vm.push(Value { u16: operand });
-        } else if inst == Inst.ConstI32 {
-            let operand = vm.read_operand(4) as u32;
-            vm.push(Value { u32: operand });
-        } else if inst == Inst.ConstI64 {
-            let operand = vm.read_operand(8);
-            vm.push(Value { u64: operand });
+        } else if inst >= Inst.ConstI8  && inst <= Inst.ConstI64 {
+            let offset = (inst as i32 - Inst.ConstI8 as i32) as usize;
+            let operand = vm.read_operand(1 << offset) as u8;
+            vm.push(Value { u64: operand as u64 });
 
         } else if inst == Inst.IAdd {
-            // TODO: this can be implemented with only one pop
             let b = vm.pop();
-            let a = vm.pop();
-            vm.push(Value { i64: a.i64 + b.i64 });
+            ((vm.stack + vm.sp - 8) as *Value).i64 += b.i64;
+        } else if inst == Inst.IMul {
+            let b = vm.pop();
+            ((vm.stack + vm.sp - 8) as *Value).i64 *= b.i64;
 
         } else if inst == Inst.Load8 {
             let ptr = vm.pop().ptr as *u8;
-            vm.push(Value { u8: *ptr });
+            vm.push(Value { u64: (*ptr) as u64 });
         } else if inst == Inst.Load16 {
             let ptr = vm.pop().ptr as *u16;
-            vm.push(Value { u16: *ptr });
+            vm.push(Value { u64: (*ptr) as u64 });
         } else if inst == Inst.Load32 {
             let ptr = vm.pop().ptr as *u32;
-            vm.push(Value { u32: *ptr });
+            vm.push(Value { u64: (*ptr) as u64 });
         } else if inst == Inst.Load64 {
             let ptr = vm.pop().ptr as *u64;
-            vm.push(Value { u64: *ptr });
+            vm.push(Value { u64: (*ptr) as u64 });
 
         } else if inst == Inst.Store8 {
             let ptr = vm.pop().ptr as *u8;

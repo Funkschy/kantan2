@@ -21,18 +21,20 @@ type Inst enum {
     ConstI32,
     ConstI64,
 
-    // push_i64(pop_i64() + pop_i64())
+    // push(pop() + pop())
     IAdd,
+    // push(pop() * pop())
+    IMul,
 
     // loadww
-    // push_uww(*pop_usize())
+    // push(*pop())
     Load8,
     Load16,
     Load32,
     Load64,
 
     // storeww
-    // *pop_ptr() = pop_uww()
+    // *pop() = pop()
     Store8,
     Store16,
     Store32,

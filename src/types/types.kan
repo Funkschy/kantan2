@@ -100,6 +100,15 @@ def (t: *Type) init_module(module: *mod.Module): *Type {
     return t;
 }
 
+def (t: *Type) inner_type(): *Type {
+    while t.kind == TypeKind.Variable {
+        t = t.data.inner;
+    }
+
+    dbg.assert(t.kind == TypeKind.Ptr || t.kind == TypeKind.Slice, "trying to get inner of invalid type");
+    return t.data.ptr_or_slice_to;
+}
+
 def (t: *Type) is_integer(): bool {
     return t.kind == TypeKind.AnyInt
         || t.kind == TypeKind.Int

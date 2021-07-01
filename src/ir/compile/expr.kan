@@ -65,11 +65,6 @@ def as_operand(ctx: *IRCtx, value: rvalue.Expression, ty: *ty.Type): rvalue.Oper
         return value.data.use;
     }
 
-    if value.kind == rvalue.ExpressionKind.Ref {
-        let location = value.data.ref;
-        return rvalue.copy(location);
-    }
-
     let result = make_temp_if_needed(ctx, value, ty, ResultFormat.Location);
     dbg.assert(!result.is_error, "somehow returned impossible error");
     let location = result.value.data.ref;
@@ -200,10 +195,19 @@ def compile_binary(ctx: *IRCtx, expr: *Expr, format: ResultFormat): CompileResul
     let right = as_operand(ctx, right.value, binary.right.ty);
 
     let short_circuit = ShortCircuitKind.None;
-    // TODO: in the case of add scalar, the scalar should always be the right operand
     let kind = binary_ast_to_ir(binary, &short_circuit);
-    let binary_expr = rvalue.expr_binary(kind, left, right);
 
+    // in the case of scalar addition/subtraction, the scalar should always be the right operand
+    if kind == rvalue.BinaryKind.AddScalar || kind == rvalue.BinaryKind.SubScalar {
+        if binary.right.ty.is_pointer() {
+            // swap left and right to ensure the constraint
+            let temp = left;
+            left = right;
+            right = temp;
+        }
+    }
+
+    let binary_expr = rvalue.expr_binary(kind, left, right);
     return make_temp_if_needed(ctx, binary_expr, expr.ty, format);
 }
 
