@@ -12,43 +12,18 @@ expected_ir = [
                 "original_name": "some_function",
                 "mangled_name": "",
                 "ty": "def some_function() -> i32",
-                "locals": [
-                    {
-                        "name": "_1",
-                        "type": "i32"
-                    }
-                ],
+                "locals": [],
                 "blocks": {
                     "bb0": {
-                        "statements": [
-                            {
-                                "kind": "assignment",
-                                "location": {
-                                    "kind": "local",
-                                    "name": "_1",
-                                    "projections": []
-                                },
-                                "value": {
-                                    "kind": "use",
-                                    "operand": {
-                                        "kind": "constant",
-                                        "type": "i32",
-                                        "value": {
-                                            "kind": "int",
-                                            "value": 0
-                                        }
-                                    }
-                                }
-                            }
-                        ],
+                        "statements": [],
                         "terminator": {
                             "kind": "return",
                             "operand": {
-                                "kind": "copy",
-                                "location": {
-                                    "kind": "local",
-                                    "name": "_1",
-                                    "projections": []
+                                "kind": "constant",
+                                "type": "i32",
+                                "value": {
+                                    "kind": "int",
+                                    "value": 0
                                 }
                             }
                         }
@@ -174,43 +149,18 @@ expected_ir = [
                 "original_name": "some_function",
                 "mangled_name": "",
                 "ty": "def some_function() -> i32",
-                "locals": [
-                    {
-                        "name": "_1",
-                        "type": "i32"
-                    }
-                ],
+                "locals": [],
                 "blocks": {
                     "bb0": {
-                        "statements": [
-                            {
-                                "kind": "assignment",
-                                "location": {
-                                    "kind": "local",
-                                    "name": "_1",
-                                    "projections": []
-                                },
-                                "value": {
-                                    "kind": "use",
-                                    "operand": {
-                                        "kind": "constant",
-                                        "type": "i32",
-                                        "value": {
-                                            "kind": "int",
-                                            "value": 0
-                                        }
-                                    }
-                                }
-                            }
-                        ],
+                        "statements": [],
                         "terminator": {
                             "kind": "return",
                             "operand": {
-                                "kind": "copy",
-                                "location": {
-                                    "kind": "local",
-                                    "name": "_1",
-                                    "projections": []
+                                "kind": "constant",
+                                "type": "i32",
+                                "value": {
+                                    "kind": "int",
+                                    "value": 0
                                 }
                             }
                         }

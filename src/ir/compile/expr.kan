@@ -60,6 +60,22 @@ def make_temp_if_needed(
     return ok(rvalue.expr_ref(temp));
 }
 
+def as_operand(ctx: *IRCtx, value: rvalue.Expression, ty: *ty.Type): rvalue.Operand {
+    if value.kind == rvalue.ExpressionKind.Use {
+        return value.data.use;
+    }
+
+    if value.kind == rvalue.ExpressionKind.Ref {
+        let location = value.data.ref;
+        return rvalue.copy(location);
+    }
+
+    let result = make_temp_if_needed(ctx, value, ty, ResultFormat.Location);
+    dbg.assert(!result.is_error, "somehow returned impossible error");
+    let location = result.value.data.ref;
+    return rvalue.copy(location);
+}
+
 def compile_fmt(ctx: *IRCtx, expr: *Expr, format: ResultFormat): CompileResult {
     if expr.kind == ExprKind.Literal {
         return literal.compile_fmt(ctx, expr, format);
@@ -129,32 +145,40 @@ def compile_access(ctx: *IRCtx, expr: *Expr, format: ResultFormat): CompileResul
 def compile_unary(ctx: *IRCtx, expr: *Expr, format: ResultFormat): CompileResult {
     let unary = &expr.data.unary;
 
-    let location = compile_fmt(ctx, unary.right, ResultFormat.Location);
-    if location.is_error {
-        return location;
+    if unary.kind == UnaryKind.Deref || unary.kind == UnaryKind.AddrOf {
+        let location = compile_fmt(ctx, unary.right, ResultFormat.Location);
+        if location.is_error {
+            return location;
+        }
+        dbg.assert(location.value.kind == rvalue.ExpressionKind.Ref, "compile_fmt ignored format");
+        let location = location.value.data.ref;
+
+        if unary.kind == UnaryKind.Deref {
+            ctx.add_projection(&location.projection_head, memory.deref());
+            return copy_if_needed(location, format);
+        }
+
+        if unary.kind == UnaryKind.AddrOf {
+            return make_temp_if_needed(ctx, rvalue.expr_ref(location), expr.ty, format);
+        }
     }
-    dbg.assert(location.value.kind == rvalue.ExpressionKind.Ref, "compile_fmt ignored format");
-    let location = location.value.data.ref;
+
+    let result = compile(ctx, unary.right);
+    if result.is_error {
+        return result;
+    }
+
+    let operand = as_operand(ctx, result.value, unary.right.ty);
 
     if unary.kind == UnaryKind.NumNegate {
         let value = compile(ctx, unary.right);
-        let negated = rvalue.expr_unary(rvalue.UnaryKind.NumNeg, rvalue.copy(location));
+        let negated = rvalue.expr_unary(rvalue.UnaryKind.NumNeg, operand);
         return make_temp_if_needed(ctx, negated, expr.ty, format);
     }
 
     if unary.kind == UnaryKind.BoolNegate {
-        let value = compile(ctx, unary.right);
-        let negated = rvalue.expr_unary(rvalue.UnaryKind.Not, rvalue.copy(location));
+        let negated = rvalue.expr_unary(rvalue.UnaryKind.Not, operand);
         return make_temp_if_needed(ctx, negated, expr.ty, format);
-    }
-
-    if unary.kind == UnaryKind.AddrOf {
-        return make_temp_if_needed(ctx, rvalue.expr_ref(location), expr.ty, format);
-    }
-
-    if unary.kind == UnaryKind.Deref {
-        ctx.add_projection(&location.projection_head, memory.deref());
-        return copy_if_needed(location, format);
     }
 
     dbg.assert(false, "Unhandled UnaryKind");
@@ -163,24 +187,22 @@ def compile_unary(ctx: *IRCtx, expr: *Expr, format: ResultFormat): CompileResult
 
 def compile_binary(ctx: *IRCtx, expr: *Expr, format: ResultFormat): CompileResult {
     let binary = &expr.data.binary;
-    let left = compile_fmt(ctx, binary.left, ResultFormat.Location);
+    let left = compile(ctx, binary.left);
     if left.is_error {
         return left;
     }
-    dbg.assert(left.value.kind == rvalue.ExpressionKind.Ref, "compile_fmt ignored format");
-    let left = left.value.data.ref;
+    let left = as_operand(ctx, left.value, binary.left.ty);
 
-    let right = compile_fmt(ctx, binary.right, ResultFormat.Location);
+    let right = compile(ctx, binary.right);
     if right.is_error {
         return right;
     }
-    dbg.assert(right.value.kind == rvalue.ExpressionKind.Ref, "compile_fmt ignored format");
-    let right = right.value.data.ref;
+    let right = as_operand(ctx, right.value, binary.right.ty);
 
     let short_circuit = ShortCircuitKind.None;
     // TODO: in the case of add scalar, the scalar should always be the right operand
     let kind = binary_ast_to_ir(binary, &short_circuit);
-    let binary_expr = rvalue.expr_binary(kind, rvalue.copy(left), rvalue.copy(right));
+    let binary_expr = rvalue.expr_binary(kind, left, right);
 
     return make_temp_if_needed(ctx, binary_expr, expr.ty, format);
 }

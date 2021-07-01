@@ -70,13 +70,12 @@ def compile(ctx: *IRCtx, stmt: *Stmt): Result {
         if return_type.kind == ty.TypeKind.Void {
             value = rvalue.const(const.nothing(return_type));
         } else {
-            let return_value = expr.compile_fmt(ctx, stmt.data.ret, expr.ResultFormat.Location);
+            let return_value = expr.compile(ctx, stmt.data.ret);
             if return_value.is_error {
                 return Result.Error;
             }
-            let return_location = return_value.value.data.ref;
 
-            value = rvalue.copy(return_location);
+            value = expr.as_operand(ctx, return_value.value, stmt.data.ret.ty);
         }
 
         let ret = ir.ret(value);

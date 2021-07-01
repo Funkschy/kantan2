@@ -11,43 +11,18 @@ expected_ir = [{
             'original_name': 'f',
             'mangled_name': '',
             'ty': 'def f() -> u32',
-            'locals': [
-                {
-                    'name': '_1',
-                    'type': 'u32'
-                }
-            ],
+            'locals': [],
             'blocks': {
                 'bb0': {
-                    'statements': [
-                        {
-                            'kind': 'assignment',
-                            'location': {
-                                'kind': 'local',
-                                'name': '_1',
-                                'projections': []
-                            },
-                            'value': {
-                                'kind': 'use',
-                                'operand': {
-                                    'kind': 'constant',
-                                    'type': 'u32',
-                                    'value': {
-                                        'kind': 'int',
-                                        'value': 0
-                                    }
-                                }
-                            }
-                        }
-                    ],
+                    'statements': [],
                     'terminator': {
                         'kind': 'return',
                         'operand': {
-                            'kind': 'copy',
-                            'location': {
-                                'kind': 'local',
-                                'name': '_1',
-                                'projections': []
+                            'kind': 'constant',
+                            'type': 'u32',
+                            'value': {
+                                'kind': 'int',
+                                'value': 0
                             }
                         }
                     }

@@ -252,10 +252,6 @@ expected_output = {
                         "name": "_2",
                         "type": "i32"
                     },
-                    {
-                        "name": "_3",
-                        "type": "i32"
-                    }
                 ],
                 "blocks": {
                     "bb0": {
@@ -265,25 +261,6 @@ expected_output = {
                                 "location": {
                                     "kind": "local",
                                     "name": "_2",
-                                    "projections": []
-                                },
-                                "value": {
-                                    "kind": "use",
-                                    "operand": {
-                                        "kind": "constant",
-                                        "type": "i32",
-                                        "value": {
-                                            "kind": "int",
-                                            "value": 1
-                                        }
-                                    }
-                                }
-                            },
-                            {
-                                "kind": "assignment",
-                                "location": {
-                                    "kind": "local",
-                                    "name": "_3",
                                     "projections": []
                                 },
                                 "value": {
@@ -298,11 +275,11 @@ expected_output = {
                                         }
                                     },
                                     "right": {
-                                        "kind": "copy",
-                                        "location": {
-                                            "kind": "local",
-                                            "name": "_2",
-                                            "projections": []
+                                        "kind": "constant",
+                                        "type": "i32",
+                                        "value": {
+                                            "kind": "int",
+                                            "value": 1
                                         }
                                     }
                                 }
@@ -314,7 +291,7 @@ expected_output = {
                                 "kind": "copy",
                                 "location": {
                                     "kind": "local",
-                                    "name": "_3",
+                                    "name": "_2",
                                     "projections": []
                                 }
                             }
