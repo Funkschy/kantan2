@@ -183,7 +183,17 @@ def (f: *Function) free() {
 
 def (f: *Function) location_type(location: *memory.Location): *ty.Type {
     dbg.assert(location.kind == memory.LocationKind.Local, "globals not implemented");
-    return f.body.local_at(location.data.local.idx - 1).ty;
+    let ty = f.body.local_at(location.data.local.idx - 1).ty;
+    for let p = location.projection_head; p != null; p = p.next {
+        let proj = p.value;
+
+        if proj.kind == memory.ProjectionKind.Deref {
+            ty = ty.inner_type();
+        } else {
+            dbg.not_implemented();
+        }
+    }
+    return ty;
 }
 
 def (f: *Function) return_type(): *ty.Type {

@@ -119,9 +119,72 @@ def (vm: *VM) execute() {
         } else if inst == Inst.IAdd {
             let b = vm.pop();
             ((vm.stack + vm.sp - 8) as *Value).i64 += b.i64;
+        } else if inst == Inst.ISub {
+            let b = vm.pop();
+            ((vm.stack + vm.sp - 8) as *Value).i64 -= b.i64;
         } else if inst == Inst.IMul {
             let b = vm.pop();
             ((vm.stack + vm.sp - 8) as *Value).i64 *= b.i64;
+        } else if inst == Inst.IDiv {
+            let b = vm.pop();
+            ((vm.stack + vm.sp - 8) as *Value).i64 /= b.i64;
+        } else if inst == Inst.IMod {
+            let b = vm.pop();
+            ((vm.stack + vm.sp - 8) as *Value).i64 %= b.i64;
+
+        } else if inst == Inst.BitAnd {
+            let b = vm.pop();
+            let value = ((vm.stack + vm.sp - 8) as *Value).i64;
+            ((vm.stack + vm.sp - 8) as *Value).i64 = value & b.i64;
+        } else if inst == Inst.BitOr {
+            let b = vm.pop();
+            let value = ((vm.stack + vm.sp - 8) as *Value).i64;
+            ((vm.stack + vm.sp - 8) as *Value).i64 = value | b.i64;
+        } else if inst == Inst.BitXor {
+            let b = vm.pop();
+            let value = ((vm.stack + vm.sp - 8) as *Value).i64;
+            ((vm.stack + vm.sp - 8) as *Value).i64 = value ^ b.i64;
+
+        } else if inst == Inst.ST {
+            let b = vm.pop();
+            let value = ((vm.stack + vm.sp - 8) as *Value).i64;
+            ((vm.stack + vm.sp - 8) as *Value).bool = value < b.i64;
+        } else if inst == Inst.ST {
+            let b = vm.pop();
+            let value = ((vm.stack + vm.sp - 8) as *Value).i64;
+            ((vm.stack + vm.sp - 8) as *Value).bool = value <= b.i64;
+        } else if inst == Inst.ST {
+            let b = vm.pop();
+            let value = ((vm.stack + vm.sp - 8) as *Value).i64;
+            ((vm.stack + vm.sp - 8) as *Value).bool = value > b.i64;
+        } else if inst == Inst.ST {
+            let b = vm.pop();
+            let value = ((vm.stack + vm.sp - 8) as *Value).i64;
+            ((vm.stack + vm.sp - 8) as *Value).bool = value >= b.i64;
+        } else if inst == Inst.ST {
+            let b = vm.pop();
+            let value = ((vm.stack + vm.sp - 8) as *Value).i64;
+            ((vm.stack + vm.sp - 8) as *Value).bool = value == b.i64;
+        } else if inst == Inst.ST {
+            let b = vm.pop();
+            let value = ((vm.stack + vm.sp - 8) as *Value).i64;
+            ((vm.stack + vm.sp - 8) as *Value).bool = value != b.i64;
+
+        } else if inst == Inst.BoolAnd {
+            let b = vm.pop();
+            ((vm.stack + vm.sp - 8) as *Value).bool &= b.bool;
+        } else if inst == Inst.BoolOr {
+            let b = vm.pop();
+            ((vm.stack + vm.sp - 8) as *Value).bool |= b.bool;
+
+        } else if inst == Inst.LShift {
+            let b = vm.pop();
+            let value = ((vm.stack + vm.sp - 8) as *Value).u64;
+            ((vm.stack + vm.sp - 8) as *Value).u64 = value << b.u64;
+        } else if inst == Inst.RShift {
+            let b = vm.pop();
+            let value = ((vm.stack + vm.sp - 8) as *Value).u64;
+            ((vm.stack + vm.sp - 8) as *Value).u64 = value >> b.u64;
 
         } else if inst == Inst.Load8 {
             let ptr = vm.pop().ptr as *u8;

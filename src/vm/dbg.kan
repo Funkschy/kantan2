@@ -4,7 +4,7 @@ import ":util";
 import "inst";
 
 def dump_bytecode_dbg(program: *u8, program_len: usize) {
-    let human_readable: [18]*i8 = undefined;
+    let human_readable: [34]*i8 = undefined;
     human_readable[ 0] = "nop";
     human_readable[ 1] = "halt";
     human_readable[ 2] = "alloclocals";
@@ -16,17 +16,37 @@ def dump_bytecode_dbg(program: *u8, program_len: usize) {
     human_readable[ 7] = "i64.const";
 
     human_readable[ 8] = "iadd";
-    human_readable[ 9] = "imul";
+    human_readable[ 9] = "isub";
+    human_readable[10] = "imul";
+    human_readable[11] = "idiv";
+    human_readable[12] = "imod";
 
-    human_readable[10] = "load8";
-    human_readable[11] = "load16";
-    human_readable[12] = "load32";
-    human_readable[13] = "load64";
+    human_readable[13] = "bitand";
+    human_readable[14] = "bitor";
+    human_readable[15] = "bitxor";
 
-    human_readable[14] = "store8";
-    human_readable[15] = "store16";
-    human_readable[16] = "store32";
-    human_readable[17] = "store64";
+    human_readable[16] = "st";
+    human_readable[17] = "se";
+    human_readable[18] = "gt";
+    human_readable[19] = "ge";
+    human_readable[20] = "eq";
+    human_readable[21] = "ne";
+
+    human_readable[22] = "and";
+    human_readable[23] = "or";
+
+    human_readable[24] = "lsh";
+    human_readable[25] = "rsh";
+
+    human_readable[26] = "load8";
+    human_readable[27] = "load16";
+    human_readable[28] = "load32";
+    human_readable[29] = "load64";
+
+    human_readable[30] = "store8";
+    human_readable[31] = "store16";
+    human_readable[32] = "store32";
+    human_readable[33] = "store64";
 
 
     for let i: usize = 0; i < program_len; {

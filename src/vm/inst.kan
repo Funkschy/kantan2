@@ -23,8 +23,31 @@ type Inst enum {
 
     // push(pop() + pop())
     IAdd,
+    // push(pop() - pop())
+    ISub,
     // push(pop() * pop())
     IMul,
+    // push(pop() / pop())
+    IDiv,
+    // push(pop() % pop())
+    IMod,
+
+    BitAnd,
+    BitOr,
+    BitXor,
+
+    ST,
+    SE,
+    GT,
+    GE,
+    EQ,
+    NE,
+
+    BoolAnd,
+    BoolOr,
+
+    LShift,
+    RShift,
 
     // loadww
     // push(*pop())

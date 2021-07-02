@@ -200,12 +200,11 @@ def (c: *IRCompiler) load_value_from_expr(expr: *rvalue.Expression) {
         c.load_operand(&binary.left);
         c.load_operand(&binary.right);
 
-        if binary.kind == rvalue.BinaryKind.Add {
-            c.emit(Inst.IAdd);
-        } else if binary.kind == rvalue.BinaryKind.AddScalar {
+        let left_ty = c.typeof_op(&binary.left);
+        if binary.kind == rvalue.BinaryKind.AddScalar || binary.kind == rvalue.BinaryKind.SubScalar {
             // this assumes, that the left part of the expression is always the pointer
             // that constraint should be enforced by the ir compiler
-            let ptr_ty = c.typeof_op(&binary.left);
+            let ptr_ty = left_ty;
             dbg.assert(ptr_ty.kind == ty.TypeKind.Ptr, "left side of AddScalar should be ptr");
 
             // multiply the scalar with the pointee size
@@ -217,7 +216,16 @@ def (c: *IRCompiler) load_value_from_expr(expr: *rvalue.Expression) {
 
             c.emit_with_op(Inst.ConstI64, pointee_size, 64);
             c.emit(Inst.IMul);
-            c.emit(Inst.IAdd);
+
+            if binary.kind == rvalue.BinaryKind.AddScalar {
+                c.emit(Inst.IAdd);
+            } else {
+                c.emit(Inst.ISub);
+            }
+        } else if left_ty.is_integer() {
+            let offset = binary.kind as i32;
+            let inst = Inst.IAdd as i32 + offset;
+            c.emit(*(&inst as *Inst));
         } else {
             dbg.not_implemented();
         }

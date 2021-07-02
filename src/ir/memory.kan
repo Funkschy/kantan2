@@ -32,8 +32,7 @@ def (l: *Location) to_json(): str.String {
         json.push(str.view_from("\", \"projections\": ["));
         defer json.push(str.view("]", 1));
 
-        let p = l.projection_head;
-        while p != null {
+        for let p = l.projection_head; p != null; p = p.next {
             let proj = p.value;
 
             if p != l.projection_head {
@@ -47,8 +46,6 @@ def (l: *Location) to_json(): str.String {
             } else if proj.kind == ProjectionKind.Deref {
                 json.push(str.view_from("{\"kind\": \"deref\"}"));
             }
-
-            p = p.next;
         }
         return json;
     }
