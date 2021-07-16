@@ -14,15 +14,18 @@ expected_ir = [{
             'locals': [
                 {
                     'name': '_1',
-                    'type': 'i32'
+                    'type': 'i32',
+                    'temp': False
                 },
                 {
                     'name': '_2',
-                    'type': '*i32'
+                    'type': '*i32',
+                    'temp': False
                 },
                 {
                     'name': '_3',
-                    'type': 'i32'
+                    'type': 'i32',
+                    'temp': False
                 },
             ],
             'blocks': {
@@ -33,6 +36,7 @@ expected_ir = [{
                             'location': {
                                 'kind': 'local',
                                 'name': '_1',
+                                'temp': False,
                                 'projections': []
                             },
                             'value': {
@@ -52,6 +56,7 @@ expected_ir = [{
                             'location': {
                                 'kind': 'local',
                                 'name': '_2',
+                                'temp': False,
                                 'projections': []
                             },
                             'value': {
@@ -70,6 +75,7 @@ expected_ir = [{
                             'location': {
                                 'kind': 'local',
                                 'name': '_3',
+                                'temp': False,
                                 'projections': []
                             },
                             'value': {
@@ -89,6 +95,7 @@ expected_ir = [{
                             'location': {
                                 'kind': 'local',
                                 'name': '_2',
+                                'temp': False,
                                 'projections': []
                             },
                             'value': {
@@ -96,6 +103,7 @@ expected_ir = [{
                                 'location': {
                                     'kind': 'local',
                                     'name': '_3',
+                                    'temp': False,
                                     'projections': []
                                 }
                             }
@@ -105,6 +113,7 @@ expected_ir = [{
                             'location': {
                                 'kind': 'local',
                                 'name': '_2',
+                                'temp': False,
                                 'projections': [
                                     {'kind': 'deref'}
                                 ]
@@ -116,6 +125,7 @@ expected_ir = [{
                                     'location': {
                                         'kind': 'local',
                                         'name': '_1',
+                                        'temp': False,
                                         'projections': []
                                     }
                                 }
@@ -129,6 +139,7 @@ expected_ir = [{
                             'location': {
                                 'kind': 'local',
                                 'name': '_2',
+                                'temp': False,
                                 'projections': [
                                     {'kind': 'deref'}
                                 ]

@@ -130,7 +130,7 @@ def (ctx: *IRCtx) declare_local(name: ident.Ident, typ: *ty.Type): memory.Local 
 }
 
 def (ctx: *IRCtx) bind_local(name: ident.Ident): memory.Local {
-    return ctx.names.bind(name.as_view());
+    return ctx.names.bind(name.as_view(), false);
 }
 
 def (ctx: *IRCtx) lookup_local(name: ident.Ident, out: *memory.Local): Result {

@@ -37,7 +37,7 @@ def (c: *IRCompiler) width_bits(location: *memory.Location): usize {
 }
 
 def (c: *IRCompiler) typeof(location: *memory.Location): *ty.Type {
-    return c.current_function.location_type(location);
+    return c.current_function.location_type(location, true);
 }
 
 def (c: *IRCompiler) width_bits_op(op: *rvalue.Operand): usize {
@@ -57,8 +57,13 @@ def (c: *IRCompiler) fill_local_offsets(): u64 {
 
     let offset: u64 = 0;
     for let l: u64 = 0; l < c.current_function.body.locals.len as u64; l += 1 {
-        let location = memory.local(l as usize + 1).as_location();
-        let ty = c.current_function.location_type(&location);
+        let location = memory.local(l as u32 + 1, false).as_location();
+        let ty = c.current_function.location_type(&location, false);
+        // this was a temporary local
+        if ty == null {
+            continue;
+        }
+
         if ty.is_unsized() {
             // there are actually locals with type void in the mir, since every expression
             // (calls to void functions in this case) must be assigned to a variable
@@ -79,7 +84,7 @@ def (c: *IRCompiler) fill_local_offsets(): u64 {
 }
 
 def (c: *IRCompiler) local_offset(local: memory.Local): u64 {
-    return *(c.local_offsets.get_ptr(local.idx - 1) as *u64);
+    return *(c.local_offsets.get_ptr(local.idx as usize - 1) as *u64);
 }
 
 def (c: *IRCompiler) emit(i: Inst) {
@@ -126,7 +131,7 @@ def (c: *IRCompiler) load_location_address(location: *memory.Location) {
 }
 
 def (c: *IRCompiler) write_to_location(location: *memory.Location) {
-    if c.typeof(location).is_unsized() {
+    if c.typeof(location).is_unsized() || location.is_temp() {
         return;
     }
 
@@ -139,7 +144,7 @@ def (c: *IRCompiler) write_to_location(location: *memory.Location) {
 }
 
 def (c: *IRCompiler) load_location(location: *memory.Location) {
-    if c.typeof(location).is_unsized() {
+    if c.typeof(location).is_unsized() || location.is_temp() {
         return;
     }
 

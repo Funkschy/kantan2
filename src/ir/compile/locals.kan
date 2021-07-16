@@ -38,14 +38,21 @@ def (s: *Scope) lookup(name: str.View, out: *mem.Local): Result {
         return Result.Error;
     }
 
-    *out = mem.local(num.ptr_to_int(index));
+    let num = num.ptr_to_int(index);
+    let index = (num >> 32) as u32; // get upper 32 bits
+    let temp = (num as u64 & 18446744069414584320) as bool; // get lower 32 bits
+
+    *out = mem.local(index, temp);
     return Result.OK;
 }
 
 def (s: *Scope) bind(original: str.View, local: mem.Local) {
     dbg.assert(local.idx > 0, "local with 0 index");
     let key = map.create_key(original.len, original.data);
-    s.bindings.insert(key, num.int_to_ptr(local.idx));
+    let index = (local.idx as u64 << 32) | (local.temp as u64);
+
+    // TODO: this won't work on 32 bit systems
+    s.bindings.insert(key, num.int_to_ptr(index as usize));
 }
 
 // A NameTable for local variables
@@ -64,7 +71,7 @@ def (s: *Scope) bind(original: str.View, local: mem.Local) {
 // TODO(#39): this has a lot of duplicated code with types.scope.ScopeStack
 //  when we have generic types, those 2 should be refactored into a single data structure
 type NameTable struct {
-    local_counter: usize,
+    local_counter: u32,
     // to save memory, scopes are not freed on close(). Instead they are put in the queue
     // and may be recycled later.
     // since we always use pop_last, this is technically a stack, but because all recycled scopes
@@ -138,12 +145,12 @@ def (nt: *NameTable) lookup(name: str.View, out: *mem.Local): Result {
     return Result.Error;
 }
 
-def (nt: *NameTable) bind(name: str.View): mem.Local {
-    let local = mem.local(nt.local_counter += 1);
+def (nt: *NameTable) bind(name: str.View, temp: bool): mem.Local {
+    let local = mem.local(nt.local_counter += 1, temp);
     nt.top().bind(name, local);
     return local;
 }
 
 def (nt: *NameTable) create_temp_var(): mem.Local {
-    return mem.local(nt.local_counter += 1);
+    return mem.local(nt.local_counter += 1, true);
 }

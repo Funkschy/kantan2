@@ -173,8 +173,12 @@ def main(argc: i32, argv: *string): ReturnCode {
                 // print locals for debugging
                 let offset: usize = 0;
                 for let l: usize = 0; l < main_f.body.locals.len; l += 1 {
-                    let location = memory.local(l + 1).as_location();
-                    let ty = main_f.location_type(&location);
+                    let location = memory.local(l as u32 + 1, false).as_location();
+                    let ty = main_f.location_type(&location, false);
+                    if ty == null {
+                        continue;
+                    }
+
                     let align = ty.align.bytes() as usize;
                     let width = ty.width.bytes() as usize;
                     offset = (offset + align - 1) & -align;

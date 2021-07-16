@@ -181,9 +181,15 @@ def (f: *Function) free() {
     f.body.free();
 }
 
-def (f: *Function) location_type(location: *memory.Location): *ty.Type {
+// if allow_temps == false, this will return null for temporary locals
+def (f: *Function) location_type(location: *memory.Location, allow_temps: bool): *ty.Type {
     dbg.assert(location.kind == memory.LocationKind.Local, "globals not implemented");
-    let ty = f.body.local_at(location.data.local.idx - 1).ty;
+    let local = f.body.local_decl(location.data.local);
+    if !allow_temps && local.temp {
+        return null;
+    }
+
+    let ty = local.ty;
     for let p = location.projection_head; p != null; p = p.next {
         let proj = p.value;
 
@@ -251,18 +257,19 @@ def (b: *FunctionBody) free() {
 }
 
 def (b: *FunctionBody) add_local(local: memory.Local, ty: *ty.Type) {
-    let decl = LocalVarDecl { ty: ty };
+    let decl = LocalVarDecl { ty: ty, temp: local.temp };
     b.locals.push(&decl as *void);
-    dbg.assert(b.locals.len == local.idx, "inconsistent locals");
+    dbg.assert(b.locals.len as u32 == local.idx, "inconsistent locals");
 }
 
-def (b: *FunctionBody) local_at(i: usize): LocalVarDecl {
-    dbg.assert(i < b.locals.len, "out of bounds local access");
-    return *(b.locals.get_ptr(i) as *LocalVarDecl);
+def (b: *FunctionBody) local_decl(local: memory.Local): LocalVarDecl {
+    dbg.assert(local.idx as usize - 1 < b.locals.len, "out of bounds local access");
+    return *(b.locals.get_ptr(local.idx as usize - 1) as *LocalVarDecl);
 }
 
 type LocalVarDecl struct {
-    ty: *ty.Type
+    ty: *ty.Type,
+    temp: bool // this is a compiler generated temporary local (i.e. its location cannot be referenced)
 }
 
 // json generation stuff
@@ -304,7 +311,7 @@ def (f: *Function) to_json(): str.String {
         defer json.push(str.view("}", 1));
 
         // locals start at 1
-        let name = memory.local(1 + i).to_string();
+        let name = memory.local(1 + i as u32, false).to_string();
         json.push(name.view());
         name.free();
 
@@ -313,6 +320,13 @@ def (f: *Function) to_json(): str.String {
         json.push(ty_s.view());
         ty_s.free();
         json.push(str.view("\"", 1));
+
+        json.push(str.view_from(", \"temp\": "));
+        if l.temp {
+            json.push(str.view_from("true"));
+        } else {
+            json.push(str.view_from("false"));
+        }
     }
     json.push(str.view("]", 1));
 

@@ -132,7 +132,8 @@ expected_output = {
                 "locals": [
                     {
                         "name": "_1",
-                        "type": "(i32) -> i32"
+                        "type": "(i32) -> i32",
+                        "temp": False
                     }
                 ],
                 "blocks": {
@@ -143,6 +144,7 @@ expected_output = {
                                 "location": {
                                     "kind": "local",
                                     "name": "_1",
+                                    "temp": False,
                                     "projections": []
                                 },
                                 "value": {
@@ -163,6 +165,7 @@ expected_output = {
                                 "location": {
                                     "kind": "local",
                                     "name": "_1",
+                                    "temp": False,
                                     "projections": []
                                 },
                                 "value": {
@@ -183,6 +186,7 @@ expected_output = {
                                 "location": {
                                     "kind": "local",
                                     "name": "_1",
+                                    "temp": False,
                                     "projections": []
                                 },
                                 "value": {
@@ -218,7 +222,8 @@ expected_output = {
                 "locals": [
                     {
                         "name": "_1",
-                        "type": "i32"
+                        "type": "i32",
+                        "temp": False,
                     }
                 ],
                 "blocks": {
@@ -231,6 +236,7 @@ expected_output = {
                                 "location": {
                                     "kind": "local",
                                     "name": "_1",
+                                    "temp": False,
                                     "projections": []
                                 }
                             }
@@ -246,11 +252,13 @@ expected_output = {
                 "locals": [
                     {
                         "name": "_1",
-                        "type": "i32"
+                        "type": "i32",
+                        "temp": False
                     },
                     {
                         "name": "_2",
-                        "type": "i32"
+                        "type": "i32",
+                        "temp": True
                     },
                 ],
                 "blocks": {
@@ -261,6 +269,7 @@ expected_output = {
                                 "location": {
                                     "kind": "local",
                                     "name": "_2",
+                                    "temp": True,
                                     "projections": []
                                 },
                                 "value": {
@@ -271,6 +280,7 @@ expected_output = {
                                         "location": {
                                             "kind": "local",
                                             "name": "_1",
+                                            "temp": False,
                                             "projections": []
                                         }
                                     },
@@ -292,6 +302,7 @@ expected_output = {
                                 "location": {
                                     "kind": "local",
                                     "name": "_2",
+                                    "temp": True,
                                     "projections": []
                                 }
                             }

@@ -20,6 +20,10 @@ type LocationData union {
     global: Global
 }
 
+def (l: *Location) is_temp(): bool {
+    return l.kind == LocationKind.Local && l.data.local.temp;
+}
+
 def (l: *Location) to_json(): str.String {
     if l.kind == LocationKind.Local {
         let json = str.from("{\"kind\": \"local\", \"name\": \"");
@@ -27,9 +31,17 @@ def (l: *Location) to_json(): str.String {
 
         let name = l.data.local.to_string();
         json.push(name.view());
+        json.push(str.view("\"", 1));
         name.free();
 
-        json.push(str.view_from("\", \"projections\": ["));
+        json.push(str.view_from(", \"temp\": "));
+        if l.data.local.temp {
+            json.push(str.view_from("true"));
+        } else {
+            json.push(str.view_from("false"));
+        }
+
+        json.push(str.view_from(", \"projections\": ["));
         defer json.push(str.view("]", 1));
 
         for let p = l.projection_head; p != null; p = p.next {
@@ -55,11 +67,12 @@ def (l: *Location) to_json(): str.String {
 }
 
 type Local struct {
-    idx: usize
+    idx: u32,
+    temp: bool
 }
 
-def local(idx: usize): Local {
-    return Local { idx: idx };
+def local(idx: u32, temp: bool): Local {
+    return Local { idx: idx, temp: temp };
 }
 
 def (l: Local) to_string(): str.String {

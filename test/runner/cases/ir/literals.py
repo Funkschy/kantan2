@@ -14,19 +14,23 @@ expected_ir = [{
             'locals': [
                 {
                     'name': '_1',
-                    'type': '[]i8'
+                    'type': '[]i8',
+                    'temp': False
                 },
                 {
                     'name': '_2',
-                    'type': 'i8'
+                    'type': 'i8',
+                    'temp': False
                 },
                 {
                     'name': '_3',
-                    'type': 'i32'
+                    'type': 'i32',
+                    'temp': False
                 },
                 {
                     'name': '_4',
-                    'type': 'f32'
+                    'type': 'f32',
+                    'temp': False
                 }
             ],
             'blocks': {
@@ -37,6 +41,7 @@ expected_ir = [{
                             'location': {
                                 'kind': 'local',
                                 'name': '_1',
+                                'temp': False,
                                 'projections': []
                             },
                             'value': {
@@ -56,6 +61,7 @@ expected_ir = [{
                             'location': {
                                 'kind': 'local',
                                 'name': '_2',
+                                'temp': False,
                                 'projections': []
                             },
                             'value': {
@@ -75,6 +81,7 @@ expected_ir = [{
                             'location': {
                                 'kind': 'local',
                                 'name': '_3',
+                                'temp': False,
                                 'projections': []
                             },
                             'value': {
@@ -94,6 +101,7 @@ expected_ir = [{
                             'location': {
                                 'kind': 'local',
                                 'name': '_4',
+                                'temp': False,
                                 'projections': []
                             },
                             'value': {
