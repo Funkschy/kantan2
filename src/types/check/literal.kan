@@ -31,6 +31,10 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
         return ok(FoundIn.None, ctx.any_var());
     }
 
+    if expr.data.lit.kind == LiteralKind.True || expr.data.lit.kind == LiteralKind.False {
+        return lookup_builtin(ctx, str.view("bool", 4));
+    }
+
     report_internal_error(str.view_from("unhandled literal kind"));
     return error();
 }

@@ -47,6 +47,21 @@ def finalize(ctx: *c.TyCtx, stmt: *Stmt): Result {
         return result;
     }
 
+    if stmt.kind == StmtKind.If {
+        let ifelse = &stmt.data.ifelse;
+
+        if expr.finalize(ctx, ifelse.condition).is_error() {
+            return Result.Error;
+        }
+
+        let result = finalize(ctx, ifelse.if_block);
+        if ifelse.else_block != null {
+            result = result.or(finalize(ctx, ifelse.else_block));
+        }
+
+        return result;
+    }
+
     if stmt.kind == StmtKind.Return {
         if stmt.data.ret == null {
             return Result.OK;

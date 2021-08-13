@@ -1,0 +1,38 @@
+import ":memory/arena";
+
+import "mod";
+import "tyid";
+import "item";
+import "expr";
+import "stmt";
+
+// memory arenas relevant for parsing. Can be freed after ir compilation
+type Arenas struct {
+    mod: arena.TypedArena,
+    item: arena.TypedArena,
+    tyid: arena.TypedArena,
+    expr: arena.TypedArena,
+    stmt: arena.TypedArena,
+    node: arena.TypedArena
+}
+
+def arenas(): Arenas {
+    return Arenas {
+        mod: arena.typed(sizeof mod.Module),
+        item: arena.typed(sizeof item.Item),
+        tyid: arena.typed(sizeof tyid.Type),
+        expr: arena.typed(sizeof expr.Expr),
+        stmt: arena.typed(sizeof stmt.Stmt),
+        node: arena.typed(sizeof expr.ExprNode)
+    };
+}
+
+def (a: *Arenas) free() {
+    a.mod.free();
+    a.expr.free();
+    a.node.free();
+    a.stmt.free_destructor(&stmt.Stmt.free as arena.Destructor);
+    a.item.free_destructor(&item.Item.free as arena.Destructor);
+    a.tyid.free_destructor(&tyid.Type.free as arena.Destructor);
+}
+

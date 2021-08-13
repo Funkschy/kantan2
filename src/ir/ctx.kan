@@ -38,18 +38,21 @@ type IRCtx struct {
     string_literal_head: *StringLiteral,
     string_literal_arena: *arena.TypedArena,
 
-    projection_arena: *arena.TypedArena
+    projection_arena: *arena.TypedArena,
+    switch_case_arena: *arena.TypedArena
 }
 
 def create(
     function_arena: *arena.TypedArena,
     string_literal_arena: *arena.TypedArena,
     proj_arena: *arena.TypedArena,
+    case_arena: *arena.TypedArena,
     mod: *mod.Module
 ): IRCtx {
     dbg.assert(function_arena.elem_size == sizeof ir.Function, "wrong function arena size");
     dbg.assert(string_literal_arena.elem_size == sizeof StringLiteral, "wrong string_literal_arena size");
     dbg.assert(proj_arena.elem_size == sizeof memory.ProjectionNode, "wrong projection_arena size");
+    dbg.assert(case_arena.elem_size == sizeof memory.ProjectionNode, "wrong case_arena size");
 
     // this is a good guess, since most of the items in a module will be functions
     let functions = map.with_cap(mod.num_items());
@@ -72,7 +75,8 @@ def create(
         function_arena: function_arena,
         string_literal_head: null,
         string_literal_arena: string_literal_arena,
-        projection_arena: proj_arena
+        projection_arena: proj_arena,
+        switch_case_arena: case_arena
     };
 }
 
@@ -96,17 +100,109 @@ def (ctx: *IRCtx) set_current_function(name: ident.Ident, ty: *ty.Type) {
 
 def (ctx: *IRCtx) push_stmt(stmt: *ir.Statement) {
     let f = ctx.current_function;
-    dbg.assert(f != null, "trying to push statement without a function");
-
     let bb = f.current_bb();
     bb.push_stmt(stmt);
 }
 
+def (ctx: *IRCtx) push_nop_stmt() {
+    let f = ctx.current_function;
+    let bb = f.current_bb();
+    let nop = ir.nop_stmt();
+    bb.push_stmt(&nop);
+}
+
+def (ctx: *IRCtx) current_bb_is_terminated(): bool {
+    let f = ctx.current_function;
+    let bb = f.current_bb();
+    return bb.terminator.kind != ir.TerminatorKind.Nop;
+}
+
+def (ctx: *IRCtx) current_bb_is_empty(): bool {
+    let f = ctx.current_function;
+    let bb = f.current_bb();
+    if bb.terminator.kind != ir.TerminatorKind.Nop {
+        return false;
+    }
+
+    return bb.num_statements() == 0;
+}
+
+def (ctx: *IRCtx) current_bb_is_nop(): bool {
+    let f = ctx.current_function;
+    let bb = f.current_bb();
+    if bb.terminator.kind != ir.TerminatorKind.Nop {
+        return false;
+    }
+
+    if bb.num_statements() == 0 {
+        return false;
+    }
+
+    for let i: usize = 0; i < bb.num_statements(); i += 1 {
+        if bb.statement_at(i).kind != ir.StatementKind.Nop {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+def (ctx: *IRCtx) current_bb(): usize {
+    let f = ctx.current_function;
+    return f.current_bb().id;
+}
+
+def (ctx: *IRCtx) terminate_current() {
+    let f = ctx.current_function;
+    if f.current_bb().num_statements() == 0 {
+        ctx.push_nop_stmt();
+    }
+
+    let nop = ir.nop_terminator();
+    f.terminate_current(&nop);
+}
+
 def (ctx: *IRCtx) push_terminator(terminator: *ir.Terminator) {
     let f = ctx.current_function;
-    dbg.assert(f != null, "trying to set terminator without a function");
-
     f.terminate_current(terminator);
+}
+
+def (ctx: *IRCtx) set_terminator(bb: usize, terminator: *ir.Terminator) {
+    let f = ctx.current_function;
+    let bb = f.bb_at(bb);
+    dbg.assert(bb != null, "trying to set terminator for invalid bb");
+
+    bb.terminator = *terminator;
+}
+
+def (ctx: *IRCtx) set_terminator_if_nop(bb: usize, terminator: *ir.Terminator) {
+    let f = ctx.current_function;
+    let bb = f.bb_at(bb);
+    dbg.assert(bb != null, "trying to set terminator for invalid bb");
+
+    if bb.terminator.kind != ir.TerminatorKind.Nop {
+        return;
+    }
+
+    bb.terminator = *terminator;
+}
+
+def (ctx: *IRCtx) switch_case_default(target_bb_id: usize): *ir.SwitchCase {
+    let case = ctx.switch_case_arena.alloc() as *ir.SwitchCase;
+    case.otherwise = true;
+    case.value = 0;
+    case.target = target_bb_id;
+    case.next = null;
+    return case;
+}
+
+def (ctx: *IRCtx) switch_case(value: u64, target_bb_id: usize, next: *ir.SwitchCase): *ir.SwitchCase {
+    let case = ctx.switch_case_arena.alloc() as *ir.SwitchCase;
+    case.otherwise = false;
+    case.value = value;
+    case.target = target_bb_id;
+    case.next = next;
+    return case;
 }
 
 def (ctx: *IRCtx) declare_temp_var(typ: *ty.Type): memory.Local {

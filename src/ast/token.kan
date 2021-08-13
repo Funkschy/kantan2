@@ -16,9 +16,10 @@ type TokenType enum {
     Float,
     String,
     Char,
-    // TODO: implement true and false as keywords
     Null,
     Undefined,
+    True,
+    False,
 
     Ident,
 
@@ -104,7 +105,7 @@ def (ty: TokenType) is_assign(): bool {
 }
 
 def (ty: TokenType) is_literal(): bool {
-    return ty.is_between(TokenType.DecInt, TokenType.Undefined);
+    return ty.is_between(TokenType.DecInt, TokenType.False);
 }
 
 def (ty: TokenType) is_err(): bool {

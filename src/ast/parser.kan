@@ -10,6 +10,7 @@ import ":util" as _;
 import ":source/span";
 import ":source/ident";
 
+import "ast";
 import "tyid";
 import "item";
 import "stmt" as _;
@@ -24,49 +25,36 @@ type Parser struct {
     panic_mode: bool,
     error_count: usize,
     lexer: l.Lexer,
-    item_arena: *arena.TypedArena,
-    ty_arena: *arena.TypedArena,
-    expr_arena: *arena.TypedArena,
-    node_arena: *arena.TypedArena
+    arenas: *ast.Arenas
 }
 
-def create(
-    lexer: l.Lexer,
-    item_arena: *arena.TypedArena,
-    ty_arena: *arena.TypedArena,
-    expr_arena: *arena.TypedArena,
-    node_arena: *arena.TypedArena
-): Parser {
-    dbg.assert(item_arena.elem_size == sizeof item.Item, "wrong ast arena size");
-    dbg.assert(expr_arena.elem_size == sizeof Expr, "wrong expr arena size");
-    dbg.assert(node_arena.elem_size == sizeof ExprNode, "wrong expr node arena size");
-    dbg.assert(ty_arena.elem_size == sizeof tyid.Type, "wrong ty arena size");
-
+def create(lexer: l.Lexer, arenas: *ast.Arenas): Parser {
     return Parser {
         panic_mode: false,
         error_count: 0,
         lexer: lexer,
-        item_arena: item_arena,
-        ty_arena: ty_arena,
-        expr_arena: expr_arena,
-        node_arena: node_arena
+        arenas: arenas
     };
 }
 
 def (p: *Parser) alloc_item(): *item.Item {
-    return p.item_arena.alloc() as *item.Item;
+    return p.arenas.item.alloc() as *item.Item;
 }
 
 def (p: *Parser) alloc_tyid(): *tyid.Type {
-    return p.ty_arena.alloc() as *tyid.Type;
+    return p.arenas.tyid.alloc() as *tyid.Type;
+}
+
+def (p: *Parser) alloc_stmt(): *Stmt {
+    return p.arenas.stmt.alloc() as *Stmt;
 }
 
 def (p: *Parser) alloc_expr(): *Expr {
-    return p.expr_arena.alloc() as *Expr;
+    return p.arenas.expr.alloc() as *Expr;
 }
 
 def (p: *Parser) alloc_expr_node(): *ExprNode {
-    return p.node_arena.alloc() as *ExprNode;
+    return p.arenas.node.alloc() as *ExprNode;
 }
 
 def (p: *Parser) peek(): tok.Token {
@@ -257,6 +245,7 @@ def (p: *Parser) sync(): span.Span {
         let is_at_new_beginning = current.ty == tok.TokenType.Import
              || current.ty == tok.TokenType.Def
              || current.ty == tok.TokenType.Return
+             || current.ty == tok.TokenType.If
              || current.ty == tok.TokenType.Let;
 
         if is_at_new_beginning {
@@ -362,10 +351,10 @@ def (p: *Parser) parse_stmt(memory: *Stmt): Result {
     // CompoundStatements
     if p.check(tok.TokenType.LBrace) {
         memory.init_block();
-        if p.parse_block(memory).is_error() {
-            return Result.Error;
-        }
-        return Result.OK;
+        return p.parse_block(memory);
+    } else if p.check(tok.TokenType.If) {
+        memory.init_if();
+        return p.parse_if(memory);
     }
 
     // all statements after this have to be followed by a semicolon (SimpleStatement)
@@ -383,7 +372,7 @@ def (p: *Parser) parse_stmt(memory: *Stmt): Result {
         memory.init_return();
         if !p.check(tok.TokenType.Semi) {
             memory.data.ret = p.alloc_expr();
-            if p.expression(memory.data.ret).is_error() {
+            if p.expression(memory.data.ret, false).is_error() {
                 return Result.Error;
             }
             memory.span = ret_token.span.merge(memory.data.ret.span);
@@ -392,7 +381,7 @@ def (p: *Parser) parse_stmt(memory: *Stmt): Result {
         }
     } else {
         memory.init_expr();
-        if p.expression(&memory.data.expr).is_error() {
+        if p.expression(&memory.data.expr, false).is_error() {
             return Result.Error;
         }
         // Parser.expression cannot initialize the stmt span, since it only gets the expr memory
@@ -408,6 +397,7 @@ def (p: *Parser) parse_stmt(memory: *Stmt): Result {
 
 // parse a single function definition and store it in 'memory'
 def (p: *Parser) parse_func_def(memory: *item.Item): Result {
+    let block = memory.data.func_def.block_stmt = p.alloc_stmt();
     memory.init_func_def();
 
     let def_token: tok.Token = undefined;
@@ -454,7 +444,6 @@ def (p: *Parser) parse_func_def(memory: *item.Item): Result {
     }
     memory.data.func_def.sig.ret = ret;
 
-    let block = &memory.data.func_def.block_stmt;
     if p.parse_block(block).is_error() {
         return Result.Error;
     }
@@ -577,14 +566,12 @@ def (p: *Parser) parse_block(memory: *Stmt): Result {
     let block = &memory.data.block;
     let result = Result.OK;
     while !(p.is_at_end() || p.check(tok.TokenType.RBrace)) {
-        // we reserve memory inside the block and the parse directly into it
-        let stmt = block.reserve();
+        let stmt = p.alloc_stmt();
         if p.statement(stmt).is_error() {
             result = Result.Error;
             continue;
         }
-        // mark the reserved memory inside the block as initialized
-        block.push_reserved();
+        block.push(stmt);
     }
 
     let right_brace: tok.Token = undefined;
@@ -594,6 +581,60 @@ def (p: *Parser) parse_block(memory: *Stmt): Result {
 
     memory.span = left_brace.span.merge(right_brace.span);
     return result;
+}
+
+def (p: *Parser) parse_if(memory: *Stmt): Result {
+    let ifelse = &memory.data.ifelse;
+
+    let if_token: tok.Token = undefined;
+    if p.consume_tok(tok.TokenType.If, &if_token).is_error() {
+        return Result.Error;
+    }
+
+    let condition = p.alloc_expr();
+    if p.expression(condition, true).is_error() {
+        return Result.Error;
+    }
+    ifelse.condition = condition;
+
+    // technically, we could just parse another statement here like c or java do it, but
+    // personally i think that braces should be required
+    if !p.check(tok.TokenType.LBrace) {
+        // TODO: report error
+        return Result.Error;
+    }
+
+    let if_block = ifelse.if_block = p.alloc_stmt();
+    if p.statement(if_block).is_error() {
+        return Result.Error;
+    }
+
+    let end = if_block.span.end;
+    ifelse.if_block = if_block;
+
+    let else_block: *Stmt = null;
+    if p.check(tok.TokenType.Else) {
+        if p.consume(tok.TokenType.Else).is_error() {
+            return Result.Error;
+        }
+
+        // here we allow either another 'if', or '{'
+        if !(p.check(tok.TokenType.If) || p.check(tok.TokenType.LBrace)) {
+            // TODO: report error here
+            return Result.Error;
+        }
+
+        else_block = p.alloc_stmt();
+        if p.statement(else_block).is_error() {
+            return Result.Error;
+        }
+
+        ifelse.else_block = else_block;
+        end = else_block.span.end;
+    }
+
+    memory.span = span.create(if_token.span.start, end);
+    return Result.OK;
 }
 
 def (p: *Parser) parse_let_binding(memory: *Stmt): Result {
@@ -627,7 +668,7 @@ def (p: *Parser) parse_let_binding(memory: *Stmt): Result {
     }
 
     local.value = p.alloc_expr();
-    if p.expression(local.value).is_error() {
+    if p.expression(local.value, false).is_error() {
         return Result.Error;
     }
 
@@ -635,24 +676,27 @@ def (p: *Parser) parse_let_binding(memory: *Stmt): Result {
 }
 
 // parse a single expression
-def (p: *Parser) expression(memory: *Expr): Result {
-    return p.parse_precedence(memory, tok.Precedence.Assign);
+// the no_struct disallows struct literals, which is needed to differentiate a struct literal from
+// the beginning of the block in if/while/for statements
+// if x { ... is ambiguous without further context
+def (p: *Parser) expression(memory: *Expr, no_struct: bool): Result {
+    return p.parse_precedence(memory, tok.Precedence.Assign, no_struct);
 }
 
 // parse an expression with a certain start precedence (current). This will consume tokens
 // until a token with a lower precedence than 'current' is found
 // the resulting expression is stored in 'memory'
-def (p: *Parser) parse_precedence(memory: *Expr, current: tok.Precedence): Result {
-    if p.parse_prefix(memory).is_error() {
+def (p: *Parser) parse_precedence(memory: *Expr, current: tok.Precedence, no_struct: bool): Result {
+    if p.parse_prefix(memory, no_struct).is_error() {
         return Result.Error;
     }
 
-    while p.next_higher_or_eq_precedence(current) {
+    while p.next_higher_or_eq_precedence(current, no_struct) {
         // copy the old prefix expression data...
         let prefix = p.alloc_expr();
         *prefix = *memory;
         // ... since we overwrite it here
-        if p.parse_infix(memory, prefix).is_error() {
+        if p.parse_infix(memory, prefix, no_struct).is_error() {
             return Result.Error;
         }
     }
@@ -660,8 +704,13 @@ def (p: *Parser) parse_precedence(memory: *Expr, current: tok.Precedence): Resul
     return Result.OK;
 }
 
-def (p: *Parser) next_higher_or_eq_precedence(current: tok.Precedence): bool {
-    return p.peek().ty.precedence() >= current;
+def (p: *Parser) next_higher_or_eq_precedence(current: tok.Precedence, no_struct: bool): bool {
+    let lookahead = p.peek();
+    if lookahead.ty == tok.TokenType.LBrace {
+        return !no_struct && lookahead.ty.precedence() >= current;
+    }
+
+    return lookahead.ty.precedence() >= current;
 }
 
 // get the unary kind of a token type
@@ -690,7 +739,7 @@ def is_unary_token(ty: tok.TokenType, kind: *UnaryKind): bool {
 
 // parse a prefix expression. e.g. a literal or a unary expression
 // the parsed expression will be initialized into 'memory'
-def (p: *Parser) parse_prefix(memory: *Expr): Result {
+def (p: *Parser) parse_prefix(memory: *Expr, no_struct: bool): Result {
     let token = p.advance();
 
     if token.ty.is_literal() {
@@ -705,7 +754,8 @@ def (p: *Parser) parse_prefix(memory: *Expr): Result {
 
     if token.ty == tok.TokenType.LParen {
         let start_span = token.span;
-        if p.expression(memory).is_error() {
+        // ignore no_struct, because the expression is in parentheses
+        if p.expression(memory, false).is_error() {
             return Result.Error;
         }
         if p.consume_tok(tok.TokenType.RParen, &token).is_error() {
@@ -730,7 +780,7 @@ def (p: *Parser) parse_prefix(memory: *Expr): Result {
     if is_unary_token(token.ty, &unary_kind) {
         // TODO(#6): for UnaryKind.AddrOf, check if right is an lvalue
         let right = p.alloc_expr();
-        if p.parse_precedence(right, tok.Precedence.Unary).is_error() {
+        if p.parse_precedence(right, tok.Precedence.Unary, no_struct).is_error() {
             return Result.Error;
         }
 
@@ -744,7 +794,7 @@ def (p: *Parser) parse_prefix(memory: *Expr): Result {
 
 // parse an infix expression. e.g. a binary expression
 // the parsed expression will be initialized into 'memory'
-def (p: *Parser) parse_infix(memory: *Expr, left: *Expr): Result {
+def (p: *Parser) parse_infix(memory: *Expr, left: *Expr, no_struct: bool): Result {
     let token = p.advance();
 
     // + - * / %
@@ -753,7 +803,7 @@ def (p: *Parser) parse_infix(memory: *Expr, left: *Expr): Result {
         // calling parse_precedence with a higher precedence makes the expression left-associative
         // using the same precedence would make it right-associative
         let precedence = token.ty.precedence().next_higher();
-        if p.parse_precedence(right, precedence).is_error() {
+        if p.parse_precedence(right, precedence, no_struct).is_error() {
             return Result.Error;
         }
 
@@ -769,7 +819,7 @@ def (p: *Parser) parse_infix(memory: *Expr, left: *Expr): Result {
         let right = p.alloc_expr();
         // using the same precedence makes assignments right-associative
         let precedence = token.ty.precedence();
-        if p.parse_precedence(right, precedence).is_error() {
+        if p.parse_precedence(right, precedence, no_struct).is_error() {
             return Result.Error;
         }
 
@@ -831,7 +881,7 @@ def (p: *Parser) parse_arg_list(memory: *Expr): Result {
         node.next = null;
 
         *current = node;
-        if p.expression(&node.value).is_error() {
+        if p.expression(&node.value, false).is_error() {
             return Result.Error;
         }
 

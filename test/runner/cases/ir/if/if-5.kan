@@ -1,0 +1,12 @@
+def f(a: bool, b: bool, c: bool) {
+    let x = 0;
+    if a {
+        x = 1;
+    } else if b {
+        x = 2;
+    } else if c {
+        x = 3;
+    } else {
+        x = 4;
+    }
+}

@@ -166,7 +166,6 @@ def compile_unary(ctx: *IRCtx, expr: *Expr, format: ResultFormat): CompileResult
     let operand = as_operand(ctx, result.value, unary.right.ty);
 
     if unary.kind == UnaryKind.NumNegate {
-        let value = compile(ctx, unary.right);
         let negated = rvalue.expr_unary(rvalue.UnaryKind.NumNeg, operand);
         return make_temp_if_needed(ctx, negated, expr.ty, format);
     }

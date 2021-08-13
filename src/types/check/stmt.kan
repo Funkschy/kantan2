@@ -91,6 +91,26 @@ def check(ctx: *TyCtx, stmt: *Stmt): Result {
         return Result.OK;
     }
 
+    if stmt.kind == StmtKind.If {
+        let ifelse = &stmt.data.ifelse;
+
+        // check if condition is a boolean type
+        let bool_ty = util.lookup_builtin(ctx, str.view("bool", 4)).ty;
+        if tychk.check(ctx, ifelse.condition, bool_ty).is_error() {
+            return Result.Error;
+        }
+
+        if check(ctx, ifelse.if_block).is_error() {
+            return Result.Error;
+        }
+
+        if ifelse.else_block == null {
+            return Result.OK;
+        }
+
+        return check(ctx, ifelse.else_block);
+    }
+
     if stmt.kind == StmtKind.Return {
         let current_signature = ctx.get_current_signature();
         if current_signature == null {

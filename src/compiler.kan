@@ -2,10 +2,8 @@ import ":std/str";
 import ":std/dbg";
 import ":std/files/path";
 
+import "ast/ast";
 import "ast/mod";
-import "ast/tyid";
-import "ast/item";
-import "ast/expr";
 import "ast/lexer" as lex;
 import "ast/parser" as parse;
 
@@ -28,6 +26,27 @@ import "cdeps";
 import "error" as e;
 import "util" as _;
 
+// all of the memory arenas used by the compiler
+type Arenas struct {
+    ast: ast.Arenas,
+    ty: arena.TypedArena,
+    ty_node: arena.TypedArena
+}
+
+def arenas(): Arenas {
+    return Arenas {
+        ast: ast.arenas(),
+        ty: arena.typed(sizeof types.Type),
+        ty_node: arena.typed(sizeof types.TypeNode)
+    };
+}
+
+def (a: *Arenas) free() {
+    a.ast.free();
+    a.ty.free();
+    a.ty_node.free();
+}
+
 // the main data structure for the compiler
 // this holds all of the memory for types and the ast
 // so if we need to keep data alive for the entire lifetime of the program, it goes here
@@ -37,14 +56,7 @@ type Compiler struct {
     config: *config.Config,
     modmap: mods.Map,
 
-    mod_arena: arena.TypedArena,
-    item_arena: arena.TypedArena,
-    tyid_arena: arena.TypedArena,
-    expr_arena: arena.TypedArena,
-    node_arena: arena.TypedArena,
-
-    type_arena: arena.TypedArena,
-    type_node_arena: arena.TypedArena,
+    arenas: Arenas,
 
     // this will only be initialized when config.generate_type_graph is set to true
     // otherwise it will contain uninitialized memory!
@@ -57,13 +69,7 @@ def compiler(config: *config.Config): Compiler {
         std_path: find_stdlib_path(),
         config: config,
         modmap: mods.filemap(),
-        mod_arena: arena.typed(sizeof mod.Module),
-        item_arena: arena.typed(sizeof item.Item),
-        tyid_arena: arena.typed(sizeof tyid.Type),
-        expr_arena: arena.typed(sizeof expr.Expr),
-        node_arena: arena.typed(sizeof expr.ExprNode),
-        type_arena: arena.typed(sizeof types.Type),
-        type_node_arena: arena.typed(sizeof types.TypeNode),
+        arenas: arenas(),
         type_graph: undefined
     };
 }
@@ -82,7 +88,7 @@ def (c: *Compiler) read_files(): Result {
 // could not be added
 def (c: *Compiler) add_file(filepath: path.Path, stdlib: bool, note: *e.ErrorNote): Result {
     let cwd = c.cwd.as_path();
-    let mod = c.mod_arena.alloc() as *mod.Module;
+    let mod = c.arenas.ast.mod.alloc() as *mod.Module;
     mod.init(c.modmap.len(), stdlib);
 
     c.modmap.add_file(cwd, filepath, mod);
@@ -122,13 +128,7 @@ def (c: *Compiler) resolve_imports(): Result {
     for let i: usize = 0; i < c.modmap.len(); i += 1 {
         let mod = c.modmap.at(i);
 
-        let parser = parse.create(
-            lex.create(mod.file.code()),
-             &c.item_arena,
-             &c.tyid_arena,
-             &c.expr_arena,
-             &c.node_arena
-         );
+        let parser = parse.create(lex.create(mod.file.code()), &c.arenas.ast);
 
         // we iterate over all the imports first, since they need to be at the top of the file
         // while resolving the imports, we keep track of all imported modules
@@ -230,7 +230,7 @@ def (c: *Compiler) parse(): Result {
         let info = c.modmap.info_at(i);
         let mod = info.module;
 
-        let parser = parse.create(info.lexer, &c.item_arena, &c.tyid_arena, &c.expr_arena, &c.node_arena);
+        let parser = parse.create(info.lexer, &c.arenas.ast);
         while !parser.is_at_end() {
             let parsed_item = parser.parse_item();
             if parsed_item != null {
@@ -256,7 +256,7 @@ def (c: *Compiler) resolve_types(): Result {
 }
 
 def (c: *Compiler) infer_and_check_types(): Result {
-    let ctx = ty_ctx.create(&c.type_arena, &c.type_node_arena, c.modmap.len());
+    let ctx = ty_ctx.create(&c.arenas.ty, &c.arenas.ty_node, c.modmap.len());
     defer ctx.free();
 
     let result = Result.OK;
@@ -362,13 +362,7 @@ def (c: *Compiler) free() {
     c.cwd.free();
     c.modmap.free();
 
-    c.mod_arena.free();
-    c.expr_arena.free();
-    c.node_arena.free();
-    c.item_arena.free_destructor(&item.Item.free as arena.Destructor);
-    c.tyid_arena.free_destructor(&tyid.Type.free as arena.Destructor);
-    c.type_arena.free();
-    c.type_node_arena.free();
+    c.arenas.free();
 
     if c.config.generate_type_graph {
         c.type_graph.free();

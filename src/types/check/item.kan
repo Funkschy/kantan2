@@ -55,7 +55,7 @@ def check(ctx: *TyCtx, item: *Item): Result {
             }
 
             ctx.current_signature = sig_instance;
-            result = result.or(tychk.check(ctx, &item.data.func_def.block_stmt));
+            result = result.or(tychk.check(ctx, item.data.func_def.block_stmt));
             ctx.close_scope();
 
             i += 1;

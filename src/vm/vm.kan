@@ -116,6 +116,10 @@ def (vm: *VM) execute() {
             let operand = vm.read_operand(1 << offset) as u8;
             vm.push(Value { u64: operand as u64 });
 
+        } else if inst == Inst.Dup {
+            let value = (vm.stack + vm.sp - 8) as *Value;
+            vm.push(*value);
+
         } else if inst == Inst.IAdd {
             let b = vm.pop();
             ((vm.stack + vm.sp - 8) as *Value).i64 += b.i64;
@@ -149,23 +153,23 @@ def (vm: *VM) execute() {
             let b = vm.pop();
             let value = ((vm.stack + vm.sp - 8) as *Value).i64;
             ((vm.stack + vm.sp - 8) as *Value).bool = value < b.i64;
-        } else if inst == Inst.ST {
+        } else if inst == Inst.SE {
             let b = vm.pop();
             let value = ((vm.stack + vm.sp - 8) as *Value).i64;
             ((vm.stack + vm.sp - 8) as *Value).bool = value <= b.i64;
-        } else if inst == Inst.ST {
+        } else if inst == Inst.GT {
             let b = vm.pop();
             let value = ((vm.stack + vm.sp - 8) as *Value).i64;
             ((vm.stack + vm.sp - 8) as *Value).bool = value > b.i64;
-        } else if inst == Inst.ST {
+        } else if inst == Inst.GE {
             let b = vm.pop();
             let value = ((vm.stack + vm.sp - 8) as *Value).i64;
             ((vm.stack + vm.sp - 8) as *Value).bool = value >= b.i64;
-        } else if inst == Inst.ST {
+        } else if inst == Inst.EQ {
             let b = vm.pop();
             let value = ((vm.stack + vm.sp - 8) as *Value).i64;
             ((vm.stack + vm.sp - 8) as *Value).bool = value == b.i64;
-        } else if inst == Inst.ST {
+        } else if inst == Inst.NE {
             let b = vm.pop();
             let value = ((vm.stack + vm.sp - 8) as *Value).i64;
             ((vm.stack + vm.sp - 8) as *Value).bool = value != b.i64;
@@ -211,6 +215,18 @@ def (vm: *VM) execute() {
         } else if inst == Inst.Store64 {
             let ptr = vm.pop().ptr as *u64;
             *ptr = vm.pop().u64;
+
+        } else if inst == Inst.Jmp {
+            let target = vm.read_operand(8) as usize;
+            vm.pc = target;
+
+        } else if inst == Inst.Jif {
+            let target = vm.read_operand(8) as usize;
+            let condition = vm.pop().bool;
+
+            if condition {
+                vm.pc = target;
+            }
         }
     }
 }

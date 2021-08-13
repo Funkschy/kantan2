@@ -57,7 +57,7 @@ type FuncDef struct {
     // otherwise, the amount of instances will depend on the number of distinct types
     // this template was invoked with
     instances: i.InstanceSet,
-    block_stmt: stmt.Stmt
+    block_stmt: *stmt.Stmt
 }
 
 def (f: *FuncDef) block(): *stmt.Block {
@@ -67,7 +67,6 @@ def (f: *FuncDef) block(): *stmt.Block {
 def (f: *FuncDef) free() {
     f.sig.free();
     f.instances.free();
-    f.block_stmt.free();
 }
 
 def (i: *Item) to_json(): str.String {

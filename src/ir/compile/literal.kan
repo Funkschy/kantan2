@@ -69,6 +69,16 @@ def compile_literal(ctx: *IRCtx, expr: *Expr): super.CompileResult {
         return super.ok(str);
     }
 
+    if lit.kind == LiteralKind.True {
+        let constant = const.boolean(expr.ty, true);
+        return super.ok(rvalue.expr_const(constant));
+    }
+
+    if lit.kind == LiteralKind.False {
+        let constant = const.boolean(expr.ty, false);
+        return super.ok(rvalue.expr_const(constant));
+    }
+
     dbg.assert(false, "unhandled literal kind");
     return super.error();
 }

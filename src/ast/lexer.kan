@@ -184,16 +184,30 @@ def (l: *Lexer) ident_type(): TokenType {
         } else if next == 'd' {
             return l.check_keyword(1, 8, "ndefined", TokenType.Undefined);
         }
+    } else if start == 't' {
+        let next = 0;
+        read_char(l.start + len, l.source.len - bytes_until - len, &next);
+
+        if next == 'r' {
+            return l.check_keyword(2, 2, "ue", TokenType.True);
+        } else if next == 'y' {
+            return l.check_keyword(2, 2, "pe", TokenType.Type);
+        }
+    } else if start == 'f' {
+        let next = 0;
+        read_char(l.start + len, l.source.len - bytes_until - len, &next);
+
+        if next == 'a' {
+            return l.check_keyword(2, 3, "lse", TokenType.False);
+        } else if next == 'o' {
+            return l.check_keyword(2, 1, "r", TokenType.For);
+        }
     } else if start == 'w' {
         return l.check_keyword(1, 4, "hile", TokenType.While);
-    } else if start == 't' {
-        return l.check_keyword(1, 3, "ype", TokenType.Type);
     } else if start == 'r' {
         return l.check_keyword(1, 5, "eturn", TokenType.Return);
     } else if start == 'a' {
         return l.check_keyword(1, 1, "s", TokenType.As);
-    } else if start == 'f' {
-        return l.check_keyword(1, 2, "or", TokenType.For);
     } else if start == 'c' {
         return l.check_keyword(1, 7, "ontinue", TokenType.Continue);
     } else if start == 'b' {

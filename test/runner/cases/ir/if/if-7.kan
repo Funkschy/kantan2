@@ -1,0 +1,9 @@
+def f(a: bool, b: bool, c: bool): i32 {
+    if a {
+    } else if b {
+    } else if c {
+    } else {
+    }
+    return 0;
+}
+

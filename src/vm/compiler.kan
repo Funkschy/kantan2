@@ -16,19 +16,25 @@ type IRCompiler struct {
     current_function: *ir.Function,
     // the offset from the base pointer of all local variables of the current_function
     local_offsets: vec.Vec, // vec.Vec[u64]
-    code: vec.Vec // vec.Vec[i8]
+    // the location of the first instruction in each bb of the current function
+    // the index here is the bb id and the value is the index inside of code
+    // this vec is reset when we enter a new function
+    bb_locations: vec.Vec, // vec.Vec[u64]
+    code: vec.Vec // vec.Vec[u8]
 }
 
 def compiler(): IRCompiler {
     return IRCompiler {
         current_function: null,
         local_offsets: vec.create(sizeof u64),
-        code: vec.create(sizeof i8)
+        bb_locations: vec.create(sizeof u64),
+        code: vec.create(sizeof u8)
     };
 }
 
 def (c: *IRCompiler) free() {
     c.local_offsets.free();
+    c.bb_locations.free();
     c.code.free();
 }
 
@@ -132,6 +138,7 @@ def (c: *IRCompiler) load_location_address(location: *memory.Location) {
 
 def (c: *IRCompiler) write_to_location(location: *memory.Location) {
     if c.typeof(location).is_unsized() || location.is_temp() {
+        // TODO FIXME: i think in case of a temp location we actually need to pop the value
         return;
     }
 
@@ -174,6 +181,10 @@ def (c: *IRCompiler) load_constant(constant: *const.Constant) {
         // TODO
     } else if constant.kind == const.ConstantKind.String {
         // TODO
+    } else if constant.kind == const.ConstantKind.Bool {
+        let value = constant.data.boolean as u64;
+        c.emit_with_op(Inst.ConstI8, value, 8);
+        return;
     } else if constant.kind == const.ConstantKind.Function {
         // TODO
     }
@@ -242,16 +253,46 @@ def (c: *IRCompiler) load_value_from_expr(expr: *rvalue.Expression) {
 }
 
 def (c: *IRCompiler) compile_terminator(terminator: *ir.Terminator) {
-    // TODO
+    if terminator.kind == ir.TerminatorKind.Jmp {
+        // in this stage, we put the bb id as a placeholder. After compiling the function, those
+        // placeholders are replaced with the real instruction address
+        c.emit_with_op(Inst.Jmp, terminator.data.jmp as u64, 64);
+    } else if terminator.kind == ir.TerminatorKind.SwitchInt {
+        let switch_int = &terminator.data.switch_int;
+
+        // TODO: this can be a lot more optimized for normal if-else statements
+
+        c.load_operand(&switch_int.condition);
+        for let case = switch_int.cases; case != null; case = case.next {
+            // if there are n cases, we need to check the condition n times, so we need to duplicate
+            // it n-1 times. This way the last condition pops the condition from the stack
+            if case.next != null {
+                c.emit(Inst.Dup);
+            }
+
+            // compare value with the condition, which is already on the stack
+            c.emit_with_op(Inst.ConstI64, case.value, 64);
+            c.emit(Inst.EQ);
+
+            // in this stage, we put the bb id as a placeholder. After compiling the function, those
+            // placeholders are replaced with the real instruction address
+            c.emit_with_op(Inst.Jif, case.target as u64, 64);
+        }
+    }
 }
 
 def (c: *IRCompiler) compile_function(f: *ir.Function) {
     c.current_function = f;
+    c.bb_locations.clear();
+    c.bb_locations.reserve(f.num_bbs());
+
     let operand_stack_start = c.fill_local_offsets() as u32 as u64; // only use 4 bytes
     c.emit_with_op(Inst.AllocLocals, operand_stack_start, 32);
 
     for let b: usize = 0; b < f.num_bbs(); b += 1 {
         let bb = f.bb_at(b);
+        // push the start address of this basic block
+        c.bb_locations.push(&c.code.len as *void);
 
         for let s: usize = 0; s < bb.num_statements(); s += 1 {
             let stmt = bb.statement_at(s);
@@ -268,6 +309,23 @@ def (c: *IRCompiler) compile_function(f: *ir.Function) {
         }
 
         c.compile_terminator(&bb.terminator);
+    }
+
+    // fix jump placeholders
+    let program = c.code.get_ptr(0) as *u8;
+    let program_len = c.code.len;
+
+    for let i: usize = 0; i < c.code.len; {
+        let instruction = *(program + i) as i32;
+        let instruction = *(&instruction as *Inst);
+
+        if instruction >= Inst.Jmp && instruction <= Inst.Jif {
+            let bb_id_placeholder = util.read_int(program + i + 1, 8);
+            let real_address = c.bb_locations.get_ptr(bb_id_placeholder as usize) as *u64;
+            c.code.set(i + 1, real_address as *void);
+        }
+
+        i += instruction.width_bytes();
     }
 }
 

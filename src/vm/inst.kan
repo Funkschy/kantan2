@@ -21,6 +21,9 @@ type Inst enum {
     ConstI32,
     ConstI64,
 
+    // duplicate the top of stack
+    Dup,
+
     // push(pop() + pop())
     IAdd,
     // push(pop() - pop())
@@ -61,7 +64,13 @@ type Inst enum {
     Store8,
     Store16,
     Store32,
-    Store64
+    Store64,
+
+    // unconditional jmp, followed by an absolute instruction address
+    // goto u64
+    Jmp,
+    // if pop() == true jmp
+    Jif
 }
 
 def with_size(start: Inst, bits: usize): Inst {
@@ -90,5 +99,7 @@ def (i: Inst) width_bytes(): usize {
     w += i._param_size_bytes(Inst.ConstI8, Inst.ConstI64);
     w += (i == Inst.AllocLocals) as usize * 4;
     w += (i == Inst.LocalPtr) as usize * 4;
+    w += (i == Inst.Jmp) as usize * 8;
+    w += (i == Inst.Jif) as usize * 8;
     return w;
 }

@@ -1,9 +1,11 @@
-import "../std/vec";
-import "../std/str";
-import "../std/dbg";
+import ":std/str";
+import ":std/dbg";
+import ":std/dbg";
+import ":std/libc";
+import ":std/ptrvec";
 
-import "../source/span";
-import "../source/ident";
+import ":source/span";
+import ":source/ident";
 
 import "tyid";
 import "expr" as expr;
@@ -12,7 +14,8 @@ type StmtKind enum {
     Expr,
     Block,
     LocalVarDecl,
-    Return
+    Return,
+    If
 }
 
 type Stmt struct {
@@ -25,7 +28,8 @@ type StmtData union {
     expr: expr.Expr,
     block: Block,
     local: LocalVarDecl,
-    ret: *expr.Expr
+    ret: *expr.Expr,
+    ifelse: IfElse
 }
 
 def (s: *Stmt) init_expr() {
@@ -48,6 +52,13 @@ def (s: *Stmt) init_return() {
     s.data.ret = null;
 }
 
+def (s: *Stmt) init_if() {
+    s.kind = StmtKind.If;
+    s.data.ifelse.condition = null;
+    s.data.ifelse.if_block = null;
+    s.data.ifelse.else_block = null;
+}
+
 def (s: *Stmt) free() {
     if s.kind == StmtKind.Block {
         s.data.block.free();
@@ -55,28 +66,20 @@ def (s: *Stmt) free() {
 }
 
 type Block struct {
-    // the block is actually responsible for freeing its statements
-    stmts: vec.Vec
+    // this only holds pointers to the statements and is not responsible for freeing them
+    stmts: ptrvec.Vec
 }
 
 def (b: *Block) init() {
-    b.stmts = vec.create(sizeof Stmt);
+    b.stmts = ptrvec.create();
 }
 
-// reserve memory for a single statement inside the block. If the data for the statement was
-// actually initialized, the caller of this function must also call push_reserved()
-def (b: *Block) reserve(): *Stmt {
-    return b.stmts.reserve_single() as *Stmt;
-}
-
-// mark the reserved space as initialized
-def (b: *Block) push_reserved() {
-    dbg.assert(b.stmts.len < b.stmts.cap, "invalid push_reserved call");
-    b.stmts.len += 1;
+def (b: *Block) push(stmt: *Stmt) {
+    b.stmts.push_ptr(stmt as *void);
 }
 
 def (b: *Block) at(idx: usize): *Stmt {
-    return b.stmts.get_ptr(idx) as *Stmt;
+    return b.stmts.get(idx) as *Stmt;
 }
 
 def (b: *Block) len(): usize {
@@ -84,10 +87,6 @@ def (b: *Block) len(): usize {
 }
 
 def (b: *Block) free() {
-    for let i: usize = 0; i < b.stmts.len; i += 1 {
-        let stmt = b.stmts.get_ptr(i) as *Stmt;
-        stmt.free();
-    }
     b.stmts.free();
 }
 
@@ -95,6 +94,12 @@ type LocalVarDecl struct {
     name: ident.Ident,
     ty: *tyid.Type, // can be null
     value: *expr.Expr
+}
+
+type IfElse struct {
+    condition: *expr.Expr,
+    if_block: *Stmt,
+    else_block: *Stmt // can be null
 }
 
 // to string/json stuff

@@ -15,6 +15,7 @@ type ConstantKind enum {
     Int,
     Float,
     String,
+    Bool,
     Function // a function that is called by name, so the dispatch is known at compile time
 }
 
@@ -29,6 +30,7 @@ type ConstantData union {
     char: i8,
     int: u64,
     float: f64,
+    boolean: bool,
     str: str.View,
     function: *ty.Type
 }
@@ -79,6 +81,14 @@ def char(ty: *ty.Type, value: i8): Constant {
         kind: ConstantKind.Char,
         ty: ty,
         data: ConstantData { char: value }
+    };
+}
+
+def boolean(ty: *ty.Type, value: bool): Constant {
+    return Constant {
+        kind: ConstantKind.Bool,
+        ty: ty,
+        data: ConstantData { boolean: value }
     };
 }
 
@@ -146,6 +156,19 @@ def (c: *Constant) to_json(): str.String {
         let value = cdeps.f64_to_string(c.data.float);
         json.push(value.view());
         value.free();
+
+        return json;
+    }
+
+    if c.kind == ConstantKind.Bool {
+        let json = str.from("{\"kind\": \"bool\", \"value\": ");
+        defer json.push(str.view("}", 1));
+
+        if c.data.boolean {
+            json.push(str.view("true", 4));
+        } else {
+            json.push(str.view("false", 5));
+        }
 
         return json;
     }

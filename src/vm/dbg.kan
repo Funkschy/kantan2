@@ -4,7 +4,7 @@ import ":util";
 import "inst";
 
 def dump_bytecode_dbg(program: *u8, program_len: usize) {
-    let human_readable: [34]*i8 = undefined;
+    let human_readable: [37]*i8 = undefined;
     human_readable[ 0] = "nop";
     human_readable[ 1] = "halt";
     human_readable[ 2] = "alloclocals";
@@ -15,38 +15,43 @@ def dump_bytecode_dbg(program: *u8, program_len: usize) {
     human_readable[ 6] = "i32.const";
     human_readable[ 7] = "i64.const";
 
-    human_readable[ 8] = "iadd";
-    human_readable[ 9] = "isub";
-    human_readable[10] = "imul";
-    human_readable[11] = "idiv";
-    human_readable[12] = "imod";
+    human_readable[ 8] = "dup";
 
-    human_readable[13] = "bitand";
-    human_readable[14] = "bitor";
-    human_readable[15] = "bitxor";
+    human_readable[ 9] = "iadd";
+    human_readable[10] = "isub";
+    human_readable[11] = "imul";
+    human_readable[12] = "idiv";
+    human_readable[13] = "imod";
 
-    human_readable[16] = "st";
-    human_readable[17] = "se";
-    human_readable[18] = "gt";
-    human_readable[19] = "ge";
-    human_readable[20] = "eq";
-    human_readable[21] = "ne";
+    human_readable[14] = "bitand";
+    human_readable[15] = "bitor";
+    human_readable[16] = "bitxor";
 
-    human_readable[22] = "and";
-    human_readable[23] = "or";
+    human_readable[17] = "st";
+    human_readable[18] = "se";
+    human_readable[19] = "gt";
+    human_readable[20] = "ge";
+    human_readable[21] = "eq";
+    human_readable[22] = "ne";
 
-    human_readable[24] = "lsh";
-    human_readable[25] = "rsh";
+    human_readable[23] = "and";
+    human_readable[24] = "or";
 
-    human_readable[26] = "load8";
-    human_readable[27] = "load16";
-    human_readable[28] = "load32";
-    human_readable[29] = "load64";
+    human_readable[25] = "lsh";
+    human_readable[26] = "rsh";
 
-    human_readable[30] = "store8";
-    human_readable[31] = "store16";
-    human_readable[32] = "store32";
-    human_readable[33] = "store64";
+    human_readable[27] = "load8";
+    human_readable[28] = "load16";
+    human_readable[29] = "load32";
+    human_readable[30] = "load64";
+
+    human_readable[31] = "store8";
+    human_readable[32] = "store16";
+    human_readable[33] = "store32";
+    human_readable[34] = "store64";
+
+    human_readable[35] = "jmp";
+    human_readable[36] = "jif";
 
 
     for let i: usize = 0; i < program_len; {
@@ -55,7 +60,7 @@ def dump_bytecode_dbg(program: *u8, program_len: usize) {
 
         let instruction = *(&instruction as *inst.Inst);
         let width_bytes = instruction.width_bytes();
-        let param_size = instruction.width_bytes() - 1;
+        let param_size = width_bytes - 1;
 
         if param_size == 0 {
             io.printf("%5d%15s\n", i, mnemonic);
@@ -65,6 +70,6 @@ def dump_bytecode_dbg(program: *u8, program_len: usize) {
         }
 
 
-        i += instruction.width_bytes();
+        i += width_bytes;
     }
 }

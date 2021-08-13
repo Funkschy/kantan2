@@ -126,7 +126,9 @@ type LiteralKind enum {
     String,
     Char,
     Null,
-    Undefined
+    Undefined,
+    True,
+    False
 }
 
 type LiteralExpr struct {

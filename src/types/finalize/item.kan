@@ -33,7 +33,7 @@ def finalize(ctx: *c.TyCtx, item: *Item): Result {
 
         f.instances.free();
         f.instances = new_instances;
-        return stmt.finalize(ctx, &f.block_stmt);
+        return stmt.finalize(ctx, f.block_stmt);
     }
 
     dbg.assert(false, "Unhandled ItemKind");

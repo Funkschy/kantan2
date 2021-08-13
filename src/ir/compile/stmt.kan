@@ -63,6 +63,91 @@ def compile(ctx: *IRCtx, stmt: *Stmt): Result {
         return Result.OK;
     }
 
+    if stmt.kind == StmtKind.If {
+        let ifelse = &stmt.data.ifelse;
+
+        let condition = expr.compile(ctx, ifelse.condition);
+        if condition.is_error {
+            return Result.Error;
+        }
+        let condition = expr.as_operand(ctx, condition.value, ifelse.condition.ty);
+
+        // we need to remember this id, so we can change the terminator after compiling the
+        // branches
+        let before_if_bb = ctx.current_bb();
+
+        // terminate the current block, because we need a fresh block for each branch
+        let fake_terminator = ir.nop_terminator();
+        ctx.push_terminator(&fake_terminator);
+
+        let first_if_block_bb = ctx.current_bb();
+        if compile(ctx, ifelse.if_block).is_error() {
+            return Result.Error;
+        }
+        let last_if_block_bb = ctx.current_bb();
+        // TODO: this can generate unreachable code blocks
+        //  this isn't the end of the world, so it doesn't have a high priority, but
+        //  it should still be fixed somewhere in the future
+        ctx.terminate_current();
+
+        let open_nop_block = true;
+
+        let first_else_block_bb: usize = 0;
+        let last_else_block_bb: usize = 0;
+        if ifelse.else_block != null {
+            first_else_block_bb = ctx.current_bb();
+            if compile(ctx, ifelse.else_block).is_error() {
+                return Result.Error;
+            }
+            last_else_block_bb = ctx.current_bb();
+            open_nop_block = !ctx.current_bb_is_nop();
+
+            if open_nop_block {
+                ctx.terminate_current();
+            }
+        }
+
+        let after_if_bb = ctx.current_bb();
+        let jmp_after_branches = ir.jmp(after_if_bb);
+
+        let else_jump_target = after_if_bb;
+        if ifelse.else_block != null {
+            // if there is an explicit else block, jump there instead
+            else_jump_target = first_else_block_bb;
+        }
+
+        let default_case = ctx.switch_case_default(else_jump_target);
+        let if_case = ctx.switch_case(1, first_if_block_bb, default_case);
+        let switch_int = ir.switch_int(condition, if_case);
+
+        // jmp behind all the possible brances
+        ctx.set_terminator_if_nop(last_if_block_bb, &jmp_after_branches);
+
+        if open_nop_block {
+            ctx.set_terminator(last_else_block_bb, &jmp_after_branches);
+        }
+
+
+        // insert the actual switch
+        ctx.set_terminator(before_if_bb, &switch_int);
+
+        // we need to make sure, that there is at least one statement inside the following block
+        // otherwise there's an edge case for the following program:
+        //   def main() {
+        //     if true {
+        //
+        //     }
+        //   }
+        // in that case, the compiler won't generate the missing 'return;', because the last block
+        // in the functions has no statements, so the compiler assumes, that the return was already
+        // inserted before. See ir/compile/item.kan for the implementation
+        if open_nop_block {
+            ctx.push_nop_stmt();
+        }
+
+        return Result.OK;
+    }
+
     if stmt.kind == StmtKind.Return {
         let return_type = ctx.current_function.return_type();
         let value: rvalue.Operand = undefined;

@@ -23,6 +23,13 @@ type StatementData union {
     assign: Assign
 }
 
+def nop_stmt(): Statement {
+    return Statement {
+        kind: StatementKind.Nop,
+        data: undefined
+    };
+}
+
 def assign(location: memory.Location, value: rvalue.Expression): Statement {
     return Statement {
         kind: StatementKind.Assign,
@@ -44,7 +51,7 @@ type Assign struct {
 
 type TerminatorKind enum {
     Nop, // this should only be set during compilation. It is not a valid Terminator!
-    Return, Call, Jmp
+    Return, Call, Jmp, SwitchInt
 }
 
 type Terminator struct {
@@ -54,7 +61,22 @@ type Terminator struct {
 
 type TerminatorData union {
     call: Call,
-    ret: rvalue.Operand // the return value. const nothing for void functions
+    ret: rvalue.Operand, // the return value. const nothing for void functions
+    jmp: usize,          // the target basic block id
+    switch_int: SwitchInt
+}
+
+type SwitchInt struct {
+    condition: rvalue.Operand,
+    cases: *SwitchCase
+}
+
+// a linked list of switch cases
+type SwitchCase struct {
+    otherwise: bool, // this is the default/else/otherwise branch
+    value: u64,
+    target: usize, // the id of the basic block
+    next: *SwitchCase
 }
 
 type Call struct {
@@ -79,6 +101,13 @@ def call(callee: rvalue.Operand, args_head: *rvalue.OperandNode, dest: memory.Lo
     };
 }
 
+def nop_terminator(): Terminator {
+    return Terminator {
+        kind: TerminatorKind.Nop,
+        data: undefined
+    };
+}
+
 def ret(value: rvalue.Operand): Terminator {
     return Terminator {
         kind: TerminatorKind.Return,
@@ -88,13 +117,36 @@ def ret(value: rvalue.Operand): Terminator {
     };
 }
 
+def jmp(jmp_target_bb_id: usize): Terminator {
+    return Terminator {
+        kind: TerminatorKind.Jmp,
+        data: TerminatorData {
+            jmp: jmp_target_bb_id
+        }
+    };
+}
+
+def switch_int(condition: rvalue.Operand, first_case: *SwitchCase): Terminator {
+    return Terminator {
+        kind: TerminatorKind.SwitchInt,
+        data: TerminatorData {
+            switch_int: SwitchInt {
+                condition: condition,
+                cases: first_case
+            }
+        }
+    };
+}
+
 type BasicBlock struct {
+    id: usize,
     statements: vec.Vec, // vec.Vec[Statement]
     terminator: Terminator
 }
 
-def basic_block(): BasicBlock {
+def basic_block(id: usize): BasicBlock {
     return BasicBlock {
+        id: id,
         statements: vec.create(sizeof Statement),
         terminator: Terminator {
             kind: TerminatorKind.Nop,
@@ -217,7 +269,7 @@ def (f: *Function) bb_at(i: usize): *BasicBlock {
 def (f: *Function) current_bb(): *BasicBlock {
     // if there is no block, just open one
     if f.body.blocks.len == 0 {
-        let bb = basic_block();
+        let bb = basic_block(f.body.blocks.len);
         f.body.blocks.push(&bb as *void);
     }
 
@@ -232,7 +284,7 @@ def (f: *Function) terminate_current(terminator: *Terminator) {
     }
 
     current.terminate(terminator);
-    let new_bb = basic_block();
+    let new_bb = basic_block(f.body.blocks.len);
     f.body.blocks.push(&new_bb as *void);
 }
 
@@ -392,6 +444,10 @@ def (s: *Statement) to_json(): str.String {
         return json;
     }
 
+    if s.kind == StatementKind.Nop {
+        return str.from("{\"kind\": \"nop\"}");
+    }
+
     dbg.assert(false, "Unhandled StmtKind");
     return str.from("");
 }
@@ -405,6 +461,15 @@ def (t: *Terminator) to_json(): str.String {
         return json;
     }
 
+    if t.kind == TerminatorKind.Jmp {
+        json.push(str.view_from("\"jmp\", \"target\": \"bb"));
+        let number = str.i64_to_string(t.data.jmp as i64);
+        json.push(number.view());
+        number.free();
+        json.push(str.view_from("\""));
+        return json;
+    }
+
     if t.kind == TerminatorKind.Return {
         json.push(str.view_from("\"return\", \"operand\": "));
 
@@ -412,6 +477,40 @@ def (t: *Terminator) to_json(): str.String {
         json.push(value.view());
         value.free();
 
+        return json;
+    }
+
+    if t.kind == TerminatorKind.SwitchInt {
+        json.push(str.view_from("\"switch\""));
+
+        json.push(str.view_from(", \"condition\": "));
+        let condition = t.data.switch_int.condition.to_json();
+        json.push(condition.view());
+        condition.free();
+
+        json.push(str.view_from(", \"cases\": ["));
+
+        let case = t.data.switch_int.cases;
+        while case != null {
+            if case != t.data.switch_int.cases {
+                json.push(str.view(", ", 2));
+            }
+
+            json.push(str.view_from("{\"value\": "));
+            let number = str.i64_to_string(case.value as i64);
+            json.push(number.view());
+            number.free();
+
+            json.push(str.view_from(", \"target\": \"bb"));
+            let number = str.i64_to_string(case.target as i64);
+            json.push(number.view());
+            number.free();
+            json.push(str.view("\"}", 2));
+
+            case = case.next;
+        }
+
+        json.push(str.view("]", 1));
         return json;
     }
 
