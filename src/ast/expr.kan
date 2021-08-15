@@ -141,7 +141,7 @@ type IdentExpr struct {
 }
 
 type UnaryKind enum {
-    Deref, AddrOf, NumNegate, BoolNegate
+    Deref, AddrOf, NumNegate, BoolNegate, BitNegate
 }
 
 type UnaryExpr struct {
@@ -155,26 +155,27 @@ type BinaryKind enum {
     Mul,
     Div,
     Mod,
+
     BitAnd,
     BitOr,
     BitXor,
 
+    LShift,
+    RShift,
+
+    EQ,
+    NE,
     ST,
     SE,
     GT,
     GE,
 
-    EQ,
-    NE,
     LogAnd,
-    LogOr,
-
-    LShift,
-    RShift
+    LogOr
 }
 
 def (k: BinaryKind) with_offset(offset: i32): BinaryKind {
-    dbg.assert(k as i32 + offset <= BinaryKind.Mod as i32, "offset too large");
+    dbg.assert(k as i32 + offset <= BinaryKind.LogOr as i32, "offset too large");
     let next = k as i32 + offset;
     return *(&next as *BinaryKind);
 }
@@ -243,6 +244,8 @@ def (k: BinaryKind) as_view(): str.View {
         _binary_kind_strings[BinaryKind.BitAnd    as i32] = str.view_from("&");
         _binary_kind_strings[BinaryKind.BitOr     as i32] = str.view_from("|");
         _binary_kind_strings[BinaryKind.BitXor    as i32] = str.view_from("^");
+        _binary_kind_strings[BinaryKind.LShift    as i32] = str.view_from("<<");
+        _binary_kind_strings[BinaryKind.RShift    as i32] = str.view_from(">>");
         _binary_kind_strings[BinaryKind.ST        as i32] = str.view_from("<");
         _binary_kind_strings[BinaryKind.SE        as i32] = str.view_from("<=");
         _binary_kind_strings[BinaryKind.GT        as i32] = str.view_from(">");
@@ -251,15 +254,13 @@ def (k: BinaryKind) as_view(): str.View {
         _binary_kind_strings[BinaryKind.NE        as i32] = str.view_from("!=");
         _binary_kind_strings[BinaryKind.LogAnd    as i32] = str.view_from("&&");
         _binary_kind_strings[BinaryKind.LogOr     as i32] = str.view_from("||");
-        _binary_kind_strings[BinaryKind.LShift    as i32] = str.view_from("<<");
-        _binary_kind_strings[BinaryKind.RShift    as i32] = str.view_from(">>");
         _binary_kind_strings_initialized = true;
     }
 
     return _binary_kind_strings[k as i32];
 }
 
-let _unary_kind_strings: [4]str.View = undefined;
+let _unary_kind_strings: [5]str.View = undefined;
 // TODO(#2): change this to 'false' when global variables work correctly
 let  _unary_kind_strings_initialized: bool = undefined;
 
@@ -269,6 +270,7 @@ def (k: UnaryKind) as_view(): str.View {
         _unary_kind_strings[UnaryKind.AddrOf as i32] = str.view("&", 1);
         _unary_kind_strings[UnaryKind.NumNegate as i32] = str.view("-", 1);
         _unary_kind_strings[UnaryKind.BoolNegate as i32] = str.view("!", 1);
+        _unary_kind_strings[UnaryKind.BitNegate as i32] = str.view("~", 1);
     }
 
     return _unary_kind_strings[k as i32];

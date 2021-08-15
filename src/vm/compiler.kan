@@ -65,12 +65,9 @@ def (c: *IRCompiler) fill_local_offsets(): u64 {
     for let l: u64 = 0; l < c.current_function.body.locals.len as u64; l += 1 {
         let location = memory.local(l as u32 + 1, false).as_location();
         let ty = c.current_function.location_type(&location, false);
-        // this was a temporary local
-        if ty == null {
-            continue;
-        }
 
-        if ty.is_unsized() {
+        // this was a temporary local or a void local
+        if ty == null || ty.is_unsized() {
             // there are actually locals with type void in the mir, since every expression
             // (calls to void functions in this case) must be assigned to a variable
             c.local_offsets.push(&offset as *void);
@@ -138,7 +135,6 @@ def (c: *IRCompiler) load_location_address(location: *memory.Location) {
 
 def (c: *IRCompiler) write_to_location(location: *memory.Location) {
     if c.typeof(location).is_unsized() || location.is_temp() {
-        // TODO FIXME: i think in case of a temp location we actually need to pop the value
         return;
     }
 
@@ -150,8 +146,29 @@ def (c: *IRCompiler) write_to_location(location: *memory.Location) {
     c.emit(with_size(Inst.Store8, c.width_bits(location)));
 }
 
-def (c: *IRCompiler) load_location(location: *memory.Location) {
-    if c.typeof(location).is_unsized() || location.is_temp() {
+def (c: *IRCompiler) load_location(location: *memory.Location, is_rhs: bool) {
+    if c.typeof(location).is_unsized() {
+        return;
+    }
+
+    if location.is_temp() {
+        // if the rhs of a binary operation is a temporary read, that means it's on the stack
+        // below the lhs, because the actual expression was already evaluated
+        // e.g: 4 < 2 + 1
+        // in that case the 2+1 will 'written' into a temp var, that means the evaluation order is:
+        // push 2
+        // push 1
+        // add
+        // 'emitted pop into temp_1'
+        // push 4
+        // lt
+        // so the stack before the 'lt' would be:
+        // 3
+        // 4
+        // which is wrong
+        if is_rhs {
+            c.emit(Inst.Swap);
+        }
         return;
     }
 
@@ -192,29 +209,44 @@ def (c: *IRCompiler) load_constant(constant: *const.Constant) {
     dbg.not_implemented();
 }
 
-def (c: *IRCompiler) load_operand(operand: *rvalue.Operand) {
+def (c: *IRCompiler) load_operand(operand: *rvalue.Operand, is_rhs: bool) {
     if operand.kind == rvalue.OperandKind.Constant {
         c.load_constant(&operand.data.constant);
     } else {
-        c.load_location(&operand.data.copy);
+        c.load_location(&operand.data.copy, is_rhs);
     }
 }
 
 def (c: *IRCompiler) load_value_from_expr(expr: *rvalue.Expression) {
     if expr.kind == rvalue.ExpressionKind.Use {
-        c.load_operand(&expr.data.use);
+        c.load_operand(&expr.data.use, false);
         return;
-    } else if expr.kind == rvalue.ExpressionKind.Ref {
+    }
+
+    if expr.kind == rvalue.ExpressionKind.Ref {
         c.load_location_address(&expr.data.ref);
         return;
-    } else if expr.kind == rvalue.ExpressionKind.Cast {
+    }
+
+    if expr.kind == rvalue.ExpressionKind.Cast {
         // TODO
-    } else if expr.kind == rvalue.ExpressionKind.Unary {
-        // TODO
-    } else if expr.kind == rvalue.ExpressionKind.Binary {
+    }
+
+    if expr.kind == rvalue.ExpressionKind.Unary {
+        let unary = &expr.data.unary;
+        c.load_operand(&unary.operand, false);
+
+        let offset = unary.kind as i32;
+        let inst = Inst.Not as i32 + offset;
+        c.emit(*(&inst as *Inst));
+
+        return;
+    }
+
+    if expr.kind == rvalue.ExpressionKind.Binary {
         let binary = &expr.data.binary;
-        c.load_operand(&binary.left);
-        c.load_operand(&binary.right);
+        c.load_operand(&binary.left, false);
+        c.load_operand(&binary.right, true);
 
         let left_ty = c.typeof_op(&binary.left);
         if binary.kind == rvalue.BinaryKind.AddScalar || binary.kind == rvalue.BinaryKind.SubScalar {
@@ -238,13 +270,11 @@ def (c: *IRCompiler) load_value_from_expr(expr: *rvalue.Expression) {
             } else {
                 c.emit(Inst.ISub);
             }
-        } else if left_ty.is_integer() {
-            let offset = binary.kind as i32;
-            let inst = Inst.IAdd as i32 + offset;
-            c.emit(*(&inst as *Inst));
-        } else {
-            dbg.not_implemented();
         }
+
+        let offset = binary.kind as i32;
+        let inst = Inst.IAdd as i32 + offset;
+        c.emit(*(&inst as *Inst));
 
         return;
     }
@@ -262,7 +292,7 @@ def (c: *IRCompiler) compile_terminator(terminator: *ir.Terminator) {
 
         // TODO: this can be a lot more optimized for normal if-else statements
 
-        c.load_operand(&switch_int.condition);
+        c.load_operand(&switch_int.condition, false);
         for let case = switch_int.cases; case != null; case = case.next {
             // if there are n cases, we need to check the condition n times, so we need to duplicate
             // it n-1 times. This way the last condition pops the condition from the stack

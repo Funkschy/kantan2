@@ -21,8 +21,14 @@ type Inst enum {
     ConstI32,
     ConstI64,
 
+    // swap the 2 elements on top of the stack
+    Swap,
     // duplicate the top of stack
     Dup,
+    Not,
+
+    // push(-pop())
+    INeg,
 
     // push(pop() + pop())
     IAdd,
@@ -39,18 +45,18 @@ type Inst enum {
     BitOr,
     BitXor,
 
+    LShift,
+    RShift,
+
+    EQ,
+    NE,
     ST,
     SE,
     GT,
     GE,
-    EQ,
-    NE,
 
     BoolAnd,
     BoolOr,
-
-    LShift,
-    RShift,
 
     // loadww
     // push(*pop())

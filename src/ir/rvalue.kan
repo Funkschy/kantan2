@@ -122,22 +122,23 @@ type BinaryKind enum {
     Mul,
     Div,
     Mod,
+
     BitAnd,
     BitOr,
     BitXor,
 
+    LShift,
+    RShift,
+
+    EQ,
+    NE,
     ST,
     SE,
     GT,
     GE,
-    EQ,
-    NE,
 
     BoolAnd,
     BoolOr,
-
-    LShift,
-    RShift,
 
     AddScalar,
     SubScalar
@@ -175,16 +176,16 @@ def (k: BinaryKind) as_view(): str.View {
         _binary_kind_strings[BinaryKind.BitAnd    as i32] = str.view_from("&");
         _binary_kind_strings[BinaryKind.BitOr     as i32] = str.view_from("|");
         _binary_kind_strings[BinaryKind.BitXor    as i32] = str.view_from("^");
+        _binary_kind_strings[BinaryKind.LShift    as i32] = str.view_from("<<");
+        _binary_kind_strings[BinaryKind.RShift    as i32] = str.view_from(">>");
+        _binary_kind_strings[BinaryKind.EQ        as i32] = str.view_from("==");
+        _binary_kind_strings[BinaryKind.NE        as i32] = str.view_from("!=");
         _binary_kind_strings[BinaryKind.ST        as i32] = str.view_from("<");
         _binary_kind_strings[BinaryKind.SE        as i32] = str.view_from("<=");
         _binary_kind_strings[BinaryKind.GT        as i32] = str.view_from(">");
         _binary_kind_strings[BinaryKind.GE        as i32] = str.view_from(">=");
-        _binary_kind_strings[BinaryKind.EQ        as i32] = str.view_from("==");
-        _binary_kind_strings[BinaryKind.NE        as i32] = str.view_from("!=");
         _binary_kind_strings[BinaryKind.BoolAnd   as i32] = str.view_from("&&");
         _binary_kind_strings[BinaryKind.BoolOr    as i32] = str.view_from("||");
-        _binary_kind_strings[BinaryKind.LShift    as i32] = str.view_from("<<");
-        _binary_kind_strings[BinaryKind.RShift    as i32] = str.view_from(">>");
         _binary_kind_strings[BinaryKind.AddScalar as i32] = str.view_from("+");
         _binary_kind_strings[BinaryKind.SubScalar as i32] = str.view_from("-");
         _binary_kind_strings_initialized = true;
@@ -222,7 +223,7 @@ def (e: *Expression) to_json(): str.String {
         defer json.push(str.view("}", 1));
 
         if unary.kind == UnaryKind.Not {
-            json.push(str.view_from("\"!\""));
+            json.push(str.view_from("\"~\""));
         } else if unary.kind == UnaryKind.NumNeg {
             json.push(str.view_from("\"-\""));
         } else {

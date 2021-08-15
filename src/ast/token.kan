@@ -52,14 +52,31 @@ type TokenType enum {
     Dot,
     TripleDot,
     Bang,
-    BangEq,
-    DoubleEq,
+    Tilde, // ~
 
+    // this part (until DoublePipe ||) must match expr.BinaryKind
     Plus,
     Minus,
     Star,
     Slash,
     Percent,
+
+    Ampersand,
+    Pipe,
+    Caret, // ^
+
+    SmallerSmaller,
+    GreaterGreater,
+
+    DoubleEq,
+    BangEq,
+    Smaller,
+    SmallerEq,
+    Greater,
+    GreaterEq,
+
+    DoubleAmpersand,
+    DoublePipe,
 
     Eq,
     PlusEq,
@@ -70,21 +87,6 @@ type TokenType enum {
     AmpersandEq,
     PipeEq,
     CaretEq,
-
-    Smaller,
-    SmallerEq,
-    Greater,
-    GreaterEq,
-
-    Ampersand,
-    DoubleAmpersand,
-    Pipe,
-    DoublePipe,
-    Caret, // ^
-    Tilde, // ~
-
-    SmallerSmaller,
-    GreaterGreater,
 
     LParen,
     RParen,
@@ -142,8 +144,12 @@ type Precedence enum {
     Assign,     // = += -= *= /= %= &= |= ^=
     Or,         // ||
     And,        // &&
+    BitOr,      // |
+    BitXor,
+    BitAnd,
     Equality,   // == !=
     Comparison, // < <= >= >
+    Shift,      // << >>
     Sum,        // + -
     Product,    // * / % as << >> & | ^
     Unary,      // ! - ~
@@ -217,14 +223,30 @@ def init() {
     token_info[TokenType.Dot as i32]             = info(Precedence.Call, str.view(".", 1));
     token_info[TokenType.TripleDot as i32]       = info_none(str.view("...", 3));
     token_info[TokenType.Bang as i32]            = info_none(str.view("!", 1));
-    token_info[TokenType.BangEq as i32]          = info(Precedence.Equality, str.view("!=", 2));
-    token_info[TokenType.DoubleEq as i32]        = info(Precedence.Equality, str.view("==", 2));
+    token_info[TokenType.Tilde as i32]           = info(Precedence.Unary, str.view("~", 1));
 
     token_info[TokenType.Plus as i32]            = info(Precedence.Sum, str.view("+", 1));
     token_info[TokenType.Minus as i32]           = info(Precedence.Sum, str.view("-", 1));
     token_info[TokenType.Star as i32]            = info(Precedence.Product, str.view("*", 1));
     token_info[TokenType.Slash as i32]           = info(Precedence.Product, str.view("/", 1));
     token_info[TokenType.Percent as i32]         = info(Precedence.Product, str.view("%", 1));
+
+    token_info[TokenType.Ampersand as i32]       = info(Precedence.BitAnd, str.view("&", 1));
+    token_info[TokenType.Pipe as i32]            = info(Precedence.BitOr,  str.view("|", 1));
+    token_info[TokenType.Caret as i32]           = info(Precedence.BitXor, str.view("^", 1));
+
+    token_info[TokenType.SmallerSmaller as i32]  = info(Precedence.Shift, str.view("<<", 2));
+    token_info[TokenType.GreaterGreater as i32]  = info(Precedence.Shift, str.view(">>", 2));
+
+    token_info[TokenType.DoubleEq as i32]        = info(Precedence.Equality,   str.view("==", 2));
+    token_info[TokenType.BangEq as i32]          = info(Precedence.Equality,   str.view("!=", 2));
+    token_info[TokenType.Smaller as i32]         = info(Precedence.Comparison, str.view("<", 1));
+    token_info[TokenType.SmallerEq as i32]       = info(Precedence.Comparison, str.view("<=", 2));
+    token_info[TokenType.Greater as i32]         = info(Precedence.Comparison, str.view(">", 1));
+    token_info[TokenType.GreaterEq as i32]       = info(Precedence.Comparison, str.view(">=", 2));
+
+    token_info[TokenType.DoubleAmpersand as i32] = info(Precedence.And,   str.view("&&", 2));
+    token_info[TokenType.DoublePipe as i32]      = info(Precedence.Or,    str.view("||", 2));
 
     token_info[TokenType.Eq as i32]              = info(Precedence.Assign, str.view("=", 1));
     token_info[TokenType.PlusEq as i32]          = info(Precedence.Assign, str.view("+=", 2));
@@ -235,22 +257,6 @@ def init() {
     token_info[TokenType.AmpersandEq as i32]     = info(Precedence.Assign, str.view("&=", 2));
     token_info[TokenType.PipeEq as i32]          = info(Precedence.Assign, str.view("|=", 2));
     token_info[TokenType.CaretEq as i32]         = info(Precedence.Assign, str.view("^=", 2));
-
-    token_info[TokenType.Smaller as i32]         = info(Precedence.Comparison, str.view("<", 1));
-    token_info[TokenType.SmallerEq as i32]       = info(Precedence.Comparison, str.view("<=", 2));
-    token_info[TokenType.Greater as i32]         = info(Precedence.Comparison, str.view(">", 1));
-    token_info[TokenType.GreaterEq as i32]       = info(Precedence.Comparison, str.view(">=", 2));
-
-    token_info[TokenType.Ampersand as i32]       = info(Precedence.Product, str.view("&", 1));
-    token_info[TokenType.Pipe as i32]            = info(Precedence.Product, str.view("|", 1));
-    token_info[TokenType.DoubleAmpersand as i32] = info(Precedence.And, str.view("&&", 2));
-    token_info[TokenType.DoublePipe as i32]      = info(Precedence.Or, str.view("||", 2));
-    token_info[TokenType.Caret as i32]           = info(Precedence.Product, str.view("^", 1));
-
-    token_info[TokenType.Tilde as i32]           = info(Precedence.Unary, str.view("~", 1));
-
-    token_info[TokenType.SmallerSmaller as i32]  = info(Precedence.Product, str.view("<<", 2));
-    token_info[TokenType.GreaterGreater as i32]  = info(Precedence.Product, str.view(">>", 2));
 
     token_info[TokenType.LParen as i32]          = info(Precedence.Call, str.view("(", 1));
     token_info[TokenType.RParen as i32]          = info_none(str.view(")", 1));

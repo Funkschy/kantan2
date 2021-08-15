@@ -3,7 +3,7 @@ import "cdeps";
 
 import "source/span";
 
-let error_strings: [22]string = undefined;
+let error_strings: [23]string = undefined;
 
 type ErrorKind enum {
     // import errors
@@ -24,6 +24,7 @@ type ErrorKind enum {
     NegateNonNumber,
     UndeclaredType,
     InvalidBinaryOperator,
+    NotComparable,
     WrongNumberOfArgs,
     CallingNonFunction,
     SizeofUnsizedType,
@@ -204,6 +205,7 @@ def init() {
     error_strings[ErrorKind.NegateNonNumber as i32]  = "Trying to negate '%.*s', which is not a number";
     error_strings[ErrorKind.UndeclaredType as i32]  = "No type '%.*s' in scope";
     error_strings[ErrorKind.InvalidBinaryOperator as i32]  = "Invalid operator '%.*s' for types '%.*s' and '%.*s'";
+    error_strings[ErrorKind.NotComparable as i32]  = "Invalid operator '%.*s' for non comparable types '%.*s' and '%.*s'";
     error_strings[ErrorKind.WrongNumberOfArgs as i32]  = "Expected %lld arguments, but got %lld";
     error_strings[ErrorKind.CallingNonFunction as i32]  = "The type '%.*s' is not callable";
     error_strings[ErrorKind.SizeofUnsizedType as i32]  = "The type '%.*s' is unsized";

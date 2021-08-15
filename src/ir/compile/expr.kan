@@ -175,6 +175,14 @@ def compile_unary(ctx: *IRCtx, expr: *Expr, format: ResultFormat): CompileResult
         return make_temp_if_needed(ctx, negated, expr.ty, format);
     }
 
+    // for some reason the compiler cannot compile this correctly if i write
+    // if unary.kind == UnaryKind.BoolNegate || unary.kind == UnaryKind.BitNegate
+    // that assigns null to unary, which seems to be a weird bug in the current compiler
+    if unary.kind == UnaryKind.BitNegate {
+        let negated = rvalue.expr_unary(rvalue.UnaryKind.Not, operand);
+        return make_temp_if_needed(ctx, negated, expr.ty, format);
+    }
+
     dbg.assert(false, "Unhandled UnaryKind");
     return error();
 }

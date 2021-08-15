@@ -9,35 +9,72 @@ import "../util" as _;
 // this kinda works like a super class, so i think this name is intuitive
 import "expr" as super;
 
+def report_binary_error(binary: *BinaryExpr, left: *Type, right: *Type, kind: e.ErrorKind) {
+    let left_s = left.to_string();
+    defer left_s.free();
+    let right_s = right.to_string();
+    defer right_s.free();
+
+    let op_span = binary.op_span;
+    report_str3(
+        kind,
+        op_span,
+        op_span.as_view(),
+        left_s.view(),
+        right_s.view()
+    );
+}
+
 def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
-    let left = super.infer(ctx, expr.data.binary.left);
+    let binary = &expr.data.binary;
+
+    let left = super.infer(ctx, binary.left);
     if left.is_error() {
         return left;
     }
 
-    let kind = expr.data.binary.kind;
+    let kind = binary.kind;
     // those cases need the types to be the same, so we can just check one against the other
-    if kind >= BinaryKind.Mul && kind <= BinaryKind.Mod {
-        let right = super.check(ctx, expr.data.binary.right, left.ty);
+    if kind >= BinaryKind.Mul && kind <= BinaryKind.RShift {
+        let right = super.check(ctx, binary.right, left.ty);
         if right.is_error() {
             return right;
         }
 
+        // math/bit operators other than + and -
         // the types need to be the same after check, so it's sufficient to check just the left one
         if !left.ty.is_number() {
-            let left_s = left.ty.to_string();
-            defer left_s.free();
-            let right_s = right.ty.to_string();
-            defer right_s.free();
+            report_binary_error(binary, left.ty, right.ty, e.ErrorKind.InvalidBinaryOperator);
+            return error();
+        }
 
-            let op_span = expr.data.binary.op_span;
-            report_str3(
-                e.ErrorKind.InvalidBinaryOperator,
-                op_span,
-                op_span.as_view(),
-                left_s.view(),
-                right_s.view()
-            );
+        return left;
+    }
+
+    // comparison operators
+    if kind >= BinaryKind.EQ && kind <= BinaryKind.GE {
+        let right = super.check(ctx, binary.right, left.ty);
+        if right.is_error() {
+            return right;
+        }
+
+        if !left.ty.is_comparable() {
+            report_binary_error(binary, left.ty, right.ty, e.ErrorKind.NotComparable);
+            return error();
+        }
+
+        return lookup_builtin(ctx, str.view("bool", 4));
+    }
+
+    // && and ||
+    if kind == BinaryKind.LogAnd || kind == BinaryKind.LogOr {
+        let right = super.check(ctx, binary.right, left.ty);
+        if right.is_error() {
+            return right;
+        }
+
+        if left.ty.kind != TypeKind.Bool {
+            report_binary_error(binary, left.ty, right.ty, e.ErrorKind.InvalidBinaryOperator);
             return error();
         }
 
@@ -46,7 +83,7 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
 
     // addition and subtraction are more complicated since they are 'overloaded' for pointers
     // subtracting 2 pointers yields an isize. Adding a pointer and an integer yields a pointer
-    let right = super.infer(ctx, expr.data.binary.right);
+    let right = super.infer(ctx, binary.right);
     if right.is_error() {
         return right;
     }
@@ -56,12 +93,12 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
     let right_is_ptr = right.ty.is_pointer();
 
     if left.ty.is_number() && right.ty.is_number() {
-        return super.check(ctx, expr.data.binary.right, left.ty);
+        return super.check(ctx, binary.right, left.ty);
     }
 
     if kind == BinaryKind.Sub && left_is_ptr && right_is_ptr {
         // we check this again, so we can be sure we have the correct inner type
-        let right = super.check(ctx, expr.data.binary.right, left.ty);
+        let right = super.check(ctx, binary.right, left.ty);
         if right.is_error() {
             return right;
         }
@@ -83,7 +120,7 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
     let right_s = right.ty.to_string();
     defer right_s.free();
 
-    let op_span = expr.data.binary.op_span;
+    let op_span = binary.op_span;
     report_str3(
         e.ErrorKind.InvalidBinaryOperator,
         op_span,

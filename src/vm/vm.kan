@@ -116,9 +116,22 @@ def (vm: *VM) execute() {
             let operand = vm.read_operand(1 << offset) as u8;
             vm.push(Value { u64: operand as u64 });
 
+        } else if inst == Inst.Swap {
+            let b = (vm.stack + vm.sp - 8) as *Value;
+            let a = (vm.stack + vm.sp - 16) as *Value;
+            let temp = *a;
+            *a = *b;
+            *b = temp;
         } else if inst == Inst.Dup {
             let value = (vm.stack + vm.sp - 8) as *Value;
             vm.push(*value);
+        } else if inst == Inst.Not {
+            let value = (vm.stack + vm.sp - 8) as *Value;
+            value.u64 = ~value.u64;
+
+        } else if inst == Inst.INeg {
+            let value = (vm.stack + vm.sp - 8) as *Value;
+            value.i64 = -value.i64;
 
         } else if inst == Inst.IAdd {
             let b = vm.pop();
@@ -149,6 +162,14 @@ def (vm: *VM) execute() {
             let value = ((vm.stack + vm.sp - 8) as *Value).i64;
             ((vm.stack + vm.sp - 8) as *Value).i64 = value ^ b.i64;
 
+        } else if inst == Inst.EQ {
+            let b = vm.pop();
+            let value = ((vm.stack + vm.sp - 8) as *Value).i64;
+            ((vm.stack + vm.sp - 8) as *Value).bool = value == b.i64;
+        } else if inst == Inst.NE {
+            let b = vm.pop();
+            let value = ((vm.stack + vm.sp - 8) as *Value).i64;
+            ((vm.stack + vm.sp - 8) as *Value).bool = value != b.i64;
         } else if inst == Inst.ST {
             let b = vm.pop();
             let value = ((vm.stack + vm.sp - 8) as *Value).i64;
@@ -165,14 +186,6 @@ def (vm: *VM) execute() {
             let b = vm.pop();
             let value = ((vm.stack + vm.sp - 8) as *Value).i64;
             ((vm.stack + vm.sp - 8) as *Value).bool = value >= b.i64;
-        } else if inst == Inst.EQ {
-            let b = vm.pop();
-            let value = ((vm.stack + vm.sp - 8) as *Value).i64;
-            ((vm.stack + vm.sp - 8) as *Value).bool = value == b.i64;
-        } else if inst == Inst.NE {
-            let b = vm.pop();
-            let value = ((vm.stack + vm.sp - 8) as *Value).i64;
-            ((vm.stack + vm.sp - 8) as *Value).bool = value != b.i64;
 
         } else if inst == Inst.BoolAnd {
             let b = vm.pop();

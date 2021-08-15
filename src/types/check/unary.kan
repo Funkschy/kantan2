@@ -44,7 +44,7 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
         return ok(right.found_in, ctx.alloc_ty().init_ptr(right.ty));
     }
 
-    if expr.data.unary.kind == UnaryKind.NumNegate {
+    if expr.data.unary.kind == UnaryKind.NumNegate || expr.data.unary.kind == UnaryKind.BitNegate {
         // we can unfortunately not check against anyInt, since right may
         // also be a float
         if !right.ty.is_number() {

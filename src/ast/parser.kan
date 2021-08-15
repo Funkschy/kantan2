@@ -714,7 +714,7 @@ def (p: *Parser) next_higher_or_eq_precedence(current: tok.Precedence, no_struct
 }
 
 // get the unary kind of a token type
-// if ty is not in {'-', '*', '&', '!'} then this will return false
+// if ty is not in {'-', '*', '&', '!', '~'} then this will return false
 // otherwise kind will be filled with the matching unary type
 def is_unary_token(ty: tok.TokenType, kind: *UnaryKind): bool {
     if ty == tok.TokenType.Minus {
@@ -731,6 +731,10 @@ def is_unary_token(ty: tok.TokenType, kind: *UnaryKind): bool {
     }
     if ty == tok.TokenType.Bang {
         *kind = UnaryKind.BoolNegate;
+        return true;
+    }
+    if ty == tok.TokenType.Tilde {
+        *kind = UnaryKind.BitNegate;
         return true;
     }
 
@@ -797,8 +801,8 @@ def (p: *Parser) parse_prefix(memory: *Expr, no_struct: bool): Result {
 def (p: *Parser) parse_infix(memory: *Expr, left: *Expr, no_struct: bool): Result {
     let token = p.advance();
 
-    // + - * / %
-    if token.ty.is_between(tok.TokenType.Plus, tok.TokenType.Percent) {
+    // binary expressions
+    if token.ty.is_between(tok.TokenType.Plus, tok.TokenType.DoublePipe) {
         let right = p.alloc_expr();
         // calling parse_precedence with a higher precedence makes the expression left-associative
         // using the same precedence would make it right-associative
