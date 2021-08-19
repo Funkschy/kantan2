@@ -166,6 +166,31 @@ def (s: *Stmt) to_json(): str.String {
         return json;
     }
 
+    if s.kind == StmtKind.If {
+        let json = str.from("{\"kind\": \"if\", \"condition\": ");
+        defer json.push(str.view_from("}"));
+
+        let value = s.data.ifelse.condition.to_json();
+        json.push(value.view());
+        value.free();
+
+        json.push(str.view_from(", \"if_block\": "));
+        let if_block = s.data.ifelse.if_block.to_json();
+        json.push(if_block.view());
+        if_block.free();
+
+        json.push(str.view_from(", \"else_block\": "));
+        if s.data.ifelse.else_block != null {
+            let else_block = s.data.ifelse.else_block.to_json();
+            json.push(else_block.view());
+            else_block.free();
+        } else {
+            json.push(str.view("null", 4));
+        }
+
+        return json;
+    }
+
     if s.kind == StmtKind.Block {
         return s.data.block.to_json();
     }
