@@ -290,24 +290,28 @@ def (c: *IRCompiler) compile_terminator(terminator: *ir.Terminator) {
     } else if terminator.kind == ir.TerminatorKind.SwitchInt {
         let switch_int = &terminator.data.switch_int;
 
-        // TODO: this can be a lot more optimized for normal if-else statements
+        dbg.assert(
+            c.typeof_op(&switch_int.condition).kind == ty.TypeKind.Bool,
+            "switch int is only implemented for if-else right now"
+        );
+        dbg.assert(switch_int.cases != null, "no cases for if");
+        dbg.assert(switch_int.cases.next != null, "no else case for if");
+
+        let true_case = switch_int.cases;
+        let false_case = true_case.next;
+        dbg.assert(false_case.next == null, "more than 2 cases for boolean if");
+
+        if true_case.value != 1 {
+            let temp = true_case;
+            true_case = false_case;
+            false_case = temp;
+        }
 
         c.load_operand(&switch_int.condition, false);
-        for let case = switch_int.cases; case != null; case = case.next {
-            // if there are n cases, we need to check the condition n times, so we need to duplicate
-            // it n-1 times. This way the last condition pops the condition from the stack
-            if case.next != null {
-                c.emit(Inst.Dup);
-            }
-
-            // compare value with the condition, which is already on the stack
-            c.emit_with_op(Inst.ConstI64, case.value, 64);
-            c.emit(Inst.EQ);
-
-            // in this stage, we put the bb id as a placeholder. After compiling the function, those
-            // placeholders are replaced with the real instruction address
-            c.emit_with_op(Inst.Jif, case.target as u64, 64);
-        }
+        // in this stage, we put the bb id as a placeholder. After compiling the function, those
+        // placeholders are replaced with the real instruction address
+        c.emit_with_op(Inst.Jif, true_case.target as u64, 64);
+        c.emit_with_op(Inst.Jmp, false_case.target as u64, 64);
     }
 }
 
@@ -339,6 +343,10 @@ def (c: *IRCompiler) compile_function(f: *ir.Function) {
         }
 
         c.compile_terminator(&bb.terminator);
+
+        if bb.num_statements() == 0 {
+            c.emit(Inst.Nop);
+        }
     }
 
     // fix jump placeholders

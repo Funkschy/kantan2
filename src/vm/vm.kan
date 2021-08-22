@@ -104,6 +104,7 @@ def (vm: *VM) execute() {
             break;
         } else if inst == Inst.AllocLocals {
             let operand = vm.read_operand(4) as usize;
+            libc.memset((vm.stack + vm.sp) as *void, 0, operand);
             vm.sp += operand;
 
         } else if inst == Inst.LocalPtr {

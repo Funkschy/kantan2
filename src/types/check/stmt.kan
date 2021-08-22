@@ -45,14 +45,16 @@ def check(ctx: *TyCtx, stmt: *Stmt): Result {
 
     if stmt.kind == StmtKind.LocalVarDecl {
         let decl = &stmt.data.local;
-        // bind error type by default so that no follow up errors are later reported in case that
-        // one of the following ifs fails
-        ctx.bind_value_public(decl.name.as_view(), ctx.error_type(), &decl.name.span);
 
         let inferred = tychk.infer(ctx, decl.value);
         if inferred.is_error() {
+            ctx.bind_value_public(decl.name.as_view(), ctx.error_type(), &decl.name.span);
             return Result.Error;
         }
+
+        // bind error type by default so that no follow up errors are later reported in case that
+        // one of the following ifs fails
+        ctx.bind_value_public(decl.name.as_view(), ctx.error_type(), &decl.name.span);
 
         let ty = inferred.ty;
         if inferred.found_in == util.FoundIn.Declarations {
@@ -109,6 +111,18 @@ def check(ctx: *TyCtx, stmt: *Stmt): Result {
         }
 
         return check(ctx, ifelse.else_block);
+    }
+
+    if stmt.kind == StmtKind.While {
+        let while_loop = &stmt.data.while_loop;
+
+        // check if condition is a boolean type
+        let bool_ty = util.lookup_builtin(ctx, str.view("bool", 4)).ty;
+        if tychk.check(ctx, while_loop.condition, bool_ty).is_error() {
+            return Result.Error;
+        }
+
+        return check(ctx, while_loop.block);
     }
 
     if stmt.kind == StmtKind.Return {

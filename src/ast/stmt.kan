@@ -15,7 +15,8 @@ type StmtKind enum {
     Block,
     LocalVarDecl,
     Return,
-    If
+    If,
+    While
 }
 
 type Stmt struct {
@@ -29,7 +30,8 @@ type StmtData union {
     block: Block,
     local: LocalVarDecl,
     ret: *expr.Expr,
-    ifelse: IfElse
+    ifelse: IfElse,
+    while_loop: While
 }
 
 def (s: *Stmt) init_expr() {
@@ -57,6 +59,12 @@ def (s: *Stmt) init_if() {
     s.data.ifelse.condition = null;
     s.data.ifelse.if_block = null;
     s.data.ifelse.else_block = null;
+}
+
+def (s: *Stmt) init_while() {
+    s.kind = StmtKind.While;
+    s.data.while_loop.condition = null;
+    s.data.while_loop.block = null;
 }
 
 def (s: *Stmt) free() {
@@ -100,6 +108,11 @@ type IfElse struct {
     condition: *expr.Expr,
     if_block: *Stmt,
     else_block: *Stmt // can be null
+}
+
+type While struct {
+    condition: *expr.Expr,
+    block: *Stmt
 }
 
 // to string/json stuff
@@ -187,6 +200,22 @@ def (s: *Stmt) to_json(): str.String {
         } else {
             json.push(str.view("null", 4));
         }
+
+        return json;
+    }
+
+    if s.kind == StmtKind.While {
+        let json = str.from("{\"kind\": \"while\", \"condition\": ");
+        defer json.push(str.view_from("}"));
+
+        let value = s.data.while_loop.condition.to_json();
+        json.push(value.view());
+        value.free();
+
+        json.push(str.view_from(", \"block\": "));
+        let block = s.data.while_loop.block.to_json();
+        json.push(block.view());
+        block.free();
 
         return json;
     }

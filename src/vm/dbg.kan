@@ -56,10 +56,10 @@ def dump_bytecode_dbg(program: *u8, program_len: usize) {
         let param_size = width_bytes - 1;
 
         if param_size == 0 {
-            io.printf("%5d%15s\n", i, mnemonic);
+            io.printf("%5x%15s\n", i, mnemonic);
         } else {
             let operand = util.read_int(program + i + 1, param_size);
-            io.printf("%5d%15s%10x\n", i, mnemonic, operand);
+            io.printf("%5x%15s%10x\n", i, mnemonic, operand);
         }
 
 

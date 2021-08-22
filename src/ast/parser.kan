@@ -355,6 +355,9 @@ def (p: *Parser) parse_stmt(memory: *Stmt): Result {
     } else if p.check(tok.TokenType.If) {
         memory.init_if();
         return p.parse_if(memory);
+    } else if p.check(tok.TokenType.While) {
+        memory.init_while();
+        return p.parse_while(memory);
     }
 
     // all statements after this have to be followed by a semicolon (SimpleStatement)
@@ -634,6 +637,37 @@ def (p: *Parser) parse_if(memory: *Stmt): Result {
     }
 
     memory.span = span.create(if_token.span.start, end);
+    return Result.OK;
+}
+
+def (p: *Parser) parse_while(memory: *Stmt): Result {
+    let while_loop = &memory.data.while_loop;
+
+    let while_token: tok.Token = undefined;
+    if p.consume_tok(tok.TokenType.While, &while_token).is_error() {
+        return Result.Error;
+    }
+
+    let condition = p.alloc_expr();
+    if p.expression(condition, true).is_error() {
+        return Result.Error;
+    }
+    while_loop.condition = condition;
+
+    // technically, we could just parse another statement here like c or java do it, but
+    // personally i think that braces should be required
+    if !p.check(tok.TokenType.LBrace) {
+        // TODO: report error
+        return Result.Error;
+    }
+
+    let block = while_loop.block = p.alloc_stmt();
+    if p.statement(block).is_error() {
+        return Result.Error;
+    }
+
+    while_loop.block = block;
+    memory.span = span.create(while_token.span.start, block.span.end);
     return Result.OK;
 }
 

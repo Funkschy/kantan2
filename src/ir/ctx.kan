@@ -154,10 +154,6 @@ def (ctx: *IRCtx) current_bb(): usize {
 
 def (ctx: *IRCtx) terminate_current() {
     let f = ctx.current_function;
-    if f.current_bb().num_statements() == 0 {
-        ctx.push_nop_stmt();
-    }
-
     let nop = ir.nop_terminator();
     f.terminate_current(&nop);
 }

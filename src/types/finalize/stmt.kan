@@ -62,6 +62,16 @@ def finalize(ctx: *c.TyCtx, stmt: *Stmt): Result {
         return result;
     }
 
+    if stmt.kind == StmtKind.While {
+        let while_loop = &stmt.data.while_loop;
+
+        if expr.finalize(ctx, while_loop.condition).is_error() {
+            return Result.Error;
+        }
+
+        return finalize(ctx, while_loop.block);
+    }
+
     if stmt.kind == StmtKind.Return {
         if stmt.data.ret == null {
             return Result.OK;

@@ -127,7 +127,6 @@ def compile(ctx: *IRCtx, stmt: *Stmt): Result {
             ctx.set_terminator(last_else_block_bb, &jmp_after_branches);
         }
 
-
         // insert the actual switch
         ctx.set_terminator(before_if_bb, &switch_int);
 
@@ -141,6 +140,59 @@ def compile(ctx: *IRCtx, stmt: *Stmt): Result {
         // in that case, the compiler won't generate the missing 'return;', because the last block
         // in the functions has no statements, so the compiler assumes, that the return was already
         // inserted before. See ir/compile/item.kan for the implementation
+        if open_nop_block {
+            ctx.push_nop_stmt();
+        }
+
+        return Result.OK;
+    }
+
+    if stmt.kind == StmtKind.While {
+        let while_loop = &stmt.data.while_loop;
+
+        // terminate the current block, because we need to jump to the condition
+        let condition_block = ctx.current_bb();
+        if !ctx.current_bb_is_empty() {
+            let last_bb = condition_block;
+            ctx.terminate_current();
+            condition_block = ctx.current_bb();
+
+            let jmp_to_condition = ir.jmp(condition_block);
+            ctx.set_terminator(last_bb, &jmp_to_condition);
+        }
+
+        let condition = expr.compile(ctx, while_loop.condition);
+        if condition.is_error {
+            return Result.Error;
+        }
+        let condition = expr.as_operand(ctx, condition.value, while_loop.condition.ty);
+
+        ctx.terminate_current();
+        // we need to remember this id, so we can change the terminator after compiling the
+        // branches
+        let before_loop_bb = ctx.current_bb();
+        if compile(ctx, while_loop.block).is_error() {
+            return Result.Error;
+        }
+        let last_loop_bb = ctx.current_bb();
+
+        let open_nop_block = !ctx.current_bb_is_nop();
+        if open_nop_block {
+            ctx.terminate_current();
+        }
+        let after_loop_bb = ctx.current_bb();
+
+        let jmp_after_while = ir.jmp(after_loop_bb);
+        let jmp_to_condition = ir.jmp(condition_block);
+
+        ctx.set_terminator_if_nop(last_loop_bb, &jmp_to_condition);
+
+        let default_case = ctx.switch_case_default(after_loop_bb);
+        let if_case = ctx.switch_case(1, before_loop_bb, default_case);
+        let switch_int = ir.switch_int(condition, if_case);
+
+        ctx.set_terminator(condition_block, &switch_int);
+
         if open_nop_block {
             ctx.push_nop_stmt();
         }

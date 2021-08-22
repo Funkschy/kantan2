@@ -57,9 +57,6 @@ expected_ir = [{
                 },
                 'bb1': {
                     'statements': [
-                        {
-                            'kind': 'nop'
-                        }
                     ],
                     'terminator': {
                         'kind': 'jmp',
@@ -94,9 +91,6 @@ expected_ir = [{
                 },
                 'bb3': {
                     'statements': [
-                        {
-                            'kind': 'nop'
-                        }
                     ],
                     'terminator': {
                         'kind': 'jmp',
@@ -130,9 +124,6 @@ expected_ir = [{
                 },
                 'bb5': {
                     'statements': [
-                        {
-                            'kind': 'nop'
-                        }
                     ],
                     'terminator': {
                         'kind': 'jmp',
@@ -141,9 +132,6 @@ expected_ir = [{
                 },
                 'bb6': {
                     'statements': [
-                        {
-                            "kind": "nop",
-                        }
                     ],
                     'terminator': {
                         'kind': 'jmp',
