@@ -8,6 +8,7 @@ import ":source/ident";
 
 import "info";
 import "data";
+import "graph";
 import "function";
 import "template";
 import "primitive";
@@ -413,6 +414,7 @@ def (t: *Type) init_sig(name: ident.Ident, declared_in: *mod.Module, function: *
     t.width = t.align = info.unsized();
     t.data.signature.name = name;
     t.data.signature.declared_in = declared_in;
+    t.data.signature.call_graph_node = null;
     t.data.signature.func = function;
     return t;
 }

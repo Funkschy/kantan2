@@ -67,11 +67,18 @@ def (g: *TypeGraph) add_node(ty: *ty.Type): *Node {
 }
 
 def (g: *TypeGraph) add_edge(kind: EdgeKind, from: *Node, to: *Node) {
+    // check if the edge already exists (this isn't a multigraph)
+    for let out_edge = from.out_edges; out_edge != null; out_edge = out_edge.next {
+        if out_edge.node.ty.equals(to.ty) {
+            return;
+        }
+    }
+
     from.out_edges = (g.edge_arena.alloc() as *Edge).init(kind, to, from.out_edges);
     to.in_edges = (g.edge_arena.alloc() as *Edge).init(kind, from, to.in_edges);
 }
 
-def push_edges(json: *str.String, edges: *Edge) {
+def _push_edges(json: *str.String, edges: *Edge) {
     let kinds: [2]str.View = undefined;
     kinds[EdgeKind.Hard as i32] = str.view("hard", 4);
     kinds[EdgeKind.Soft as i32] = str.view("soft", 4);
@@ -119,11 +126,11 @@ def (g: *TypeGraph) to_json(name: str.View): str.String {
         json.push(str.view_from("\""));
 
         json.push(str.view_from(", \"in\": ["));
-        push_edges(&json, current.in_edges);
+        _push_edges(&json, current.in_edges);
         json.push(str.view_from("]"));
 
         json.push(str.view_from(", \"out\": ["));
-        push_edges(&json, current.out_edges);
+        _push_edges(&json, current.out_edges);
         json.push(str.view_from("]"));
 
         json.push(str.view_from("}"));

@@ -58,6 +58,7 @@ type Compiler struct {
 
     arenas: Arenas,
 
+    call_graph: graph.TypeGraph,
     // this will only be initialized when config.generate_type_graph is set to true
     // otherwise it will contain uninitialized memory!
     type_graph: graph.TypeGraph
@@ -70,6 +71,7 @@ def compiler(config: *config.Config): Compiler {
         config: config,
         modmap: mods.filemap(),
         arenas: arenas(),
+        call_graph: graph.type_graph(),
         type_graph: undefined
     };
 }
@@ -256,7 +258,7 @@ def (c: *Compiler) resolve_types(): Result {
 }
 
 def (c: *Compiler) infer_and_check_types(): Result {
-    let ctx = ty_ctx.create(&c.arenas.ty, &c.arenas.ty_node, c.modmap.len());
+    let ctx = ty_ctx.create(&c.arenas.ty, &c.arenas.ty_node, &c.call_graph, c.modmap.len());
     defer ctx.free();
 
     let result = Result.OK;
@@ -363,6 +365,7 @@ def (c: *Compiler) free() {
     c.modmap.free();
 
     c.arenas.free();
+    c.call_graph.free();
 
     if c.config.generate_type_graph {
         c.type_graph.free();

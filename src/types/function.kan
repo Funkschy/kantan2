@@ -5,6 +5,7 @@ import ":ast/mod";
 import ":source/ident";
 
 import "scope";
+import "graph";
 import "ctx" as _;
 import "types" as _;
 import "instances" as _;
@@ -12,6 +13,10 @@ import "instances" as _;
 type Signature struct {
     name: ident.Ident,
     declared_in: *mod.Module,
+    // every signature gets a node in the call graph. When we finalize the types,
+    // all of the call expressions create edges between those Signature nodes
+    // this will be null before the finalize pass
+    call_graph_node: *graph.Node,
     func: *Type
 }
 

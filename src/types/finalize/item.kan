@@ -23,7 +23,13 @@ def finalize(ctx: *c.TyCtx, item: *Item): Result {
             if types.finalize(ctx, instance_ref, item.name.span).is_error() {
                 had_errors = true;
             }
-            new_instances.push(*instance_ref);
+
+            let instance = *instance_ref;
+            if instance.data.signature.call_graph_node == null {
+                instance.data.signature.call_graph_node = ctx.call_graph_node(instance);
+            }
+
+            new_instances.push(instance);
         }
 
         if had_errors {
@@ -33,6 +39,8 @@ def finalize(ctx: *c.TyCtx, item: *Item): Result {
 
         f.instances.free();
         f.instances = new_instances;
+        // TODO: this does must happen per instance
+        ctx.current_signature = f.instances.get(0);
         return stmt.finalize(ctx, f.block_stmt);
     }
 

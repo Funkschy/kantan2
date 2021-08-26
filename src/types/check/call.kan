@@ -58,8 +58,11 @@ def infer(ctx: *ctx.TyCtx, expr: *Expr): TyResult {
         dbg.assert(inner_template.inner.kind == TypeKind.Signature, "expected signature");
 
         let template_signature = &inner_template.inner.data.signature;
-        let signature = ctx.alloc_ty()
-            .init_sig(template_signature.name, template_signature.declared_in, func_ty);
+        let signature = ctx.alloc_ty().init_sig(
+            template_signature.name,
+            template_signature.declared_in,
+            func_ty
+        );
 
         callee.ty.data.inner = signature;
         // push the initialized signature type into the original instance list

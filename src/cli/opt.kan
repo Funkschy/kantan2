@@ -22,6 +22,7 @@ type Options struct {
     output_json: bool,
     dump_ast: bool,
     dump_config: bool,
+    dump_call_graph: bool,
     dump_type_graph: bool,
     dump_ir: bool,
     // quit after parsing
@@ -32,7 +33,7 @@ type Options struct {
     target_triple: str.View
 }
 
-let available_options: [13]p.Option = undefined;
+let available_options: [14]p.Option = undefined;
 def num_options(): usize {
     return util.sizeof_val(&available_options) / sizeof p.Option;
 }
@@ -46,6 +47,7 @@ def parse(argc: i32, argv: **i8): Options {
         output_json: false,
         dump_ast: false,
         dump_config: false,
+        dump_call_graph: false,
         dump_type_graph: false,
         dump_ir: false,
         parse_only: false,
@@ -82,6 +84,10 @@ def parse(argc: i32, argv: **i8): Options {
 
     available_options[i += 1] = *p.option(v("dump-config"), p.val_bool(&options.dump_config))
         .help(v("dump the compiler config as json"))
+        .remarks(v("needs --mi"));
+
+    available_options[i += 1] = *p.option(v("dump-call-graph"), p.val_bool(&options.dump_call_graph))
+        .help(v("dump the call-graph as json"))
         .remarks(v("needs --mi"));
 
     available_options[i += 1] = *p.option(v("dump-type-graph"), p.val_bool(&options.dump_type_graph))
@@ -140,27 +146,32 @@ def error_in_config_values(options: *Options): bool {
     }
 
     if options.dump_ast && !options.output_json {
-        report.print_simple(str.view("--dump-ast can only be used in combination with --mi", 52));
+        report.print_simple(str.view_from("--dump-ast can only be used in combination with --mi"));
         return true;
     }
 
     if options.dump_config && !options.output_json {
-        report.print_simple(str.view("--dump-config can only be used in combination with --mi", 55));
+        report.print_simple(str.view_from("--dump-config can only be used in combination with --mi"));
+        return true;
+    }
+
+    if options.dump_call_graph && !options.output_json {
+        report.print_simple(str.view_from("--dump-call-graph can only be used in combination with --mi"));
         return true;
     }
 
     if options.dump_type_graph && !options.output_json {
-        report.print_simple(str.view("--dump-type-graph can only be used in combination with --mi", 52));
+        report.print_simple(str.view_from("--dump-type-graph can only be used in combination with --mi"));
         return true;
     }
 
     if options.dump_ir && !options.output_json {
-        report.print_simple(str.view("--dump-ir can only be used in combination with --mi", 51));
+        report.print_simple(str.view_from("--dump-ir can only be used in combination with --mi"));
         return true;
     }
 
     if options.interpret && options.output_json {
-        report.print_simple(str.view("--interpret can not be used in combination with --mi", 52));
+        report.print_simple(str.view_from("--interpret can not be used in combination with --mi"));
         return true;
     }
 

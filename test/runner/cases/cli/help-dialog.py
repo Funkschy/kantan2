@@ -17,6 +17,7 @@ OPTIONS:
     --mi                      enable the machine interface               (output everything as json)
     --dump-ast                dump the ast as json                       (needs --mi)
     --dump-config             dump the compiler config as json           (needs --mi)
+    --dump-call-graph         dump the call-graph as json                (needs --mi)
     --dump-type-graph         dump the type-graph as json                (needs --mi)
     --dump-ir                 dump the ir as json                        (needs --mi)
     --parse-only              quit after parsing

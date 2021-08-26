@@ -49,6 +49,9 @@ def finalize(ctx: *c.TyCtx, expr: *Expr): Result {
             result = result.or(finalize(ctx, &arg.value));
             arg = arg.next;
         }
+
+        // update call graph
+        ctx.register_call(ctx.current_signature, call.callee.ty);
     }
 
     if expr.kind == ExprKind.Sizeof {

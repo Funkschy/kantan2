@@ -17,6 +17,7 @@ import "scope";
 
 import "info" as _;
 import "types" as _;
+import "graph";
 
 import "function";
 import "template";
@@ -55,6 +56,8 @@ type TyCtx struct {
     // since we create the vec with the correct capacity, it is safe to keep a pointer here
     current_module: *ModuleContext,
 
+    call_graph: *graph.TypeGraph,
+
     current_pass: Pass,
     // the template pass will be repeated, until this is false. This is needed, because templates
     // can instantiate other templates with different type parameters and there is no way to know
@@ -68,7 +71,12 @@ type TyCtx struct {
     final_f32_ty: *Type
 }
 
-def create(ty_arena: *arena.TypedArena, node_arena: *arena.TypedArena, num_mods: usize): TyCtx {
+def create(
+    ty_arena: *arena.TypedArena,
+    node_arena: *arena.TypedArena,
+    call_graph: *graph.TypeGraph,
+    num_mods: usize
+): TyCtx {
     dbg.assert(ty_arena.elem_size == sizeof Type, "invalid memory ty_arena");
     dbg.assert(node_arena.elem_size == sizeof TypeNode, "wrong type node arena size");
 
@@ -80,6 +88,7 @@ def create(ty_arena: *arena.TypedArena, node_arena: *arena.TypedArena, num_mods:
         temp_arena: temp_arena,
         module_contexts: vec.with_cap(sizeof ModuleContext, num_mods),
         current_module: null,
+        call_graph: call_graph,
         current_pass: Pass.Functions,
         had_unchecked_templates: true,
         current_signature: null,
@@ -262,6 +271,35 @@ def (ctx: *TyCtx) bind_value_public(name: str.View, ty: *Type, declared_at: *spa
 
 def (ctx: *TyCtx) bind_type_public(name: str.View, ty: *Type, declared_at: *span.Span) {
     bind_in(name, ty, Visibility.Public, &ctx.current_module.types, declared_at);
+}
+
+def (ctx: *TyCtx) call_graph_node(signature: *Type): *graph.Node {
+    return ctx.call_graph.add_node(signature);
+}
+
+def (ctx: *TyCtx) register_call(caller_function: *Type, callee_function: *Type) {
+    dbg.assert(caller_function.kind == TypeKind.Signature, "invalid typekind for call");
+    if callee_function.kind != TypeKind.Signature {
+        // this will be the case if we call function pointers
+        // in that case, we cannot actually put the call into the graph, since the function which
+        // will actually be called might not be known at compile time
+        return;
+    }
+
+    let caller_sig = &caller_function.data.signature;
+    let callee_sig = &callee_function.data.signature;
+
+    if callee_sig.call_graph_node == null {
+        callee_sig.call_graph_node = ctx.call_graph_node(callee_function);
+    }
+    if caller_sig.call_graph_node == null {
+        caller_sig.call_graph_node = ctx.call_graph_node(caller_function);
+    }
+
+    let caller = caller_sig.call_graph_node;
+    let callee = callee_sig.call_graph_node;
+
+    ctx.call_graph.add_edge(graph.EdgeKind.Hard, caller, callee);
 }
 
 def (ctx: *TyCtx) unify(a: *Type, previous: *Type): *Type {

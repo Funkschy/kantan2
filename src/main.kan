@@ -91,6 +91,14 @@ def main(argc: i32, argv: *string): ReturnCode {
         return ReturnCode.InvalidInput;
     }
 
+    if compiler.infer_and_check_types().is_error() {
+        return ReturnCode.InvalidInput;
+    }
+
+    if opts.dump_ast {
+        dump_ast(&compiler);
+    }
+
     // TODO(#41): integrate this into the program in more appropriate manner
     if opts.dump_type_graph {
         let g = &compiler.type_graph;
@@ -103,12 +111,16 @@ def main(argc: i32, argv: *string): ReturnCode {
         json.free();
     }
 
-    if compiler.infer_and_check_types().is_error() {
-        return ReturnCode.InvalidInput;
-    }
+    // TODO: integrate this into the program in more appropriate manner
+    if opts.dump_call_graph {
+        let g = &compiler.call_graph;
 
-    if opts.dump_ast {
-        dump_ast(&compiler);
+        io.printf("\"call-graph\": ");
+        defer io.printf(",\n");
+
+        let json = g.to_json(str.view_from("call graph"));
+        io.printf("%s", json.cstring());
+        json.free();
     }
 
     {

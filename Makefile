@@ -18,7 +18,13 @@ $(BIN_NAME) : Makefile $(K_FILES) $(C_FILES)
 type-graph.png : $(BIN_NAME) test.kan
 	( \
 		. tools/venv/bin/activate ;\
-		./$(BIN_NAME) test.kan --mi --dump-type-graph | tools/graphformat.py | dot -Tpng > type-graph.png \
+		./$(BIN_NAME) test.kan --mi --dump-type-graph | tools/graphformat.py type-graph | dot -Tpng > type-graph.png \
+	)
+
+call-graph.png : $(BIN_NAME) test.kan
+	( \
+		. tools/venv/bin/activate ;\
+		./$(BIN_NAME) test.kan --mi --dump-call-graph | tools/graphformat.py call-graph | dot -Tpng > call-graph.png \
 	)
 
 

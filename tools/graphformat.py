@@ -9,7 +9,7 @@ import sys
 from graphviz import Digraph
 
 
-def main():
+def main(graph_name: str):
     compiler_output = sys.stdin.read()
     parsed = None
 
@@ -19,11 +19,11 @@ def main():
         print('Could not parse json')
         exit(-1)
 
-    if 'type-graph' not in parsed:
-        print("No type-graph in compiler output")
+    if graph_name not in parsed:
+        print(f"No {graph_name} in compiler output")
         exit(-2)
 
-    tg = parsed['type-graph']
+    tg = parsed[graph_name]
     if 'name' not in tg or 'nodes' not in tg:
         print("type-graph has invalid format")
         exit(-3)
@@ -40,7 +40,7 @@ def main():
 
 
 if __name__ == '__main__':
-    if len(sys.argv) > 1:
+    if len(sys.argv) != 2:
         print('graphformat')
         print('Felix Schoeller <felix.schoeller@protonmail.com>')
         print('Convert the json formatted output of the kantan compiler into the graphviz format')
@@ -48,4 +48,4 @@ if __name__ == '__main__':
         print(f'    kantan myfile.kan --mi --dump-type-graph | {sys.argv[0]} | dot -Tpng > myfile.png')
         exit(0)
 
-    main()
+    main(sys.argv[1])
