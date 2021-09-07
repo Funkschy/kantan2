@@ -313,6 +313,21 @@ def (c: *Compiler) infer_and_check_types(): Result {
         return result;
     }
 
+    // signatures need to be finalized first so that we can update the types for calls accordingly
+    for let i: usize = 0; i < c.modmap.len(); i += 1 {
+        let mod = c.modmap.at(i);
+        ctx.set_module(mod);
+
+        for let j: usize = 0; j < mod.num_items(); j += 1 {
+            let item = mod.item_at(j);
+            result = result.or(item_finalize.finalize_signature(&ctx, item));
+        }
+    }
+
+    if result.is_error() {
+        return result;
+    }
+
     // finalize the types. During typechecking we generate a lot of Type Variables, which are
     // basically just pointers to another type. Since these are an annoying edge case, we want
     // to remove them. We also collapse anyInt -> i32, anyFloat -> f32 and report uninferred types

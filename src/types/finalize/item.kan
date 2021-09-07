@@ -10,35 +10,44 @@ import "../instances" as i;
 import "stmt";
 import "types";
 
+def finalize_signature(ctx: *c.TyCtx, item: *Item): Result {
+    if item.kind != ItemKind.FuncDef {
+        return Result.OK;
+    }
+
+    let f = &item.data.func_def;
+
+    // we create a new set, since mutating the types inside a set will make it invalid
+    let new_instances = i.instance_set();
+
+    let had_errors = false;
+    for let i: usize = 0; i < f.instances.len(); i += 1 {
+        let instance_ref = f.instances.get_ptr(i);
+        if types.finalize(ctx, instance_ref, item.name.span).is_error() {
+            had_errors = true;
+        }
+
+        let instance = *instance_ref;
+        let inserted_instance = new_instances.push(instance);
+        if inserted_instance.data.signature.call_graph_node == null{
+            inserted_instance.data.signature.call_graph_node = ctx.call_graph_node(instance);
+        }
+    }
+
+    if had_errors {
+        new_instances.free();
+        return Result.Error;
+    }
+
+    f.instances.free();
+    f.instances = new_instances;
+
+    return Result.OK;
+}
+
 def finalize(ctx: *c.TyCtx, item: *Item): Result {
     if item.kind == ItemKind.FuncDef {
         let f = &item.data.func_def;
-
-        // we create a new set, since mutating the types inside a set will make it invalid
-        let new_instances = i.instance_set();
-
-        let had_errors = false;
-        for let i: usize = 0; i < f.instances.len(); i += 1 {
-            let instance_ref = f.instances.get_ptr(i);
-            if types.finalize(ctx, instance_ref, item.name.span).is_error() {
-                had_errors = true;
-            }
-
-            let instance = *instance_ref;
-            if instance.data.signature.call_graph_node == null {
-                instance.data.signature.call_graph_node = ctx.call_graph_node(instance);
-            }
-
-            new_instances.push(instance);
-        }
-
-        if had_errors {
-            new_instances.free();
-            return Result.Error;
-        }
-
-        f.instances.free();
-        f.instances = new_instances;
         // TODO: this does must happen per instance
         ctx.current_signature = f.instances.get(0);
         return stmt.finalize(ctx, f.block_stmt);

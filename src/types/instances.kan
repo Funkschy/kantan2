@@ -34,16 +34,27 @@ def (l: *InstanceSet) free() {
     l._list.free();
 }
 
-def (l: *InstanceSet) push(t: *Type) {
+def (l: *InstanceSet) find(t: *Type): *Type {
     for let i: usize = 0; i < l._list.len; i += 1 {
         let instance = l.get(i);
-        // this instance already exists
         if ty_equals(instance, t) {
-            return;
+            return instance;
         }
     }
 
+    return null;
+}
+
+// returns the type in the set, so either the already existing one or the newly inserted
+def (l: *InstanceSet) push(t: *Type): *Type {
+    let existing_instance = l.find(t);
+    if existing_instance != null {
+        // this instance already exists, so just return it
+        return existing_instance;
+    }
+
     l._list.push_ptr(t as *void);
+    return t;
 }
 
 def (l: *InstanceSet) get(idx: usize): *Type {
@@ -58,7 +69,12 @@ def (l: *InstanceSet) len(): usize {
     return l._list.len;
 }
 
+// this behaves different from the normal Type.equals in the case of signatures
 def ty_equals(a: *Type, b: *Type): bool {
+    if a == b {
+        return true;
+    }
+
     // variables are ignored for equality
     while a.kind == TypeKind.Variable {
         a = a.data.inner;

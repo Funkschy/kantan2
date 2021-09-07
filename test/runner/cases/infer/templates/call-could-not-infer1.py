@@ -7,5 +7,4 @@ class Test(ErrorTestCase):
             # TODO: this error should not be reported twice
             self.simple_error(lnr=1, col=9, msg='Could not infer type'),
             self.simple_error(lnr=1, col=9, msg='Could not infer type'),
-            self.simple_error(lnr=5, col=13, msg='Could not infer type')
         ])

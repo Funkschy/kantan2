@@ -1,3 +1,4 @@
+import ":std/dbg";
 import ":std/str";
 
 import ":util" as _;
@@ -44,6 +45,20 @@ def finalize(ctx: *c.TyCtx, expr: *Expr): Result {
     if expr.kind == ExprKind.Call {
         let call = &expr.data.call;
         result = result.or(finalize(ctx, call.callee));
+
+        let callee_ty = call.callee.ty;
+        if callee_ty.kind == TypeKind.Signature {
+            let instances = callee_ty.data.signature.func.data.function.instances;
+            // this type should already be in the instance, so instead of our newly finalized type,
+            // we use the already interned one. This makes sure that all calls to the same function
+            // actually have the same type in memory, not just a copy.
+            let real_sig_instance = instances.find(callee_ty);
+            dbg.assert(real_sig_instance != null, "no signature for call");
+
+            // update the type with the found interned one
+            call.callee.ty = real_sig_instance;
+        }
+
         let arg = call.args_head;
         while arg != null {
             result = result.or(finalize(ctx, &arg.value));

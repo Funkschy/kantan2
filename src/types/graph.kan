@@ -69,7 +69,7 @@ def (g: *TypeGraph) add_node(ty: *ty.Type): *Node {
 def (g: *TypeGraph) add_edge(kind: EdgeKind, from: *Node, to: *Node) {
     // check if the edge already exists (this isn't a multigraph)
     for let out_edge = from.out_edges; out_edge != null; out_edge = out_edge.next {
-        if out_edge.node.ty.equals(to.ty) {
+        if out_edge.node == to {
             return;
         }
     }
