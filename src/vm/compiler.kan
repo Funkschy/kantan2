@@ -1,5 +1,7 @@
 import ":std/vec";
 import ":std/dbg";
+import ":std/map";
+import ":std/num";
 
 import ":ir/ir";
 import ":ir/const";
@@ -20,7 +22,12 @@ type IRCompiler struct {
     // the index here is the bb id and the value is the index inside of code
     // this vec is reset when we enter a new function
     bb_locations: vec.Vec, // vec.Vec[u64]
-    code: vec.Vec // vec.Vec[u8]
+    code: vec.Vec, // vec.Vec[u8]
+    // Since anything smaller than 8 bytes (other than function pointers) is currently inlined in
+    // the bytecode, this just holds string constants and function pointers
+    constant_pool: vec.Vec, // vec.Vec[u64]
+    // a mapping of function name to its offset inside the constant pool
+    function_constant_offsets: map.Map // map.Map[str.View, usize]
 }
 
 def compiler(): IRCompiler {
@@ -28,7 +35,9 @@ def compiler(): IRCompiler {
         current_function: null,
         local_offsets: vec.create(sizeof u64),
         bb_locations: vec.create(sizeof u64),
-        code: vec.create(sizeof u8)
+        code: vec.create(sizeof u8),
+        constant_pool: vec.create(sizeof u64),
+        function_constant_offsets: map.create()
     };
 }
 
@@ -36,6 +45,8 @@ def (c: *IRCompiler) free() {
     c.local_offsets.free();
     c.bb_locations.free();
     c.code.free();
+    c.constant_pool.free();
+    c.function_constant_offsets.free();
 }
 
 def (c: *IRCompiler) width_bits(location: *memory.Location): usize {
@@ -56,6 +67,14 @@ def (c: *IRCompiler) typeof_op(op: *rvalue.Operand): *ty.Type {
     } else {
         return op.data.constant.ty;
     }
+}
+
+def (c: *IRCompiler) set_constant(index: usize, constant: u64) {
+    c.constant_pool.set(index, &constant as *void);
+}
+
+def (c: *IRCompiler) read_64bit_constant(index: usize): u64 {
+    return *(c.constant_pool.get_ptr(index) as *u64);
 }
 
 def (c: *IRCompiler) fill_local_offsets(): u64 {
@@ -146,29 +165,12 @@ def (c: *IRCompiler) write_to_location(location: *memory.Location) {
     c.emit(with_size(Inst.Store8, c.width_bits(location)));
 }
 
-def (c: *IRCompiler) load_location(location: *memory.Location, is_rhs: bool) {
+def (c: *IRCompiler) load_location(location: *memory.Location) {
     if c.typeof(location).is_unsized() {
         return;
     }
 
     if location.is_temp() {
-        // if the rhs of a binary operation is a temporary read, that means it's on the stack
-        // below the lhs, because the actual expression was already evaluated
-        // e.g: 4 < 2 + 1
-        // in that case the 2+1 will 'written' into a temp var, that means the evaluation order is:
-        // push 2
-        // push 1
-        // add
-        // 'emitted pop into temp_1'
-        // push 4
-        // lt
-        // so the stack before the 'lt' would be:
-        // 3
-        // 4
-        // which is wrong
-        if is_rhs {
-            c.emit(Inst.Swap);
-        }
         return;
     }
 
@@ -177,20 +179,21 @@ def (c: *IRCompiler) load_location(location: *memory.Location, is_rhs: bool) {
 }
 
 def (c: *IRCompiler) load_constant(constant: *const.Constant) {
-    let size = constant.ty.width.bits() as usize;
-
     if constant.kind == const.ConstantKind.Nothing {
         return;
     } else if constant.kind == const.ConstantKind.Null {
+        let size = constant.ty.width.bits() as usize;
         c.emit_with_op(with_size(Inst.ConstI8, size), 0, size);
         return;
     } else if constant.kind == const.ConstantKind.Undefined {
+        let size = constant.ty.width.bits() as usize;
         // TODO: push each field separately for structs
         c.emit_with_op(with_size(Inst.ConstI8, size), 0, size);
         return;
     } else if constant.kind == const.ConstantKind.Char {
         // TODO
     } else if constant.kind == const.ConstantKind.Int {
+        let size = constant.ty.width.bits() as usize;
         let value = constant.data.int;
         c.emit_with_op(with_size(Inst.ConstI8, size), value, size);
         return;
@@ -203,23 +206,26 @@ def (c: *IRCompiler) load_constant(constant: *const.Constant) {
         c.emit_with_op(Inst.ConstI8, value, 8);
         return;
     } else if constant.kind == const.ConstantKind.Function {
-        // TODO
+        let name = constant.data.function.data.signature.name.as_view();
+        let const_offset = num.ptr_to_int(c.function_constant_offsets.get(map.key(name)));
+        c.emit_with_op(Inst.LoadConst, const_offset as u64, 32);
+        return;
     }
 
     dbg.not_implemented();
 }
 
-def (c: *IRCompiler) load_operand(operand: *rvalue.Operand, is_rhs: bool) {
+def (c: *IRCompiler) load_operand(operand: *rvalue.Operand) {
     if operand.kind == rvalue.OperandKind.Constant {
         c.load_constant(&operand.data.constant);
     } else {
-        c.load_location(&operand.data.copy, is_rhs);
+        c.load_location(&operand.data.copy);
     }
 }
 
 def (c: *IRCompiler) load_value_from_expr(expr: *rvalue.Expression) {
     if expr.kind == rvalue.ExpressionKind.Use {
-        c.load_operand(&expr.data.use, false);
+        c.load_operand(&expr.data.use);
         return;
     }
 
@@ -234,7 +240,14 @@ def (c: *IRCompiler) load_value_from_expr(expr: *rvalue.Expression) {
 
     if expr.kind == rvalue.ExpressionKind.Unary {
         let unary = &expr.data.unary;
-        c.load_operand(&unary.operand, false);
+        let op = &unary.operand;
+
+        c.load_operand(op);
+
+        if unary.kind == rvalue.UnaryKind.Not && c.typeof_op(op).kind == ty.TypeKind.Bool {
+            c.emit(Inst.BoolNot);
+            return;
+        }
 
         let offset = unary.kind as i32;
         let inst = Inst.Not as i32 + offset;
@@ -245,8 +258,50 @@ def (c: *IRCompiler) load_value_from_expr(expr: *rvalue.Expression) {
 
     if expr.kind == rvalue.ExpressionKind.Binary {
         let binary = &expr.data.binary;
-        c.load_operand(&binary.left, false);
-        c.load_operand(&binary.right, true);
+        let l = &binary.left;
+        let r = &binary.right;
+
+        c.load_operand(&binary.left);
+        c.load_operand(&binary.right);
+
+        let l_is_temp = l.kind == rvalue.OperandKind.Copy && l.data.copy.is_temp();
+        let r_is_temp = r.kind == rvalue.OperandKind.Copy && r.data.copy.is_temp();
+        if !l_is_temp && r_is_temp {
+            // if the rhs of a binary operation is a temporary read, that means it's on the stack
+            // below the lhs, because the actual expression was already evaluated
+            // e.g: 4 < 2 + 1 looks like this in the ir:
+            // {
+            //   'op': 'assign',
+            //   'dest': 't1',
+            //   'value': {
+            //     'op': 'add',
+            //     'left': { 'const': 2 },
+            //     'right': { 'const': 1 },
+            //   }
+            // },
+            // {
+            //   'op': '<',
+            //   'left': { 'const': 4 }
+            //   'right': { 'load': t1 }
+            // }
+            //
+            // in that case the 2+1 will 'written' into a temp var, that means the evaluation order is:
+            // push 2
+            // push 1
+            // add
+            // 'emitted pop into temp_1'
+            // push 4
+            // 'emitted load from temp_1'
+            // lt
+            // so the stack before the 'lt' would be:
+            // 3
+            // 4
+            // which is wrong
+            // TODO: instead of emitting a swap, we could just eval the right operand first
+            //  but this is easier to debug, since you can see it in the bytecode
+
+            c.emit(Inst.Swap);
+        }
 
         let left_ty = c.typeof_op(&binary.left);
         if binary.kind == rvalue.BinaryKind.AddScalar || binary.kind == rvalue.BinaryKind.SubScalar {
@@ -287,6 +342,7 @@ def (c: *IRCompiler) compile_terminator(terminator: *ir.Terminator) {
         // in this stage, we put the bb id as a placeholder. After compiling the function, those
         // placeholders are replaced with the real instruction address
         c.emit_with_op(Inst.Jmp, terminator.data.jmp as u64, 64);
+        return;
     } else if terminator.kind == ir.TerminatorKind.SwitchInt {
         let switch_int = &terminator.data.switch_int;
 
@@ -307,21 +363,81 @@ def (c: *IRCompiler) compile_terminator(terminator: *ir.Terminator) {
             false_case = temp;
         }
 
-        c.load_operand(&switch_int.condition, false);
+        c.load_operand(&switch_int.condition);
         // in this stage, we put the bb id as a placeholder. After compiling the function, those
         // placeholders are replaced with the real instruction address
         c.emit_with_op(Inst.Jif, true_case.target as u64, 64);
         c.emit_with_op(Inst.Jmp, false_case.target as u64, 64);
+        return;
+    } else if terminator.kind == ir.TerminatorKind.Call {
+        let call = &terminator.data.call;
+
+        // TODO: push args
+        c.load_operand(&call.callee);
+        c.emit_with_op(Inst.Call, call.nargs as u64, 32);
+        return;
+    } else if terminator.kind == ir.TerminatorKind.Return {
+        c.load_operand(&terminator.data.ret);
+        c.emit(Inst.Return);
+        return;
+    } else if terminator.kind == ir.TerminatorKind.Nop {
+        return;
     }
+
+    import "io"; io.printf("%d\n", terminator.kind);
+    dbg.not_implemented();
+}
+
+def (c: *IRCompiler) compile_program(functions: map.Map) {
+    // reserve space for the function offsets in the constant pool
+    c.constant_pool.reserve(functions.len * sizeof *void);
+
+    c.function_constant_offsets.free();
+    c.function_constant_offsets = map.with_cap(functions.len);
+
+    // placeholder for jump to main
+    c.emit_with_op(Inst.ConstI32, 0, 32);
+    // TODO: pass argc and argv to main
+    c.emit_with_op(Inst.Call, 0, 32);
+    c.emit(Inst.Halt);
+
+    // init function offsets
+    let const_offset = c.constant_pool.len;
+    let iter = functions.iter();
+    for let item = iter.next(); item != null; item = iter.next() {
+        let function = item.value as *ir.Function;
+        let name = function.decl.original_name.as_view();
+        c.function_constant_offsets.insert(map.key(name), num.int_to_ptr(const_offset));
+        const_offset += 1;
+    }
+
+    let iter = functions.iter();
+    for let item = iter.next(); item != null; item = iter.next() {
+        let function = item.value as *ir.Function;
+        c.compile_function(function);
+    }
+
+    // fix mains address in first instruction
+    let main_offset_idx = num.ptr_to_int(c.function_constant_offsets.get(map.create_key(4, "main")));
+    let main_offset = c.read_64bit_constant(main_offset_idx);
+    let actual_len = c.code.len;
+    c.code.len = 0;
+    c.emit_with_op(Inst.ConstI32, main_offset as u64, 32);
+    c.code.len = actual_len;
 }
 
 def (c: *IRCompiler) compile_function(f: *ir.Function) {
     c.current_function = f;
     c.bb_locations.clear();
     c.bb_locations.reserve(f.num_bbs());
+    let start = c.code.len;
+
+    let name = f.decl.original_name.as_view();
+    let function_offset_constant_idx = num.ptr_to_int(c.function_constant_offsets.get(map.key(name)));
+    c.set_constant(function_offset_constant_idx, c.code.len as u64);
 
     let operand_stack_start = c.fill_local_offsets() as u32 as u64; // only use 4 bytes
-    c.emit_with_op(Inst.AllocLocals, operand_stack_start, 32);
+    c.emit_with_op(Inst.EnterFunction, operand_stack_start, 32);
 
     for let b: usize = 0; b < f.num_bbs(); b += 1 {
         let bb = f.bb_at(b);
@@ -345,7 +461,7 @@ def (c: *IRCompiler) compile_function(f: *ir.Function) {
         c.compile_terminator(&bb.terminator);
 
         if bb.num_statements() == 0 {
-            c.emit(Inst.Nop);
+            c.emit(Inst.Nop); // TODO: is this needed?
         }
     }
 
@@ -353,7 +469,7 @@ def (c: *IRCompiler) compile_function(f: *ir.Function) {
     let program = c.code.get_ptr(0) as *u8;
     let program_len = c.code.len;
 
-    for let i: usize = 0; i < c.code.len; {
+    for let i: usize = start; i < program_len; {
         let instruction = *(program + i) as i32;
         let instruction = *(&instruction as *Inst);
 

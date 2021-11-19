@@ -42,8 +42,13 @@ type VM struct {
     pc: usize,
     bp: usize, // base pointer <=> start of local variables
 
+    nargs: usize, // number of arguments of the current function
+
     stack: *u8,
     stack_size: usize,
+
+    num_constants: usize,
+    constants: *u64,
 
     num_instr: usize,
     // too safe space, we represent the Inst values as a single byte
@@ -55,9 +60,13 @@ def vm(stack_size: usize): VM {
         sp: 0,
         pc: 0,
         bp: 0,
+        nargs: 0,
 
         stack: libc.malloc(stack_size) as *u8,
         stack_size: stack_size,
+
+        num_constants: 0,
+        constants: null,
 
         num_instr: 0,
         program: null
@@ -68,10 +77,12 @@ def (vm: *VM) free() {
     delete vm.stack;
 }
 
-def (vm: *VM) load(program: *u8, program_len: usize) {
-    vm.sp = vm.pc = vm.bp = 0;
-    vm.program = program;
-    vm.num_instr = program_len;
+def (vm: *VM) load(instr: *u8, num_instr: usize, constants: *u64, num_constants: usize) {
+    vm.sp = vm.pc = vm.bp = vm.nargs = 0;
+    vm.program       = instr;
+    vm.num_instr     = num_instr;
+    vm.constants     = constants;
+    vm.num_constants = num_constants;
 }
 
 def (vm: *VM) read_inst(): Inst {
@@ -102,7 +113,10 @@ def (vm: *VM) execute() {
 
         if inst == Inst.Halt {
             break;
-        } else if inst == Inst.AllocLocals {
+        } else if inst == Inst.EnterFunction {
+            vm.push(Value { u64: vm.bp as u64 });
+            vm.bp = vm.sp;
+
             let operand = vm.read_operand(4) as usize;
             libc.memset((vm.stack + vm.sp) as *void, 0, operand);
             vm.sp += operand;
@@ -117,6 +131,11 @@ def (vm: *VM) execute() {
             let operand = vm.read_operand(1 << offset) as u8;
             vm.push(Value { u64: operand as u64 });
 
+        } else if inst == Inst.LoadConst {
+            let index = vm.read_operand(4) as usize;
+            dbg.assert(index < vm.num_constants, "constant out of bounds");
+            vm.push(Value { u64: *(vm.constants + index) });
+
         } else if inst == Inst.Swap {
             let b = (vm.stack + vm.sp - 8) as *Value;
             let a = (vm.stack + vm.sp - 16) as *Value;
@@ -129,6 +148,9 @@ def (vm: *VM) execute() {
         } else if inst == Inst.Not {
             let value = (vm.stack + vm.sp - 8) as *Value;
             value.u64 = ~value.u64;
+        } else if inst == Inst.BoolNot {
+            let value = (vm.stack + vm.sp - 8) as *Value;
+            value.bool = !value.bool;
 
         } else if inst == Inst.INeg {
             let value = (vm.stack + vm.sp - 8) as *Value;
@@ -241,6 +263,31 @@ def (vm: *VM) execute() {
             if condition {
                 vm.pc = target;
             }
+        } else if inst == Inst.Call {
+            let nargs = vm.read_operand(4) as usize;
+            let f = vm.pop();
+
+            let ret_addr = vm.pc;
+            vm.push(Value { u64: ret_addr as u64 });
+            vm.push(Value { u64: vm.nargs as u64 });
+
+            vm.pc = f.usize;
+            vm.nargs = nargs;
+
+        } else if inst == Inst.Return {
+            let ret_val = vm.pop();
+
+            // the last base pointer is the first value below the current base pointer
+            let old_bp      = *((vm.stack + vm.bp - 8) as *u64);
+            let nargs       = *((vm.stack + vm.bp - 16) as *u64);
+            let ret_addr    = *((vm.stack + vm.bp - 24) as *u64);
+
+            vm.sp = vm.bp - 24 - nargs as usize;
+            vm.bp = old_bp as usize;
+            vm.pc = ret_addr as usize;
+            vm.nargs = nargs as usize;
+
+            vm.push(ret_val);
         }
     }
 }

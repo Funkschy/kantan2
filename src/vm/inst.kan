@@ -2,14 +2,18 @@ type Inst enum {
     Nop,
     Halt,
 
-    // alloclocals space
-    // allocates stackspace for local variables, which work differently from the operand stack,
-    // because they need to be aligned to their respective variable sizes while the operand stack
-    // is always aligned to 8 bytes
+    // EnterFunction(locals_space):
+    //   push bp
+    //   bp = sp
+    //   sp += locals_space
+    //
+    // saves and updates the base pointer, then allocates stackspace for local variables,
+    // which work differently from the operand stack, because they need to be aligned to their
+    // respective variable sizes while the operand stack is always aligned to 8 bytes
     // e.g. if we have the locals: i32, *i32, i32
     // this will allocate 24 bytes, since the *i32 needs padding to be 8 aligned and there needs
     // to be padding after the last i32, to ensure the operand stack is 8 byte aligned
-    AllocLocals,
+    EnterFunction,
     // localptr offset
     // push(vm.bp + offset)
     LocalPtr,
@@ -21,10 +25,18 @@ type Inst enum {
     ConstI32,
     ConstI64,
 
+    // loads a constant from the constant pool at the index of its 32 bit parameter
+    // push(constant_pool[u32])
+    LoadConst,
+
     // swap the 2 elements on top of the stack
     Swap,
     // duplicate the top of stack
     Dup,
+
+    // push(!pop())
+    BoolNot,
+    // push(~pop())
     Not,
 
     // push(-pop())
@@ -76,7 +88,17 @@ type Inst enum {
     // goto u64
     Jmp,
     // if pop() == true jmp
-    Jif
+    Jif,
+
+    // call nargs
+    // pops a function reference from the stack and calls it
+    //
+    // vm.nargs = nargs
+    // f = pop()
+    // push ip + 1
+    // goto f
+    Call,
+    Return
 }
 
 def with_size(start: Inst, bits: usize): Inst {
@@ -103,8 +125,10 @@ def (i: Inst) _param_size_bytes(start: Inst, end: Inst): usize {
 def (i: Inst) width_bytes(): usize {
     let w: usize = 1;
     w += i._param_size_bytes(Inst.ConstI8, Inst.ConstI64);
-    w += (i == Inst.AllocLocals) as usize * 4;
+    w += (i == Inst.EnterFunction) as usize * 4;
     w += (i == Inst.LocalPtr) as usize * 4;
+    w += (i == Inst.LoadConst) as usize * 4;
+    w += (i == Inst.Call) as usize * 4;
     w += (i == Inst.Jmp) as usize * 8;
     w += (i == Inst.Jif) as usize * 8;
     return w;

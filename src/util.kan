@@ -42,6 +42,10 @@ def next_multiple_of_8(value: u64): u64 {
     return (value + 7) & -8;
 }
 
+def next_multiple_of(alignment: u64, value: u64): u64 {
+    return (value + (alignment - 1)) & -alignment;
+}
+
 def key_from_ident(i: ident.Ident): map.Key {
     return map.create_key(i.len(), i.start());
 }

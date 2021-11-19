@@ -30,7 +30,7 @@ def compile_fmt(ctx: *IRCtx, expr: *Expr, format: super.ResultFormat): super.Com
     // TODO(#45): compile args
 
     let dest = ctx.declare_temp_var(expr.ty).as_location();
-    let call = ir.call(callee_op, null, dest);
+    let call = ir.call(callee_op, call_expr.num_args, null, dest);
     ctx.push_terminator(&call);
 
     if format == super.ResultFormat.RValue {

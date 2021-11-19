@@ -81,18 +81,20 @@ type SwitchCase struct {
 
 type Call struct {
     callee: rvalue.Operand,
+    nargs: usize,
     args_head: *rvalue.OperandNode,
     // the return value of this call will be written to dest
     dest: memory.Location,
     next: usize // the id of the next basic block
 }
 
-def call(callee: rvalue.Operand, args_head: *rvalue.OperandNode, dest: memory.Location): Terminator {
+def call(callee: rvalue.Operand, nargs: usize, args_head: *rvalue.OperandNode, dest: memory.Location): Terminator {
     return Terminator {
         kind: TerminatorKind.Call,
         data: TerminatorData {
             call: Call {
                 callee: callee,
+                nargs: nargs,
                 args_head: args_head,
                 dest: dest,
                 next: 0 // this is filled when we actually terminate the block
