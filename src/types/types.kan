@@ -61,6 +61,12 @@ type TypeData union {
     module: *mod.Module
 }
 
+def (t: *Type) init_void(): *Type {
+    t.kind = TypeKind.Void;
+    t.width = t.align = info.unsized();
+    return t;
+}
+
 def (t: *Type) init_int(signedness: primitive.Signedness, width: info.Size): *Type {
     t.kind = TypeKind.Int;
     t.data.int.signedness = signedness;

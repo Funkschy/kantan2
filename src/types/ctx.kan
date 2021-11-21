@@ -475,8 +475,7 @@ let _final_i32_ty: *Type = null;
 let _final_f32_ty: *Type = null;
 
 def (ctx: *TyCtx) init_builtin_types() {
-    let void_ty = ctx.alloc_ty();
-    void_ty.kind = TypeKind.Void;
+    let void_ty = ctx.alloc_ty().init_void();
     ctx.bind_type_public(str.view_from("void"), void_ty, null);
 
     let char_ty = ctx.alloc_ty().init_int(primitive.Signedness.Signed, size_bytes(1));

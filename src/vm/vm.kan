@@ -112,6 +112,7 @@ def (vm: *VM) execute() {
         let inst = vm.read_inst();
 
         if inst == Inst.Halt {
+            import "io"; io.printf("final sp %d\n", vm.sp);
             break;
         } else if inst == Inst.EnterFunction {
             vm.push(Value { u64: vm.bp as u64 });
@@ -126,9 +127,9 @@ def (vm: *VM) execute() {
             let value = Value { ptr: vm.stack as *void + vm.bp + operand };
             vm.push(value);
 
-        } else if inst >= Inst.ConstI8  && inst <= Inst.ConstI64 {
+        } else if inst >= Inst.ConstI8 && inst <= Inst.ConstI64 {
             let offset = (inst as i32 - Inst.ConstI8 as i32) as usize;
-            let operand = vm.read_operand(1 << offset) as u8;
+            let operand = vm.read_operand(1 << offset);
             vm.push(Value { u64: operand as u64 });
 
         } else if inst == Inst.LoadConst {

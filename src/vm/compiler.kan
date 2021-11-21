@@ -180,6 +180,9 @@ def (c: *IRCompiler) load_location(location: *memory.Location) {
 
 def (c: *IRCompiler) load_constant(constant: *const.Constant) {
     if constant.kind == const.ConstantKind.Nothing {
+        // this is only used as the return value for void functions, the vm however does not allow
+        // functions with no return value, so we have to give it something
+        c.emit_with_op(Inst.ConstI32, 0, 32);
         return;
     } else if constant.kind == const.ConstantKind.Null {
         let size = constant.ty.width.bits() as usize;
@@ -476,7 +479,9 @@ def (c: *IRCompiler) compile_function(f: *ir.Function) {
         if instruction >= Inst.Jmp && instruction <= Inst.Jif {
             let bb_id_placeholder = util.read_int(program + i + 1, 8);
             let real_address = c.bb_locations.get_ptr(bb_id_placeholder as usize) as *u64;
-            c.code.set(i + 1, real_address as *void);
+            for let j: usize = 0; j < 8; j += 1 {
+                *(program + i + 1 + j) = *(real_address as *u8 + j);
+            }
         }
 
         i += instruction.width_bytes();

@@ -31,6 +31,10 @@ def size_bytes(bytes: i32): Size {
     return Size { _bit_size: bytes * 8 };
 }
 
+def (s: Size) is_unsized(): bool {
+    return s.equals(unsized());
+}
+
 def (s: Size) is_platform_dependent(): bool {
     return s._bit_size & (1 << 30) > 0;
 }

@@ -192,6 +192,14 @@ def main(argc: i32, argv: *string): ReturnCode {
 
                 // print main locals for debugging
                 let main_f = ctx.functions.get(map.key(str.view_from("main"))) as *ir.Function;
+
+                let main_ret_width = main_f.return_type().width;
+                if !main_ret_width.is_unsized() {
+                    let main_ret_offset = 0;
+                    let value = read_int(vm.stack + main_ret_offset, main_ret_width.bytes() as usize);
+                    io.printf("main returned i%d: %ld\n\n", main_ret_width.bits(), value);
+                }
+
                 let offset: usize = 8 + 8 + 8; // initial bp & ret addr & args
                 for let l: usize = 0; l < main_f.body.locals.len; l += 1 {
                     let location = memory.local(l as u32 + 1, false).as_location();
@@ -205,8 +213,8 @@ def main(argc: i32, argv: *string): ReturnCode {
                     offset = (offset + align - 1) & -align;
 
                     let value = read_int(vm.stack + offset, width);
+                    io.printf("%d\ti%d: %22ld\n", offset, width * 8, value);
                     offset += width;
-                    io.printf("%16ld\n", value);
                 }
             }
 
