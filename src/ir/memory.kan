@@ -24,6 +24,13 @@ def (l: *Location) is_temp(): bool {
     return l.kind == LocationKind.Local && l.data.local.temp;
 }
 
+def (l: *Location) equals(other: *Location): bool {
+    // TODO: change this when globals are supported
+    return l.kind == LocationKind.Local
+        && other.kind == LocationKind.Local
+        && l.data.local.idx == other.data.local.idx;
+}
+
 def (l: *Location) to_json(): str.String {
     if l.kind == LocationKind.Local {
         let json = str.from("{\"kind\": \"local\", \"name\": \"");

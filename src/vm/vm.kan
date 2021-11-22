@@ -123,9 +123,22 @@ def (vm: *VM) execute() {
             vm.sp += operand;
 
         } else if inst == Inst.LocalPtr {
-            let operand = vm.read_operand(4) as usize;
-            let value = Value { ptr: vm.stack as *void + vm.bp + operand };
+            let local_offset = vm.read_operand(4) as usize;
+            let value = Value { ptr: vm.stack as *void + vm.bp + local_offset };
             vm.push(value);
+
+        } else if inst == Inst.Inc8 {
+            let local_offset = vm.read_operand(4) as usize;
+            *(vm.stack as *i8 + vm.bp + local_offset) += 1;
+        } else if inst == Inst.Inc16 {
+            let local_offset = vm.read_operand(4) as usize;
+            *((vm.stack as *i8 + vm.bp + local_offset) as *i16) += 1;
+        } else if inst == Inst.Inc32 {
+            let local_offset = vm.read_operand(4) as usize;
+            *((vm.stack as *i8 + vm.bp + local_offset) as *i32) += 1;
+        } else if inst == Inst.Inc64 {
+            let local_offset = vm.read_operand(4) as usize;
+            *((vm.stack as *i8 + vm.bp + local_offset) as *i64) += 1;
 
         } else if inst >= Inst.ConstI8 && inst <= Inst.ConstI64 {
             let offset = (inst as i32 - Inst.ConstI8 as i32) as usize;

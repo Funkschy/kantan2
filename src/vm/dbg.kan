@@ -4,11 +4,15 @@ import ":util";
 import "inst";
 
 def dump_bytecode_dbg(program: *u8, program_len: usize) {
-    let human_readable: [44]*i8 = undefined;
+    let human_readable: [48]*i8 = undefined;
     human_readable[inst.Inst.Nop           as i32] = "nop";
     human_readable[inst.Inst.Halt          as i32] = "halt";
     human_readable[inst.Inst.EnterFunction as i32] = "function.enter";
     human_readable[inst.Inst.LocalPtr      as i32] = "localptr";
+    human_readable[inst.Inst.Inc8          as i32] = "i8.inc";
+    human_readable[inst.Inst.Inc16         as i32] = "i16.inc";
+    human_readable[inst.Inst.Inc32         as i32] = "i32.inc";
+    human_readable[inst.Inst.Inc64         as i32] = "i64.inc";
     human_readable[inst.Inst.ConstI8       as i32] = "i8.const";
     human_readable[inst.Inst.ConstI16      as i32] = "i16.const";
     human_readable[inst.Inst.ConstI32      as i32] = "i32.const";

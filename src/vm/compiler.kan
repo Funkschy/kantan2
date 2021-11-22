@@ -105,17 +105,24 @@ def (c: *IRCompiler) fill_local_offsets(): u64 {
     return util.next_multiple_of_8(offset);
 }
 
+def (c: *IRCompiler) location_offset(location: *memory.Location): u64 {
+    dbg.assert(location.kind == memory.LocationKind.Local, "globals are not implemented");
+    return c.local_offset(location.data.local);
+}
+
 def (c: *IRCompiler) local_offset(local: memory.Local): u64 {
     return *(c.local_offsets.get_ptr(local.idx as usize - 1) as *u64);
 }
 
 def (c: *IRCompiler) emit(i: Inst) {
+    dbg.assert(i.width_bytes() == 1, "trying to push an instruction without its operand");
     let byte = i as i32 as i8;
     c.code.push(&byte as *void);
 }
 
 def (c: *IRCompiler) emit_with_op(i: Inst, operand: u64, operand_bits: usize) {
-    c.emit(i);
+    let byte = i as i32 as i8;
+    c.code.push(&byte as *void);
 
     let n = 1;
     if operand_bits == 16 {
@@ -132,12 +139,8 @@ def (c: *IRCompiler) emit_with_op(i: Inst, operand: u64, operand_bits: usize) {
 }
 
 def (c: *IRCompiler) load_location_address(location: *memory.Location) {
-    dbg.assert(location.kind == memory.LocationKind.Local, "globals are not implemented");
-
     let width = c.width_bits(location);
-    let local = location.data.local;
-
-    c.emit_with_op(Inst.LocalPtr, c.local_offset(local), 32);
+    c.emit_with_op(Inst.LocalPtr, c.location_offset(location), 32);
 
     let proj_node = location.projection_head;
     while proj_node != null {
@@ -156,9 +159,6 @@ def (c: *IRCompiler) write_to_location(location: *memory.Location) {
     if c.typeof(location).is_unsized() || location.is_temp() {
         return;
     }
-
-    dbg.assert(location.kind == memory.LocationKind.Local, "globals are not implemented");
-    let local = location.data.local;
 
     // if this has projections, we first need the address of the memory location
     c.load_location_address(location);
@@ -224,6 +224,57 @@ def (c: *IRCompiler) load_operand(operand: *rvalue.Operand) {
     } else {
         c.load_location(&operand.data.copy);
     }
+}
+
+def is_const_one(op: *rvalue.Operand): bool {
+    return op.kind == rvalue.OperandKind.Constant
+        && op.data.constant.kind == const.ConstantKind.Int
+        && op.data.constant.data.int == 1;
+}
+
+def same_locations(target: *memory.Location, op: *rvalue.Operand): bool {
+    return op.kind == rvalue.OperandKind.Copy
+        && op.data.copy.equals(target);
+}
+
+// check if the following pattern applies:
+// for some ident i:
+//   i = i (+|-) 1 | i = 1 (+|-) i
+// if the pattern is found, only emit an 'inc i' instruction instead of the load+add+store
+def (c: *IRCompiler) optimize_assign(assign: *ir.Assign): bool {
+    if assign.value.kind != rvalue.ExpressionKind.Binary {
+        return false;
+    }
+
+    let binary = &assign.value.data.binary;
+    if binary.kind != rvalue.BinaryKind.Add {
+        return false;
+    }
+
+    let l = &binary.left;
+    let r = &binary.right;
+
+    let const_one: *rvalue.Operand = null;
+    let ident: *rvalue.Operand = null;
+
+    if is_const_one(l) {
+        const_one = l;
+        ident = r;
+    } else if is_const_one(r) {
+        const_one = r;
+        ident = l;
+    } else {
+        return false;
+    }
+
+    if !same_locations(&assign.location, ident) {
+        return false;
+    }
+
+    let inst = with_size(Inst.Inc8, c.width_bits(&assign.location));
+    c.emit_with_op(inst, c.location_offset(&assign.location), 32);
+
+    return true;
 }
 
 def (c: *IRCompiler) load_value_from_expr(expr: *rvalue.Expression) {
@@ -452,6 +503,11 @@ def (c: *IRCompiler) compile_function(f: *ir.Function) {
 
             if stmt.kind == ir.StatementKind.Assign {
                 let assign = &stmt.data.assign;
+
+                if c.optimize_assign(assign) {
+                    continue;
+                }
+
                 c.load_value_from_expr(&assign.value);
 
                 dbg.assert(assign.location.kind == memory.LocationKind.Local, "globals not implemented");

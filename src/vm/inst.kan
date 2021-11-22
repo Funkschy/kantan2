@@ -18,6 +18,19 @@ type Inst enum {
     // push(vm.bp + offset)
     LocalPtr,
 
+    // inc offset
+    //
+    // inc32 is equivalent to:
+    // localptr offset
+    // load32
+    // const.i32 1
+    // iadd
+    // store32 offset
+    Inc8,
+    Inc16,
+    Inc32,
+    Inc64,
+
     // constww constant
     // push a iww following this instruction onto the stack
     ConstI8,
@@ -125,6 +138,7 @@ def (i: Inst) _param_size_bytes(start: Inst, end: Inst): usize {
 def (i: Inst) width_bytes(): usize {
     let w: usize = 1;
     w += i._param_size_bytes(Inst.ConstI8, Inst.ConstI64);
+    w += (i >= Inst.Inc8 && i <= Inst.Inc64) as usize * 4;
     w += (i == Inst.EnterFunction) as usize * 4;
     w += (i == Inst.LocalPtr) as usize * 4;
     w += (i == Inst.LoadConst) as usize * 4;
