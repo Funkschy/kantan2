@@ -39,7 +39,8 @@ type IRCtx struct {
     string_literal_arena: *arena.TypedArena,
 
     projection_arena: *arena.TypedArena,
-    switch_case_arena: *arena.TypedArena
+    switch_case_arena: *arena.TypedArena,
+    op_node_arena: *arena.TypedArena
 }
 
 def create(
@@ -47,12 +48,14 @@ def create(
     string_literal_arena: *arena.TypedArena,
     proj_arena: *arena.TypedArena,
     case_arena: *arena.TypedArena,
+    op_node_arena: *arena.TypedArena,
     mod: *mod.Module
 ): IRCtx {
     dbg.assert(function_arena.elem_size == sizeof ir.Function, "wrong function arena size");
     dbg.assert(string_literal_arena.elem_size == sizeof StringLiteral, "wrong string_literal_arena size");
     dbg.assert(proj_arena.elem_size == sizeof memory.ProjectionNode, "wrong projection_arena size");
     dbg.assert(case_arena.elem_size == sizeof memory.ProjectionNode, "wrong case_arena size");
+    dbg.assert(op_node_arena.elem_size == sizeof rvalue.OperandNode, "wrong op_node_arena size");
 
     // this is a good guess, since most of the items in a module will be functions
     let functions = map.with_cap(mod.num_items());
@@ -76,13 +79,21 @@ def create(
         string_literal_head: null,
         string_literal_arena: string_literal_arena,
         projection_arena: proj_arena,
-        switch_case_arena: case_arena
+        switch_case_arena: case_arena,
+        op_node_arena: op_node_arena
     };
 }
 
 def (ctx: *IRCtx) free() {
     ctx.names.free();
     ctx.functions.free();
+}
+
+def (ctx: *IRCtx) alloc_op_node(op: rvalue.Operand, next: *rvalue.OperandNode): *rvalue.OperandNode {
+    let node = ctx.op_node_arena.alloc() as *rvalue.OperandNode;
+    node.value = op;
+    node.next = next;
+    return node;
 }
 
 def (ctx: *IRCtx) alloc_function(): *ir.Function {

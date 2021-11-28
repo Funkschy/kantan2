@@ -20,19 +20,13 @@ def finalize(ctx: *c.TyCtx, stmt: *Stmt): Result {
         let block = &stmt.data.block;
         let len = block.len();
 
-        let had_errors = false;
+        let result = Result.OK;
         for let i: usize = 0; i < len; i += 1 {
             let s = block.at(i);
-            if finalize(ctx, s).is_error() {
-                had_errors = true;
-            }
+            result = result.or(finalize(ctx, s));
         }
 
-        if had_errors {
-            return Result.Error;
-        }
-
-        return Result.OK;
+        return result;
     }
 
     if stmt.kind == StmtKind.LocalVarDecl {

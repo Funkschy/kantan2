@@ -523,15 +523,14 @@ def (t: *Terminator) to_json(): str.String {
         callee.free();
 
         json.push(str.view_from(", \"args\": ["));
-        let arg = t.data.call.args_head;
-        while arg != null {
+
+        for let arg = t.data.call.args_head; arg != null; arg = arg.next {
             if arg != t.data.call.args_head {
                 json.push(str.view(", ", 2));
             }
             let arg_json = arg.value.to_json();
             json.push(arg_json.view());
             arg_json.free();
-            arg = arg.next;
         }
         json.push(str.view("]", 1));
 

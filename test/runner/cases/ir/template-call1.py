@@ -70,7 +70,17 @@ expected_ir = [{
                                 'declared_in': kantan_filename(__file__),
                             },
                         },
-                        'args': [],
+                        'args': [
+                            {
+                                "kind": "copy",
+                                "location": {
+                                  "kind": "local",
+                                  "name": "_1",
+                                  "temp": False,
+                                  "projections": []
+                                }
+                            }
+                        ],
                         'dest': {
                             'kind': 'local',
                             'name': '_3',
