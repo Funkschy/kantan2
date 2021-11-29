@@ -64,6 +64,10 @@ def create(
         let item = mod.item_at(i);
         if item.kind == ast.ItemKind.FuncDef {
             let f = &item.data.func_def;
+            if f.instances.len() <= 0 {
+                continue; // skip unused templates
+            }
+
             let f_ty = f.instances.get(0);
             let function = (function_arena.alloc() as *ir.Function).init_def(item.name, f_ty);
             functions.insert(key_from_ident(item.name), function as *void);

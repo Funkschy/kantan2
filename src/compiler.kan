@@ -269,7 +269,7 @@ def (c: *Compiler) infer_and_check_types(): Result {
         ctx.open_scope(); // builtin scope
         ctx.init_builtin_types();
 
-        ctx.open_scope(); // global scope
+        ctx.open_scope(); // global scope for this module
 
         // resolve all the functions in the module
         // we need to do this before checking the function bodys in order to be able to call
@@ -281,24 +281,30 @@ def (c: *Compiler) infer_and_check_types(): Result {
 
     }
 
+    ctx.current_pass = ty_ctx.Pass.Functions;
     for let i: usize = 0; i < c.modmap.len(); i += 1 {
         let mod = c.modmap.at(i);
         ctx.set_module(mod);
-        // close builtin + global scope
-        defer ctx.close_scope();
-        defer ctx.close_scope();
 
         // actually check the function bodys
-        ctx.current_pass = ty_ctx.Pass.Functions;
         for let j: usize = 0; j < mod.num_items(); j += 1 {
             let item = mod.item_at(j);
             result = result.or(item_check.check(&ctx, item));
         }
+    }
+
+    if result.is_error() {
+        return result;
+    }
+
+    ctx.current_pass = ty_ctx.Pass.Templates;
+    for let i: usize = 0; i < c.modmap.len(); i += 1 {
+        let mod = c.modmap.at(i);
+        ctx.set_module(mod);
 
         // check the template bodys
-        ctx.current_pass = ty_ctx.Pass.Templates;
-        while ctx.had_unchecked_templates {
-            ctx.had_unchecked_templates = false;
+        while ctx.current_module_had_unchecked_templates() {
+            ctx.set_current_module_had_unchecked_templates(false);
 
             // repeat this, until there are no changes left
             // this is needed to resolve template instantiations from other template instantiations
@@ -307,6 +313,10 @@ def (c: *Compiler) infer_and_check_types(): Result {
                 result = result.or(item_check.check(&ctx, item));
             }
         }
+
+        // close builtin + global scope for this module
+        ctx.close_scope();
+        ctx.close_scope();
     }
 
     if result.is_error() {

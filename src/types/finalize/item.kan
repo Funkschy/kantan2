@@ -16,6 +16,9 @@ def finalize_signature(ctx: *c.TyCtx, item: *Item): Result {
     }
 
     let f = &item.data.func_def;
+    if f.instances.len() <= 0 {
+        return Result.OK; // skip unused templates
+    }
 
     // we create a new set, since mutating the types inside a set will make it invalid
     let new_instances = i.instance_set();
@@ -48,6 +51,10 @@ def finalize_signature(ctx: *c.TyCtx, item: *Item): Result {
 def finalize(ctx: *c.TyCtx, item: *Item): Result {
     if item.kind == ItemKind.FuncDef {
         let f = &item.data.func_def;
+        if f.instances.len() <= 0 {
+            return Result.OK; // skip unused templates
+        }
+
         // TODO: this does must happen per instance
         ctx.current_signature = f.instances.get(0);
         return stmt.finalize(ctx, f.block_stmt);

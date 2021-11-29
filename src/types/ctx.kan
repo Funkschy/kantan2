@@ -36,7 +36,13 @@ type ModuleContext struct {
     // this holds declared declarations, so signatures or templates
     decls: scope.ScopeStack,
     // this holds the imported modules with the alias as key
-    imports: map.Map // map.Map[str.View, *mod.Module]
+    imports: map.Map, // map.Map[str.View, *mod.Module]
+    // the template pass will be repeated, until this is false for all modules.
+    // This is needed, because templates can instantiate other templates with different type
+    // parameters and there is no way to know the amount of templates we will get at the end
+    // see: Compiler.infer_and_check_types() and InstanceSet.checked for more info
+    // TODO: this is suboptimal, because templates will be checked twice
+    had_unchecked_templates: bool
 }
 
 def (ctx: *ModuleContext) free() {
@@ -59,11 +65,6 @@ type TyCtx struct {
     call_graph: *graph.TypeGraph,
 
     current_pass: Pass,
-    // the template pass will be repeated, until this is false. This is needed, because templates
-    // can instantiate other templates with different type parameters and there is no way to know
-    // the amount of template we will get at the end
-    // see: Compiler.infer_and_check_types() and InstanceSet.checked for more info
-    had_unchecked_templates: bool,
 
     // the current functions signature or null, if in global scope
     current_signature: *Type,
@@ -90,7 +91,6 @@ def create(
         current_module: null,
         call_graph: call_graph,
         current_pass: Pass.Functions,
-        had_unchecked_templates: true,
         current_signature: null,
         final_i32_ty: null,
         final_f32_ty: null
@@ -103,6 +103,14 @@ def (ctx: *TyCtx) free() {
     }
     ctx.module_contexts.free();
     ctx.temp_arena.free();
+}
+
+def (ctx: *TyCtx) current_module_had_unchecked_templates(): bool {
+    return ctx.current_module.had_unchecked_templates;
+}
+
+def (ctx: *TyCtx) set_current_module_had_unchecked_templates(value: bool) {
+    ctx.current_module.had_unchecked_templates = value;
 }
 
 def (ctx: *TyCtx) set_module(module: *mod.Module) {
@@ -125,7 +133,8 @@ def (ctx: *TyCtx) set_module(module: *mod.Module) {
         values: scope.scope_stack(),
         types: scope.scope_stack(),
         decls: scope.scope_stack(),
-        imports: imports
+        imports: imports,
+        had_unchecked_templates: true
     };
     ctx.module_contexts.push(&mod_ctx as *void);
     ctx.current_module = ctx.module_contexts.get_ptr(module.index) as *ModuleContext;
