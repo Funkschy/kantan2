@@ -1,0 +1,5 @@
+import "../../helper/mod-with-template" as mod_with_template;
+
+def main() {
+    mod_with_template.f(1);
+}

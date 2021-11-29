@@ -1,0 +1,4 @@
+def [T] f(t: T): T {
+    return t;
+}
+

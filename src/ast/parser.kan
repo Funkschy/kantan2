@@ -294,6 +294,13 @@ def (p: *Parser) parse_next_import(): ParsedImport {
         return error_import();
     }
 
+    let alias = ident.empty();
+    if p.consume_optional(tok.TokenType.As) {
+        if p.consume_ident(&alias).is_error() {
+            return error_import();
+        }
+    }
+
     if p.consume(tok.TokenType.Semi).is_error() {
         p.sync();
         return error_import();
@@ -301,7 +308,7 @@ def (p: *Parser) parse_next_import(): ParsedImport {
 
     let decl = item.ImportDeclaration {
         path: ident.from_span(import_path.span),
-        alias: ident.empty()
+        alias: alias
     };
 
     return ParsedImport { is_present: true, was_error: false, import_decl: decl };
